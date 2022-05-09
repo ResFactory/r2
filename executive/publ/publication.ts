@@ -11,7 +11,6 @@ import * as k from "../../lib/knowledge/mod.ts";
 import * as fsA from "../../lib/fs/fs-analytics.ts";
 import * as fsT from "../../lib/fs/fs-tabular.ts";
 import * as fsLink from "../../lib/fs/link.ts";
-import * as fsInspect from "../../lib/fs/inspect.ts";
 import * as git from "../../lib/git/mod.ts";
 import * as notif from "../../lib/notification/mod.ts";
 import * as ws from "../../lib/workspace/mod.ts";
@@ -1215,27 +1214,6 @@ export abstract class TypicalPublication<
     ]);
   }
 
-  async inspectAssets(
-    inspector: (asset: fsInspect.InspectableAsset) => void,
-  ): Promise<void> {
-    // For any files that are in the content directory but were not "consumed"
-    // (transformed or rendered) we will assume that they should be inspected
-    for await (
-      const asset of fsInspect.discoverAssets(
-        {
-          // NOTE: this should match the content of this.linkAssets.
-          originRootPath: this.config.contentRootPath,
-          glob: "**/*",
-          options: { exclude: ["**/*.ts"] },
-          include: (we) =>
-            we.isFile && !this.consumedFileSysWalkPaths.has(we.path),
-        },
-      )
-    ) {
-      inspector(asset);
-    }
-  }
-
   /**
    * Supply all valid directives that should be handled by Markdown engines.
    * @returns list of directives we will allow in Markdown
@@ -1342,16 +1320,6 @@ export abstract class TypicalPublication<
 
   originationRefinery() {
     return this.routes.resourcesTreePopulatorSync();
-  }
-
-  // deno-lint-ignore no-explicit-any
-  inspectionRefinery(): rfGovn.ResourceRefinery<any> | undefined {
-    return undefined;
-  }
-
-  // deno-lint-ignore no-explicit-any
-  inspectionRefinerySync(): rfGovn.ResourceRefinerySync<any> | undefined {
-    return undefined;
   }
 
   persistersRefinery() {
@@ -1677,24 +1645,6 @@ export abstract class TypicalPublication<
     }
 
     return result;
-  }
-
-  async inspectResources(
-    resourcesIndex: PublicationResourcesIndex<unknown>,
-  ): Promise<void> {
-    const inspectSync = this.inspectionRefinerySync();
-    if (inspectSync) {
-      for (const resource of resourcesIndex.resources()) {
-        inspectSync(resource);
-      }
-    }
-
-    const inspect = this.inspectionRefinery();
-    if (inspect) {
-      for await (const resource of resourcesIndex.resources()) {
-        inspect(resource);
-      }
-    }
   }
 
   async finalizePrePersist(

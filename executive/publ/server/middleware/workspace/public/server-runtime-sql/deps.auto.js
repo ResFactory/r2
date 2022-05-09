@@ -59,6 +59,32 @@ function typicalSqlStmtsInventory(identity1 = "typicalSqlStmts") {
                 sqlStmts: [
                     {
                         database: DB(publicationDatabaseID),
+                        name: "resources-lint",
+                        label: "Show lint issues in resources",
+                        SQL: unindentWhitespace(`
+          USE DATABASE ${publicationDatabaseID};\n
+          SELECT resource_id, "space found in name/path" as issue, path, ""
+            FROM resource_fs_origin
+           WHERE name REGEXP "\\s+"
+              OR path REGEXP "\\s+"
+          UNION ALL
+          SELECT resource_id, "mixed case in name/path, should be all lowercase" as issue, path, ""
+            FROM resource_fs_origin
+           WHERE name REGEXP "[A-Z]"
+              OR path REGEXP "[A-Z]"
+          UNION ALL
+          SELECT resource_id, "unwanted character in route label" as issue, label, qualified_path
+            FROM resource_route_terminal
+            WHERE label REGEXP "[^a-zA-Z 0-9${"?!+,.\"'()#:-&/".split('').map((ch)=>`\\${ch}`
+                        ).join('')}]"
+          UNION ALL
+          SELECT resource_id, "label should not have ending period" as issue, label, qualified_path
+            FROM resource_route_terminal
+            WHERE label REGEXP "\\.\\s*$"`),
+                        qualifiedName: qualifiedNamePlaceholder
+                    },
+                    {
+                        database: DB(publicationDatabaseID),
                         name: "resources-indexed",
                         label: "Show all indexed resources",
                         SQL: unindentWhitespace(`
