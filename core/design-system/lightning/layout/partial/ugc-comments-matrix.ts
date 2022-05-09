@@ -11,7 +11,8 @@ export const ugcCommentsMatrix: ldsGovn.LightningPartial = (
   const fm= layout?.frontmatter as any;
   const matrixServerNameEnvVar = `${ugcEnvVarsPrefix}SERVER_NAME`;
   const matrixServerName = Deno.env.get(matrixServerNameEnvVar);
-  return `${matrixServerName && fm?.ugc?.comments ?
+  return `${matrixServerName ?
+    fm?.ugc?.comments ?
     `<div id="comment-section"></div>
 
     <script type="text/javascript" src="https://latest.cactus.chat/cactus.js"></script>
@@ -34,5 +35,7 @@ export const ugcCommentsMatrix: ldsGovn.LightningPartial = (
         document.querySelector(".cactus-send-button").innerHTML = "Post";
         document.querySelector(".cactus-logout-button").style.display = "none";
       });
-    </script>`: `No ${matrixServerNameEnvVar} is defined, declare it in .envrc`}`;
+    </script>`: ""
+    : `No ${matrixServerNameEnvVar} is defined, declare it in .envrc`
+  }`;
 };
