@@ -754,10 +754,8 @@ export const prepareContextBar = () => {
     }
 
     const inspectable = inspectableWindow();
-    console.log({ inspectable });
     if (inspectable) {
         const parser = new URL(inspectable.location);
-        console.log({ inspectable, parser });
         if (parser.searchParams.get('serverResourceImpactAction') == "reload") {
             const fsAbsPathAndFileNameImpacted = parser.searchParams.get('serverResourceImpacted');
             contextBarHTML += `&nbsp;&nbsp;&nbsp;<i class="fa-solid fa-repeat" title="reloaded due to ${fsAbsPathAndFileNameImpacted} impact"></i>`;
@@ -806,6 +804,7 @@ export const activateSite = () => {
     navPrime.innerHTML = `
         ${contextBarHTML ? `<div class="context">${contextBarHTML}</div>` : ''}<!--
         --><a href="${baseURL}/resource/index.html"><i class="fa-solid fa-file-lines"></i> Resource</a><!--
+        --><a href="${baseURL}/pipeline/index.html" title="Content Pipeline"><i class="fa-solid fa-code-fork"></i></i> Pipeline</a><!--
         --><a href="${baseURL}/design-system/index.html"><i class="fa-solid fa-layer-group"></i> Design System</a><!--
         --><a href="${baseURL}/site/index.html"><i class="fa-solid fa-sitemap"></i> Site</a><!--
         --><a href="${baseURL}/server-runtime-sql/index.html"><i class="fa-solid fa-database"></i> SQL</a><!--

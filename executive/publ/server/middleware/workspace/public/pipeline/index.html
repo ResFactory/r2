@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="../path.actuate.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        .mermaid svg {
+            height: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mermaid">
+        sequenceDiagram
+        Source->>+Proxyable: Deferred Shell/CLI
+        Source->>+Proxyable: Deferred Database
+        Source->>+Proxyable: Deferred API
+
+        Origination->>+Instantiation: **/*.md
+
+        Source->>+Instantiation: Immediate Shell/CLI
+        Source->>+Instantiation: Immediate Database
+        Source->>+Instantiation: Immediate API
+
+        Instantiation->>+Registration: index resources
+
+        Registration->>+Rendering: transform content
+        Rendering->>+Production: persist results
+    </div>
+
+    <div class="mermaid">
+        flowchart TB
+        shell[[Shell/CLI]]
+        db[(Database)]
+        api>API]
+
+        subgraph proxyable[Proxyable]
+        fsJsonModelProxies[[JSON Models]]
+        fsDirectoryProxies[[Directories]]
+        fsSyncReadableProxies[[Syncable Readable]]
+        dsProxiedAssets[[DS Assets]]
+        end
+
+        subgraph origination[Origination]
+        fsGlobs[[fs Globs]]
+        end
+
+        subgraph instantiation[Instantiation]
+        staticHtmlResource[Static HTML Resource]
+        staticMarkdownResource[Static Markdown Resource]
+        markdownModuleResource[Markdown Module Resource]
+        end
+
+        subgraph registration[Registration]
+        resIndex[/Resources Index/] -.- resTree
+        resTree[\Resources Tree/] -.- resNavTree
+        resNavTree[\Navigation Tree/]
+        end
+
+        subgraph rendering[Rendering]
+        renderStaticHTML[\Static HTML\]
+        renderAliasedHTML[\Aliased HTML\]
+        renderMarkdownHTML[\Markdown to HTML\]
+        renderStaticJSON[\Static JSON\]
+        renderStaticJavascript[\Static JS\]
+        end
+
+        subgraph designSystem[Design System]
+        ds[Design Systems] -.- dsLayouts
+        dsLayouts[DS Layouts]
+        webComponents[Web Components] -.-> mdDirectives[Markdown Directives]
+        dsAssets[[DS Assets]]
+        end
+
+        subgraph production[Production]
+        persistHTML[/Persist HTML\]
+        persistJSON[/Persist JSON\]
+        persistJS[/Persist JS\]
+        end
+
+        shell -->|Deferred| proxyable
+        db -->|Deferred| proxyable
+        api -->|Deferred| proxyable
+
+        shell -->|Immediate| instantiation
+        db -->|Immediate| instantiation
+        api -->|Immediate| instantiation
+
+        proxyable --> origination
+        origination --> instantiation
+
+        instantiation --> registration
+
+        registration --> rendering
+        rendering --> production
+
+        designSystem --> rendering
+    </div>
+
+    <script type="module">
+        import * as path from "../path.actuate.mjs";
+        import * as srScriptDeps from "../server-runtime-script/deps.auto.js";
+        import * as agG from "../aggrid.mjs";
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // setup events, stores, and effects listeners so that we can be
+            // as decoupled from business logic as possible
+
+            const scriptsInventory = srScriptDeps.typicalScriptsInventory();
+            window.srScriptRenderHook = (scriptID) => {
+                const srScript = scriptsInventory.script(scriptID);
+                return ({ target }) => path.watchPageFetchServerRuntimeScriptJsonFxDone({ srScript, autoActivate: true }, target.renderFx);
+            }
+
+            // check all the DOM elements to see if any events, stores, or effects
+            // want to "hook" into the Effector instances; assume all domEffects'
+            // eval()'s are done in this visiblity context
+            path.prepareDomEffects({ evalJS: (js) => eval(js) });
+
+            const populateTreeNodes = (treeContainer, items) => {
+                items.sort((a, b) => (a.label > b.label) ? 1 : -1).forEach(i => {
+                    const isParent = i.children && i.children.length ? true : false;
+                    if (isParent) {
+                        const details = document.createElement("details");
+                        details.classList.add("inspect", "parent", "nav-target");
+                        treeContainer.appendChild(details);
+                        const summary = document.createElement("summary");
+                        summary.innerText = i.label || i.unit || JSON.stringify(i);
+                        details.appendChild(summary);
+                        if (i.children && i.children.length > 0) {
+                            populateTreeNodes(details, i.children);
+                        }
+                    } else {
+                        const text = document.createElement("div");
+                        text.classList.add("inspect", "leaf", "nav-target");
+                        text.innerText = i.label || i.unit || JSON.stringify(i);
+                        treeContainer.appendChild(text);
+                    }
+                });
+            };
+
+            path.watchPageFetchServerRuntimeScriptJsonFxDone({
+                srScript: scriptsInventory.script('typicalScripts_site_navigation-tree-items.js.json'),
+                autoActivate: true
+            }, ({ params, result: items }) => {
+                const elem = document.querySelector("#ui-navigation-tree");
+                if (!elem.dataset.isPopulated) {
+                    elem.dataset.isPopulated = "yes";
+                    populateTreeNodes(elem, items);
+                }
+            });
+
+            path.watchPageFetchServerRuntimeScriptJsonFxDone({
+                srScript: scriptsInventory.script('typicalScripts_site_resources-tree-items.js.json'),
+                autoActivate: true
+            }, ({ params, result: items }) => {
+                const elem = document.querySelector("#all-resources-tree");
+                if (!elem.dataset.isPopulated) {
+                    elem.dataset.isPopulated = "yes";
+                    populateTreeNodes(elem, items);
+                }
+            });
+
+            // all listeners are ready so let's activate the page and trigger the watchers
+            path.activatePageFx();
+            mermaid.initialize({ theme: "base" });
+        });
+    </script>
+</body>
+
+</html>
