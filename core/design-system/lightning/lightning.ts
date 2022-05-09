@@ -187,3 +187,21 @@ export class LightingDesignSystem<Layout extends ldsGovn.LightningLayout>
     return result as Layout; // TODO: consider not casting to type
   }
 }
+
+export function lightningLintReporter(): html.DesignSystemLintReporter<
+  ldsGovn.LightningLayout
+> {
+  return {
+    report: (ld: html.DesignSystemLintDiagnostic<ldsGovn.LightningLayout>) => {
+      ldsDirec.registerActionItems(ld.layout.bodySource, undefined, {
+        type: "lint-issue",
+        subject: `${ld.rule.humanFriendly} (${ld.rule.code})`,
+      });
+    },
+    diagnostic: (rule, layout) => ({ rule, layout }),
+    diagsShouldBeTemporary: {
+      code: "diagnostics-should-be-temporary",
+      humanFriendly: "turn off `layout: diagnostics` in frontmatter",
+    },
+  };
+}
