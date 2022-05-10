@@ -47,7 +47,10 @@ export function gitLabWorkTreeAssetVsCodeURL(
   };
 }
 
-export function gitLabResolvers(gitLabRemoteUrlPrefix: string) {
+export function gitLabResolvers(
+  gitLabRemoteUrlPrefix: string,
+  remoteServerHumanName: string,
+) {
   const assetUrlResolver = gitLabAssetUrlResolver(gitLabRemoteUrlPrefix);
   const commitResolver = gitLabRemoteCommitResolver(gitLabRemoteUrlPrefix);
   const gitWorkTreeAssetVsCodeURL = gitLabWorkTreeAssetVsCodeURL(
@@ -84,7 +87,7 @@ export function gitLabResolvers(gitLabRemoteUrlPrefix: string) {
               href,
               textContent: `${route.origin.label} in ${
                 path.basename(asset.assetPathRelToWorkTree)
-              } on gl.infra.medigy.com`,
+              } on ${remoteServerHumanName}`,
             };
             return result;
           }
@@ -107,7 +110,7 @@ export function gitLabResolvers(gitLabRemoteUrlPrefix: string) {
               ...asset,
               href,
               textContent:
-                `${terminal.fileSysPathParts.base} on gl.infra.medigy.com`,
+                `${terminal.fileSysPathParts.base} on ${remoteServerHumanName}`,
             };
             return result;
           }
