@@ -1,4 +1,7 @@
 import * as git from "../../lib/git/mod.ts";
+import * as rfGovn from "../../governance/mod.ts";
+import * as rfStd from "../../core/std/mod.ts";
+import * as rfHtmlDS from "../../core/render/html/mod.ts";
 
 export const gitLabRemoteID = "gitLab-remote" as const;
 export const vsCodeLocalID = "vscode-local" as const;
@@ -41,5 +44,81 @@ export function gitLabWorkTreeAssetVsCodeURL(
   return {
     identity: vsCodeLocalID,
     gitAssetUrl: () => `TODO`,
+  };
+}
+
+export function gitLabResolvers(gitLabRemoteUrlPrefix: string) {
+  const assetUrlResolver = gitLabAssetUrlResolver(gitLabRemoteUrlPrefix);
+  const commitResolver = gitLabRemoteCommitResolver(gitLabRemoteUrlPrefix);
+  const gitWorkTreeAssetVsCodeURL = gitLabWorkTreeAssetVsCodeURL(
+    gitLabRemoteUrlPrefix,
+  );
+
+  const mGitResolvers: git.ManagedGitResolvers<string> = {
+    ...git.typicalGitWorkTreeAssetUrlResolvers<string>(
+      assetUrlResolver,
+      gitWorkTreeAssetVsCodeURL,
+    ),
+    remoteCommit: commitResolver,
+    workTreeAsset: git.typicalGitWorkTreeAssetResolver,
+    cicdBuildStatusHTML: () =>
+      `<a href="${gitLabRemoteUrlPrefix}/-/commits/master"><img alt="pipeline status" src="${gitLabRemoteUrlPrefix}/badges/master/pipeline.svg"/></a>`,
+  };
+
+  const routeGitRemoteResolver: rfGovn.RouteGitRemoteResolver<
+    rfHtmlDS.GitRemoteAnchor
+  > = (route, branch, paths) => {
+    if (route.origin && rfStd.isModuleRouteOrigin(route.origin)) {
+      const candidate = route.origin.moduleImportMetaURL;
+      if (candidate.startsWith("file:")) {
+        const asset = mGitResolvers.workTreeAsset(
+          path.fromFileUrl(candidate),
+          branch,
+          paths,
+        );
+        if (asset) {
+          const href = assetUrlResolver.gitAssetUrl(asset);
+          if (href) {
+            const result: rfHtmlDS.GitRemoteAnchor = {
+              ...asset,
+              href,
+              textContent: `${route.origin.label} in ${
+                path.basename(asset.assetPathRelToWorkTree)
+              } on gl.infra.medigy.com`,
+            };
+            return result;
+          }
+        }
+      }
+    }
+
+    const terminal = route.terminal;
+    if (terminal) {
+      if (rfStd.isFileSysRouteUnit(terminal)) {
+        const asset = mGitResolvers.workTreeAsset(
+          terminal.fileSysPath,
+          branch,
+          paths,
+        );
+        if (asset) {
+          const href = assetUrlResolver.gitAssetUrl(asset);
+          if (href) {
+            const result: rfHtmlDS.GitRemoteAnchor = {
+              ...asset,
+              href,
+              textContent:
+                `${terminal.fileSysPathParts.base} on gl.infra.medigy.com`,
+            };
+            return result;
+          }
+        }
+      }
+    }
+    return undefined;
+  };
+
+  return {
+    mGitResolvers,
+    routeGitRemoteResolver,
   };
 }

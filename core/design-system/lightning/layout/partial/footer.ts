@@ -13,7 +13,7 @@ export const footerFixedCopyrightBuildPartial: ldsGovn.LightningPartial = (
     | undefined;
   let changelogReportHref: string | undefined;
   const buildStatusHTML = layout.contentStrategy.mGitResolvers
-    ?.cicdBuildStatusHTML(layout);
+    ?.cicdBuildStatusHTML?.(layout);
   if (layout.contentStrategy.git) {
     const cached = layout.contentStrategy.git.cached;
     gitBranch = cached.currentBranch || "??";
@@ -31,7 +31,7 @@ export const footerFixedCopyrightBuildPartial: ldsGovn.LightningPartial = (
       )
       : undefined;
     changelogReportHref = cached.mostRecentCommit
-      ? layout.contentStrategy.mGitResolvers?.changelogReportAnchorHref(
+      ? layout.contentStrategy.mGitResolvers?.changelogReportAnchorHref?.(
         cached.mostRecentCommit,
       )
       : undefined;
