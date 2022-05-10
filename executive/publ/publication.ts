@@ -330,7 +330,7 @@ export interface Preferences<
   readonly operationalCtx: OperationalContext;
   readonly contentRootPath: fsg.FileSysPathText;
   readonly destRootPath: fsg.FileSysPathText;
-  readonly resFactoryRootPath?: fsg.FileSysPathText;
+  readonly resFactoryRootPath?: ResFactoryHomePathSupplier;
   readonly observability?: rfStd.Observability;
   readonly appName?: string;
   readonly envVarNamesPrefix?: string;
@@ -374,7 +374,7 @@ export class Configuration<
   readonly diagnosticsRoute: rfGovn.Route;
   readonly contentRootPath: fsg.FileSysPathText;
   readonly destRootPath: fsg.FileSysPathText;
-  readonly resFactoryRootPath?: fsg.FileSysPathText;
+  readonly resFactoryRootPath?: ResFactoryHomePathSupplier;
   readonly appName?: string;
   readonly mGitResolvers?: git.ManagedGitResolvers<string>;
   readonly routeGitRemoteResolver?: rfGovn.RouteGitRemoteResolver<
@@ -401,7 +401,7 @@ export class Configuration<
     this.resFactoryGit = prefs.resFactoryRootPath
       ? (this.mGitResolvers
         ? git.discoverGitWorktreeExecutiveSync(
-          prefs.resFactoryRootPath,
+          prefs.resFactoryRootPath("", true),
           (gp) => new git.TypicalGit(gp, this.mGitResolvers!),
         )
         : undefined)
