@@ -13,6 +13,7 @@ import * as fsg from "../../../core/originate/file-sys-globs.ts";
 import * as tfsg from "../../../core/originate/typical-file-sys-globs.ts";
 import * as md from "../../../core/resource/markdown.ts";
 import * as g from "../../../lib/git/mod.ts";
+import * as synHL from "../../typical/html-contrib-syntax-highlight.ts";
 
 export const universalAssetsBaseUnit = "universal-cc";
 export const universalAssetsBaseURL = `/${universalAssetsBaseUnit}`;
@@ -73,15 +74,15 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
 
   constructor(
     // deno-lint-ignore no-explicit-any
-    config: publ.Configuration<any>,
+    readonly publConfig: publ.Configuration<any>,
     routes: publ.PublicationRoutes,
   ) {
     this.designSystem = new lds.LightingDesignSystem(
-      config.extensionsManager,
+      publConfig.extensionsManager,
       universalAssetsBaseURL,
     );
     this.contentStrategy = {
-      git: config.contentGit,
+      git: publConfig.contentGit,
       layoutText: new lds.LightingDesignSystemText(),
       navigation: new lds.LightingDesignSystemNavigation(
         true,
@@ -89,23 +90,23 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
       ),
       assets: this.designSystem.assets(),
       branding: {
-        contextBarSubject: config.appName,
+        contextBarSubject: publConfig.appName,
         contextBarSubjectImageSrc: (assets) =>
           assets.image("/asset/image/brand/logo-icon-100x100.png"),
       },
-      mGitResolvers: config.mGitResolvers,
-      routeGitRemoteResolver: config.routeGitRemoteResolver,
+      mGitResolvers: publConfig.mGitResolvers,
+      routeGitRemoteResolver: publConfig.routeGitRemoteResolver,
       renderedAt: new Date(),
-      wsEditorResolver: config.wsEditorResolver,
-      wsEditorRouteResolver: config.wsEditorResolver
+      wsEditorResolver: publConfig.wsEditorResolver,
+      wsEditorRouteResolver: publConfig.wsEditorResolver
         ? std.defaultRouteWorkspaceEditorResolver(
-          config.wsEditorResolver,
+          publConfig.wsEditorResolver,
         )
         : undefined,
       lintReporter: lds.lightningLintReporter(),
       initContributions: (layout) =>
-        this.dsinitContributions(layout, layout.designSystem.contributions()),
-      termsManager: config.termsManager,
+        this.dsInitContributions(layout, layout.designSystem.contributions()),
+      termsManager: publConfig.termsManager,
       operationalCtxClientCargo: {
         acquireFromURL: "/operational-context/index.json",
         assetsBaseAbsURL: "/operational-context",
@@ -113,7 +114,7 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
     };
   }
 
-  dsinitContributions(
+  dsInitContributions(
     layout: Omit<lds.LightningLayout, "contributions">,
     suggested: ds.HtmlLayoutContributions,
   ): ds.HtmlLayoutContributions {
@@ -122,20 +123,13 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
         const visualCues = layout.frontmatter?.["visual-cues"];
         if (isVisualCuesFrontmatter(visualCues)) {
           const highlighter = visualCues["syntax-highlight"];
-          switch (highlighter) {
-            case "highlight.js":
-              suggested.stylesheets.aft
-                `<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/styles/default.min.css">`;
-              suggested.scripts.aft
-                `<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.2.0/highlight.min.js"></script>`;
-              suggested.body.aft`<script>hljs.highlightAll();</script>`;
-              break;
-            default:
-              // TODO: report as lint diagnostic or some other way
-              console.error(
-                `Frontmatter "visual-cues"."syntax-highlighter" is invalid type: "${highlighter}" in ${layout
-                  .activeRoute?.terminal?.qualifiedPath}`,
-              );
+          if (!synHL.htmlSyntaxHighlightContribs(suggested, highlighter)) {
+            this.publConfig.operationalCtx.publStateDB().persistServerError({
+              locationHref: layout
+                .activeRoute?.terminal?.qualifiedPath,
+              errorSummary:
+                `Frontmatter "visual-cues"."syntax-highlighter" is invalid type: "${highlighter}"`,
+            });
           }
         }
       }
