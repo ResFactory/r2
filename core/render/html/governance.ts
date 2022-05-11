@@ -59,7 +59,6 @@ export type HtmlLayoutDiagnosticsRequest =
 
 export interface HtmlLayoutArguments {
   readonly diagnostics?: HtmlLayoutDiagnosticsRequest;
-  readonly redirectConsoleToHTML?: boolean;
 }
 
 // TODO: implement contexts like production, sandbox, devl, test, staging, etc.

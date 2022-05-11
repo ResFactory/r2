@@ -351,45 +351,6 @@ function rfUniversalLayout(prepareLayoutCtx) {
   return layoutResult;
 }
 
-const consoleLogWarningStyles = `
-  color: #fff;
-  background-color: #c23934;
-  display: block;
-  text-align: center;
-  padding: 8px 32px;
-  font: 100 16px/28px sans-serif;
-  background-image: linear-gradient(45deg,rgba(0,0,0,.025) 25%,transparent 25%,transparent 50%,rgba(0,0,0,.025) 50%,rgba(0,0,0,.025) 75%,transparent 75%,transparent);
-  background-size: 64px 64px;
-`;
-
-/**
- * Uses https://github.com/Alorel/console-log-html to redirect console.* output to an HTML DOM element.
- * @param {*} redirectConsoleContainerID
- */
-// deno-lint-ignore no-unused-vars
-const redirectConsoleToHTML = (
-  redirectConsoleContainerID = "container_redirectConsole",
-) => {
-  const ldsRedirectConsoleContainer = document.getElementById(redirectConsoleContainerID);
-  if (ldsRedirectConsoleContainer) {
-    $script(
-      "//cdn.rawgit.com/Alorel/console-log-html/master/console-log-html.min.js",
-      function () {
-        ConsoleLogHTML.connect(ldsRedirectConsoleContainer);
-        console.log(
-          `Element ID '${redirectConsoleContainerID}' is logging console output. See github.com/Alorel/console-log-html for usage instructions.`,
-        );
-      },
-    );
-  } else {
-    console.log(
-      "%c%s",
-      consoleLogWarningStyles,
-      `Element with ID '${redirectConsoleContainerID}' required by redirectConsoleToHTML() does not exist.`,
-    );
-  }
-};
-
 const MINUTE = 60,
   HOUR = MINUTE * 60,
   DAY = HOUR * 24,

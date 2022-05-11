@@ -70,15 +70,3 @@ export const typicalTailPartial: ldsGovn.LightningPartial = (layout) => {
   </script>` : ''}
   <script src="${layout.contentStrategy.assets.uScript("/typical-aft.js")}"></script>`
 };
-
-// deno-fmt-ignore (because we don't want ${...} wrapped)
-export const redirectConsoleContainerPartial: ldsGovn.LightningPartial = (layout) => layout.redirectConsoleToHTML ? `
-<ul id="container_redirectConsole"></ul>` : `<!-- layout.redirectConsoleToHTML is false -->
-<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MX2G8XW"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->`;
-
-// deno-fmt-ignore (because we don't want ${...} wrapped)
-export const redirectConsolePartial: ldsGovn.LightningPartial = (layout) => layout.redirectConsoleToHTML ? `
-<script>redirectConsoleToHTML()</script>` : `<!-- layout.redirectConsoleToHTML is false -->`;

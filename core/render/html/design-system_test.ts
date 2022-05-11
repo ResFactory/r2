@@ -16,30 +16,25 @@ Deno.test(`design system layout arguments`, () => {
   ta.assert(mod.isDesignSystemLayoutArgumentsSupplier(testFM2));
   ta.assert(typeof testFM2.layout != "string");
   ta.assert(!testFM2.layout.diagnostics);
-  ta.assert(!testFM2.layout.redirectConsoleToHTML);
 
   const testFM3: govn.UntypedFrontmatter = {
     layout: {
       identity: "ds/page/layout",
       diagnostics: true,
-      redirectConsoleToHTML: true,
     },
   };
   ta.assert(mod.isDesignSystemLayoutArgumentsSupplier(testFM3));
   ta.assert(typeof testFM3.layout != "string");
   ta.assert(testFM3.layout.diagnostics);
-  ta.assert(testFM3.layout.redirectConsoleToHTML);
 
   const testFM4: govn.UntypedFrontmatter = {
     layout: {
       diagnostics: true,
-      redirectConsoleToHTML: true,
     },
   };
   ta.assert(mod.isDesignSystemLayoutArgumentsSupplier(testFM4));
   ta.assert(typeof testFM4.layout != "string");
   ta.assert(testFM4.layout.diagnostics);
-  ta.assert(testFM4.layout.redirectConsoleToHTML);
 });
 
 Deno.test(`design system arguments`, () => {

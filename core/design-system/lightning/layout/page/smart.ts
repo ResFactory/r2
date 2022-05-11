@@ -12,7 +12,6 @@ export const smartNavigationPage = t.lightningTemplate("lds/page/default", {modu
   </head>
   <body>
   ${(layout) => layout.contributions.body.contributions("fore")}
-  ${p.redirectConsoleContainerPartial}
   ${p.resourceDiagnosticsPartial}
   <header class="slds-no-print">
   ${p.contextBarPartial}
@@ -50,7 +49,6 @@ export const smartNavigationPage = t.lightningTemplate("lds/page/default", {modu
   ${p.asideTocPartial}
   ${p.footerFixedCopyrightBuildPartial}
   ${p.typicalTailPartial}
-  ${p.redirectConsolePartial}
   ${(layout) => layout.contributions.body.contributions("aft")}
   </body>
 </html>`;

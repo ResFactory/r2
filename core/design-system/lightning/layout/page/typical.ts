@@ -32,7 +32,6 @@ export const typicalPageSurroundBodyPrePartial: ldsGovn.LightningPartial = (layo
   </head>
   <body>
     ${layout.contributions.body.contributions("fore").text()}
-    ${p.redirectConsoleContainerPartial(layout)}
     ${p.resourceDiagnosticsPartial(layout)}
     <header class="slds-no-print">
       ${p.contextBarPartial(layout)}
@@ -42,7 +41,6 @@ export const typicalPageSurroundBodyPrePartial: ldsGovn.LightningPartial = (layo
 export const typicalPageSurroundBodyPostPartial: ldsGovn.LightningPartial = (layout) => `<!-- typicalPageSurroundBodyPost -->
     ${p.footerFixedCopyrightBuildPartial(layout)}
     ${p.typicalTailPartial(layout)}
-    ${p.redirectConsolePartial(layout)}
     ${layout.contributions.body.contributions("aft").text()}
   </body>`
 
@@ -112,7 +110,6 @@ export const noDefinitiveLayoutPage = lightningTemplate("lds/page/no-layout", {m
     ${(layout) => layout.contributions.head.contributions("aft")}
   </head>
   <body>
-    ${p.redirectConsoleContainerPartial}
     <h1>SLDS Diagnostics</h2>
     You did not choose a proper layout either programmtically or through frontmatter.
     ${p.resourceDiagnosticsPartial}
@@ -120,7 +117,6 @@ export const noDefinitiveLayoutPage = lightningTemplate("lds/page/no-layout", {m
     <pre><code class="language-js">${(layout) => c.escapeHTML(Deno.inspect(layout.layoutSS, { depth: undefined }).trimStart())}</code></pre>
     ${p.footerFixedCopyrightBuildPartial}
     ${p.typicalTailPartial}
-    ${p.redirectConsolePartial}
   </body>
 </html>`;
 
