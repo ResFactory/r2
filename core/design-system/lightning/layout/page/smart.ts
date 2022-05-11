@@ -1,6 +1,5 @@
 import * as p from "../partial/mod.ts";
 import * as t from "./typical.ts";
-import * as ucm from "../partial/ugc-comments-matrix.ts";
 
 // deno-fmt-ignore (because we don't want ${...} wrapped)
 export const smartNavigationPage = t.lightningTemplate("lds/page/default", {moduleImportMetaURL: import.meta.url})`<!DOCTYPE html>
@@ -49,7 +48,6 @@ export const smartNavigationPage = t.lightningTemplate("lds/page/default", {modu
     </div>
   </main>
   ${p.asideTocPartial}
-  ${ucm.ugcCommentsMatrix}
   ${p.footerFixedCopyrightBuildPartial}
   ${p.typicalTailPartial}
   ${p.redirectConsolePartial}
