@@ -30,6 +30,7 @@ export const isContributedText = safety.typeGuard<ContributedText>(
 export interface TextContributionsPlaceholder {
   readonly isTextContributionsPlaceholder: true;
   readonly contributions: ContributedText[];
+  readonly text: (separator?: string) => string;
 }
 
 export const isTextContributionsPlaceholder = safety.typeGuard<
@@ -112,37 +113,48 @@ export function contributions(placeholderText: string): Contributions {
               return {
                 isTextContributionsPlaceholder: true,
                 contributions: result.storage.filter((cc) => cc.weight < 0)
-                  .sort(
-                    compareWeight,
-                  ),
+                  .sort(compareWeight),
+                text: (separator) =>
+                  result.storage.filter((cc) => cc.weight < 0)
+                    .sort(compareWeight).map((c) => c.content).join(separator),
               };
             case "prime":
               return {
                 isTextContributionsPlaceholder: true,
                 contributions: result.storage.filter((cc) => cc.weight == 0)
-                  .sort(
-                    compareWeight,
-                  ),
+                  .sort(compareWeight),
+                text: (separator) =>
+                  result.storage.filter((cc) => cc.weight == 0)
+                    .sort(compareWeight).map((c) => c.content).join(separator),
               };
             case "aft":
               return {
                 isTextContributionsPlaceholder: true,
                 contributions: result.storage.filter((cc) => cc.weight > 0)
-                  .sort(
-                    compareWeight,
-                  ),
+                  .sort(compareWeight),
+                text: (separator) =>
+                  result.storage.filter((cc) => cc.weight > 0)
+                    .sort(compareWeight).map((c) => c.content).join(separator),
               };
           }
         } else {
           return {
             isTextContributionsPlaceholder: true,
             contributions: result.storage.filter(filter).sort(compareWeight),
+            text: (separator) =>
+              result.storage.filter(filter).sort(compareWeight).map((c) =>
+                c.content
+              ).join(separator),
           };
         }
       }
       return {
         isTextContributionsPlaceholder: true,
         contributions: result.storage.sort(compareWeight),
+        text: (separator) =>
+          result.storage.sort(compareWeight).map((c) => c.content).join(
+            separator,
+          ),
       };
     },
     storage,

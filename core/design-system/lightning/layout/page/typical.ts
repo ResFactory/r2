@@ -26,12 +26,12 @@ ${layout.activeTreeNode ? `<div class="schema-header">
 export const typicalPageSurroundBodyPrePartial: ldsGovn.LightningPartial = (layout) => `<!-- typicalPageSurroundBodyPre -->
   <head>
     ${p.typicalHeadPartial(layout)}
-    ${layout.contributions.scripts.contributions().contributions.join("\n")}
-    ${layout.contributions.stylesheets.contributions().contributions.join("\n")}
-    ${layout.contributions.head.contributions("aft").contributions.join("\n")}
+    ${layout.contributions.scripts.contributions().text()}
+    ${layout.contributions.stylesheets.contributions().text()}
+    ${layout.contributions.head.contributions("aft").text()}
   </head>
   <body>
-    ${layout.contributions.body.contributions("fore").contributions.join("\n")}
+    ${layout.contributions.body.contributions("fore").text()}
     ${p.redirectConsoleContainerPartial(layout)}
     ${p.resourceDiagnosticsPartial(layout)}
     <header class="slds-no-print">
@@ -43,7 +43,7 @@ export const typicalPageSurroundBodyPostPartial: ldsGovn.LightningPartial = (lay
     ${p.footerFixedCopyrightBuildPartial(layout)}
     ${p.typicalTailPartial(layout)}
     ${p.redirectConsolePartial(layout)}
-    ${layout.contributions.body.contributions("aft").contributions.join("\n")}
+    ${layout.contributions.body.contributions("aft").text()}
   </body>`
 
 // deno-fmt-ignore (because we don't want ${...} wrapped)

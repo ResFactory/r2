@@ -7,7 +7,7 @@ export const typicalBodyPartial: ldsGovn.LightningPartial = (_, body) =>
 
 // deno-fmt-ignore (because we don't want ${...} wrapped)
 export const typicalHeadPartial: ldsGovn.LightningPartial = (layout) => `
-${layout.contributions.head.contributions("fore").contributions.join("\n")}
+${layout.contributions.head.contributions("fore").text()}
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
