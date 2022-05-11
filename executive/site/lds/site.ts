@@ -14,6 +14,7 @@ import * as tfsg from "../../../core/originate/typical-file-sys-globs.ts";
 import * as md from "../../../core/resource/markdown.ts";
 import * as g from "../../../lib/git/mod.ts";
 import * as synHL from "../../typical/html-contrib-syntax-highlight.ts";
+import * as ugcCMC from "../../typical/html-contrib-ugc-comments-matrix-cactus.ts";
 
 export const universalAssetsBaseUnit = "universal-cc";
 export const universalAssetsBaseURL = `/${universalAssetsBaseUnit}`;
@@ -61,16 +62,30 @@ export function preparePopulateClientCargo(
 export interface VisualCuesFrontmatter {
   readonly "syntax-highlight": "highlight.js";
 }
+
 export const isVisualCuesFrontmatter = safety.typeGuard<VisualCuesFrontmatter>(
   "syntax-highlight",
 );
+
 export const isVisualCuesFrontmatterSupplier = safety.typeGuard<
   { "visual-cues": VisualCuesFrontmatter }
 >("visual-cues");
 
+export interface UserGeneratedContentFrontmatter {
+  readonly ugc: { comments: boolean };
+}
+
+export const isUserGeneratedContentFrontmatter = safety.typeGuard<
+  UserGeneratedContentFrontmatter
+>(
+  "ugc",
+);
+
 export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
   readonly designSystem: lds.LightingDesignSystem<lds.LightningLayout>;
   readonly contentStrategy: lds.LightingDesignSystemContentStrategy;
+  readonly cactusConfig?: ugcCMC.CactusMatrixServerConfig;
+  protected cactusConfigEnvVarsSought?: string[];
 
   constructor(
     // deno-lint-ignore no-explicit-any
@@ -112,6 +127,13 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
         assetsBaseAbsURL: "/operational-context",
       },
     };
+    this.cactusConfig = ugcCMC.cactusMatrixServerEnvConfig(
+      "MATRIX_",
+      (sought) => {
+        this.cactusConfigEnvVarsSought = sought;
+        return undefined;
+      },
+    );
   }
 
   dsInitContributions(
@@ -131,6 +153,20 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
                 `Frontmatter "visual-cues"."syntax-highlighter" is invalid type: "${highlighter}"`,
             });
           }
+        }
+      }
+      if (
+        isUserGeneratedContentFrontmatter(layout.frontmatter) &&
+        layout.frontmatter.ugc.comments
+      ) {
+        if (this.cactusConfig) {
+          ugcCMC.matrixCactusCommentsContribs(suggested, this.cactusConfig);
+        } else {
+          suggested.body.fore
+            `UGC comments requested but these env vars not found: ${
+              this.cactusConfigEnvVarsSought?.join(", ") ??
+                "unable to determine"
+            } `;
         }
       }
     }
