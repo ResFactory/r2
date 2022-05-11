@@ -17,7 +17,8 @@ export function cactusMatrixServerEnvConfig(
     `${envVarsPrefix}SERVER_NAME`,
     `${envVarsPrefix}SITE_NAME`,
   ];
-  const envVarsFound = envVarsSought.filter((ev) => Deno.env.get(ev));
+  const envVarsFound = envVarsSought.map((evName) => Deno.env.get(evName))
+    .filter((evValue) => evValue != undefined) as string[];
   if (envVarsFound.length != envVarsSought.length) {
     return onNoEnvVars?.(envVarsSought);
   }
