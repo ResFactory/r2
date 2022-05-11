@@ -126,7 +126,13 @@ export function htmlLayoutContributions(): hGovn.HtmlLayoutContributions {
     stylesheets: contrib.contributions("<!-- stylesheets contrib -->"),
     head: contrib.contributions("<!-- head contrib -->"),
     body: contrib.contributions("<!-- body contrib -->"),
+    bodyMainContent: contrib.contributions(
+      "<!-- body main content contrib -->",
+    ),
     diagnostics: contrib.contributions("<!-- diagnostics contrib -->"),
+    domContentLoadedJS: contrib.contributions(
+      "<!-- DOMContentLoaded contrib -->",
+    ),
   };
 }
 

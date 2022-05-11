@@ -77,6 +77,7 @@ export interface Contributions extends
         array: ContributedText[],
       ) => boolean),
   ) => TextContributionsPlaceholder;
+  readonly hasContent: boolean;
   readonly storage: ContributedText[];
 }
 
@@ -158,6 +159,7 @@ export function contributions(placeholderText: string): Contributions {
       };
     },
     storage,
+    hasContent: storage.length > 0,
   };
   return result;
 }

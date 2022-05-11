@@ -29,6 +29,8 @@ export interface HtmlLayoutContributions {
   readonly scripts: contrib.Contributions;
   readonly head: contrib.Contributions;
   readonly body: contrib.Contributions;
+  readonly bodyMainContent: contrib.Contributions;
+  readonly domContentLoadedJS: contrib.Contributions;
   readonly diagnostics: contrib.Contributions;
 }
 

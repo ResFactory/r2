@@ -561,7 +561,13 @@ export abstract class DesignSystem<Layout extends html.HtmlLayout>
       stylesheets: contrib.contributions("<!-- stylesheets contrib -->"),
       head: contrib.contributions("<!-- head contrib -->"),
       body: contrib.contributions("<!-- body contrib -->"),
+      bodyMainContent: contrib.contributions(
+        "<!-- body main content contrib -->",
+      ),
       diagnostics: contrib.contributions("<!-- diagnostics contrib -->"),
+      domContentLoadedJS: contrib.contributions(
+        "<!-- DOMContentLoaded contrib -->",
+      ),
     };
   }
 

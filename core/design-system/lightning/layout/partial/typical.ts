@@ -2,12 +2,20 @@ import * as ldsGovn from "../../governance.ts";
 import * as dia from "./diagrams.ts";
 import * as ext from "./extensions.ts";
 
-export const typicalBodyPartial: ldsGovn.LightningPartial = (_, body) =>
-  body || "<!-- no lightningBody -->";
+export const typicalBodyPartial: ldsGovn.LightningPartial = (layout, body) => {
+  return body
+    ? `${layout.contributions.bodyMainContent.contributions("fore").text()}
+    ${body}
+    ${layout.contributions.bodyMainContent.contributions("aft").text()}`
+    : "<!-- no lightningBody -->";
+};
 
-// deno-fmt-ignore (because we don't want ${...} wrapped)
-export const typicalHeadPartial: ldsGovn.LightningPartial = (layout) => `
-${layout.contributions.head.contributions("fore").text()}
+export const typicalHeadPartial: ldsGovn.LightningPartial = (layout) => {
+  const dclHeadContribs = layout.contributions.domContentLoadedJS.contributions(
+    "fore",
+  );
+  // deno-fmt-ignore (because we don't want ${...} wrapped)
+  return `${layout.contributions.head.contributions("fore").text()}
 <meta charset="utf-8" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -42,11 +50,26 @@ new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-MX2G8XW');</script>
-<!-- End Google Tag Manager -->`;
+<!-- End Google Tag Manager -->
+${dclHeadContribs.contributions.length > 0 ? `<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    ${dclHeadContribs.text()}
+  });
+  </script>` : ''}`;
+};
 
-// deno-fmt-ignore (because we don't want ${...} wrapped)
-export const typicalTailPartial: ldsGovn.LightningPartial = (layout) => `
-<script src="${layout.contentStrategy.assets.uScript("/typical-aft.js")}"></script>`;
+export const typicalTailPartial: ldsGovn.LightningPartial = (layout) => {
+  const dclTailContribs = layout.contributions.domContentLoadedJS.contributions(
+    "aft",
+  );
+  // deno-fmt-ignore (because we don't want ${...} wrapped)
+  return `${dclTailContribs.contributions.length ? `<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    ${dclTailContribs.text()}
+  });
+  </script>` : ''}
+  <script src="${layout.contentStrategy.assets.uScript("/typical-aft.js")}"></script>`
+};
 
 // deno-fmt-ignore (because we don't want ${...} wrapped)
 export const redirectConsoleContainerPartial: ldsGovn.LightningPartial = (layout) => layout.redirectConsoleToHTML ? `
