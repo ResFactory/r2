@@ -2,10 +2,10 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="../path.actuate.css">
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="../path.actuate.css">
 </head>
 
 <!-- to regenerate list of tickets use GitHub CLI:
@@ -13,14 +13,12 @@ gh issue list --state open --label "❗ Essential" --json "number,title,body" --
 -->
 
 <body>
-    <pre data-transformable="markdown" class="md">
+  <pre data-transformable="markdown" class="md">
     ## Essential (GitHub)
 
     * [#10](https://github.com/resFactory/factory/issues/10) Insert template, layout, and partial stacks into DOM for help finding where generated HTML originated
     * [#12](https://github.com/resFactory/factory/issues/12) Create multiple smartNavigationPage variations
     * [#15](https://github.com/resFactory/factory/issues/15) Allow frontmatter properties to be filtered for client cargo
-    * [#19](https://github.com/resFactory/factory/issues/19) Decouple publications from design-system
-    * [#20](https://github.com/resFactory/factory/issues/20) Refactor reusable Lighting DS functionality
     * [#31](https://github.com/resFactory/factory/issues/31) Implement model search engine for content/tag selection
     * [#39](https://github.com/resFactory/factory/issues/39) Migrate common client-cargo (e.g. web components) into universal DS
     * [#40](https://github.com/resFactory/factory/issues/40) Implement Proxied Content (dynamic variables)
@@ -36,7 +34,6 @@ gh issue list --state open --label "❗ Essential" --json "number,title,body" --
     * [#67](https://github.com/resFactory/factory/issues/67) Switch from custom / simple-http-server web serving to Caddy
     * [#69](https://github.com/resFactory/factory/issues/69) Switch from Justfile to Taskfile
     * [#72](https://github.com/resFactory/factory/issues/72) Memoize producers and originators for improved hot reload speeds
-    * [#73](https://github.com/resFactory/factory/issues/73) Implement RF Console with SSE or WebSocket tunnels
     * [#84](https://github.com/resFactory/factory/issues/84) Embed Biscuit authorization into RF infrastructure
     * [#85](https://github.com/resFactory/factory/issues/85) Switch Publication Server to be TLS and HTTP/2 by default
 
@@ -188,7 +185,7 @@ gh issue list --state open --label "❗ Essential" --json "number,title,body" --
 
     ## Components
 
-    * Check out [Minze](https://minze.dev/guide/introduction.html), Atomico, Tonic, and other lightweight CE frameworks to create our own library and conventions. It's best to not use other frameworks as dependencies.
+    * Check out [Minze](https://minze.dev/guide/introduction.html), [Atomico](https://github.com/atomicojs/atomico), Tonic, and other lightweight CE frameworks to create our own library and conventions. It's best to not use other frameworks as dependencies.
     * Use [µhtml](https://github.com/WebReflection/uhtml#readme) for DOM-friendly dynamic rendering.
     * Use [µce](https://github.com/WebReflection/uce) for µhtml-based Custom Elements.
     * Use [µce\-template](https://github.com/WebReflection/uce-template#readme) for a Vue 3 inspired Custom Elements toolless alternative.
@@ -251,6 +248,7 @@ gh issue list --state open --label "❗ Essential" --json "number,title,body" --
 
     ## Bundlers and Builders
 
+    - Enhance CSS/TS twins capability to incorporate code splitting using techniques from Deno https://github.com/timreichen/Bundler
     - Enhance CSS/TS twins capability and integrate https://deno.land/x/denosass generator.
     - Add https://purgecss.com/ and other PostCSS plugins into CSS/TS twins strategy.
 
@@ -393,19 +391,19 @@ gh issue list --state open --label "❗ Essential" --json "number,title,body" --
     - [The Baked Data architectural pattern](https://simonwillison.net/2021/Jul/28/baked-data/)
     </pre>
 
-    <script type="module">
-        import * as path from "../path.actuate.mjs";
+  <script type="module">
+    import * as path from "../path.actuate.mjs";
 
-        document.addEventListener('DOMContentLoaded', function () {
-            // setup events, stores, and effects listeners so that we can be
-            // as decoupled from business logic as possible
+    document.addEventListener('DOMContentLoaded', function () {
+      // setup events, stores, and effects listeners so that we can be
+      // as decoupled from business logic as possible
 
-            path.activatePageFx.done.watch(() => path.transformContentFx());
+      path.activatePageFx.done.watch(() => path.transformContentFx());
 
-            // all listeners are ready so let's activate the page and trigger the watchers
-            path.activatePageFx();
-        });
-    </script>
+      // all listeners are ready so let's activate the page and trigger the watchers
+      path.activatePageFx();
+    });
+  </script>
 </body>
 
 </html>
