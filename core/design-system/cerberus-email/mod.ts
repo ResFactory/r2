@@ -137,10 +137,51 @@ const prepareBodyHtmlAstIdempotent: eds.HtmlEmailPartial<EmailMessageLayout> = (
             element.attributes.style = "margin: 0 0 10px 30px;";
             break;
           case "div":
-            if (element.tag == "div" && element.attributes.class == "md") {
-              // "eat" the markdown div but keep the children
+            if (element.attributes.class == "md") {
+              // "eat" the markdown <div class="md">, usually the top-level but keep the children
               parent.children.push(...element.children);
               return undefined;
+            }
+            if (element.attributes.class == "two-captioned-images") {
+              return {
+                // deno-fmt-ignore
+                text: `<!-- 2 Even Columns : BEGIN -->
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                          <td valign="top" width="50%">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                  <tr>
+                                      <td style="text-align: center; padding: 0 10px;">
+                                          <img src="${element.attributes["image-url-left"]}" width="200" height="" alt="alt_text" border="0" style="width: 100%; max-width: 200px; background: #dddddd; font-family: sans-serif; font-size: 15px; line-height: 15px; color: #555555;">
+                                      </td>
+                                  </tr>
+                                  <tr>
+                                      <td style="text-align: left; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555; padding: 10px 10px 0;">
+                                          <p style="margin: 0;">${element.attributes["image-caption-left"]}</p>
+                                      </td>
+                                  </tr>
+                              </table>
+                          </td>
+                          <td valign="top" width="50%">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                  <tr>
+                                      <td style="text-align: center; padding: 0 10px;">
+                                          <img src="${element.attributes["image-url-right"]}" width="200" height="" alt="alt_text" border="0" style="width: 100%; max-width: 200px; background: #dddddd; font-family: sans-serif; font-size: 15px; line-height: 15px; color: #555555;">
+                                      </td>
+                                  </tr>
+                                  <tr>
+                                      <td style="text-align: left; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555; padding: 10px 10px 0;">
+                                          <p style="margin: 0;">${element.attributes["image-caption-right"]}</p>
+                                      </td>
+                                  </tr>
+                              </table>
+                          </td>
+                      </tr>
+                  </table>
+                  <!-- 2 Even Columns : END -->`,
+                originalText: "",
+                level: element.level,
+              };
             }
             break;
           case "header":
@@ -197,43 +238,14 @@ const fluidBody: eds.HtmlEmailPartial<EmailMessageLayout> = (
   const { bodyHtmlAST: ast } = layout;
   if (ast) {
     if (ast.isValid) {
-      if (ast.children.length > 0) {
-        // if there are no sections defined, assume a single one
-        if (
-          !ast.children.find((e) => tt.isTaggedElement(e) && e.tag == "section")
-        ) {
-          return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                          <td style="padding: 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
-                          ${tt.emitElementText(ast)}
-                          </td>
-                      </tr>
-                  </table>`;
-        } else {
-          // there are sections, which will be transformed using special "section" emitter
-          const tteo = tt.typicalTagsEmitterOptions();
-          return tt.emitElementText(ast, {
-            content: tteo.content,
-            emitElement: (element, content, indent) => {
-              console.log(element);
-              if (element.tag == "section") {
-                // deno-fmt-ignore
-                content.push(`<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                  <tr>
-                      <td style="padding: 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
-                          ${tteo.emitElement(element, content, indent)}
-                      </td>
-                  </tr>
-                  </table>`,
-                );
-              } else {
-                tteo.emitElement(element, content, indent);
-              }
-            },
-            emitTextNode: tteo.emitTextNode,
-          });
-        }
-      }
+      // deno-fmt-ignore
+      return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+            <tr>
+                <td style="padding: 20px; font-family: sans-serif; font-size: 15px; line-height: 20px; color: #555555;">
+                ${tt.emitElementText(ast)}
+                </td>
+            </tr>
+        </table>`
     } else {
       console.log(ast);
       return `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
@@ -250,7 +262,6 @@ const fluidBody: eds.HtmlEmailPartial<EmailMessageLayout> = (
   } else {
     return `<!-- no bodyHTML AST -->`;
   }
-  return `<!-- no bodyHTML -->`;
 };
 
 // deno-fmt-ignore
