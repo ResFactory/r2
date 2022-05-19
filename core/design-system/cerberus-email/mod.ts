@@ -4,6 +4,7 @@ import * as tt from "../../../lib/text/transform-tags.ts";
 import * as esc from "../../../lib/text/escape.ts";
 
 // https://github.com/TedGoas/Cerberus
+// "AST" below refers to "abstract syntax tree"
 
 interface EmailMessageLayout extends eds.HtmlEmailLayout {
   subject: string;
