@@ -41,23 +41,25 @@ export const htmlEmailDesignSystemOriginDataAttrs:
     symbol: string,
   ): string => {
     const ls = layout.layoutSS.layoutStrategy;
-    return e.escapeHtmlCustom(
-      JSON.stringify({
-        identity: layout.designSystem.identity,
-        location: layout.designSystem.location,
-        layout: {
-          symbol,
-          name: r.isIdentifiableLayoutStrategy(ls) ? ls.identity : undefined,
-          src: srcModuleImportMetaURL,
-          diagnostics: layout.diagnostics,
-        },
-        isPrettyURL: true, // TODO: if RF ever makes it optional, update this and account for it
-        moduleAssetsBaseAbsURL: "", // TODO fill in base URL
-        dsAssetsBaseAbsURL: layout.designSystem.dsAssetsBaseURL,
-        universalAssetsBaseAbsURL: layout.designSystem.universalAssetsBaseURL,
-      }),
-      e.matchHtmlRegExpForAttrSingleQuote,
-    );
+    return `data-rf-origin-design-system='${
+      e.escapeHtmlCustom(
+        JSON.stringify({
+          identity: layout.designSystem.identity,
+          location: layout.designSystem.location,
+          layout: {
+            symbol,
+            name: r.isIdentifiableLayoutStrategy(ls) ? ls.identity : undefined,
+            src: srcModuleImportMetaURL,
+            diagnostics: layout.diagnostics,
+          },
+          isPrettyURL: true, // TODO: if RF ever makes it optional, update this and account for it
+          moduleAssetsBaseAbsURL: "", // TODO fill in base URL
+          dsAssetsBaseAbsURL: layout.designSystem.dsAssetsBaseURL,
+          universalAssetsBaseAbsURL: layout.designSystem.universalAssetsBaseURL,
+        }),
+        e.matchHtmlRegExpForAttrSingleQuote,
+      )
+    }'`;
   };
 
 export const typicalEmailHtmlOriginResolvers: hGovn.HtmlEmailOriginResolvers = {
