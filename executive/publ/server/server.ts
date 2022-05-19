@@ -12,6 +12,8 @@ import * as sqlP from "./middleware/server-runtime-sql-proxy.ts";
 import * as srJsTsProxy from "./middleware/server-runtime-script-proxy.ts";
 import * as rJSON from "../../../core/content/routes.json.ts";
 import * as fi from "./middleware/flow-image.ts";
+import * as smtp from "../../../lib/smtp/mod.ts";
+import * as smtpMW from "./middleware/smtp.ts";
 
 export interface PublicationServerAccessContext
   extends p.PublicationOperationalContext {
@@ -285,6 +287,25 @@ export class PublicationServer {
     );
   }
 
+  protected prepareSmtpMiddleware(
+    app: oak.Application,
+    router: oak.Router,
+  ) {
+    const smtpClientSupplier = smtp.smtpServerEnvConfig({
+      smtpEnvVarsPrefix: "RFEXPLORER_SMTP_",
+      onError: (message) => console.error(`/smtp route not setup: ${message}`),
+      autoCloseOnUnload: true,
+    });
+    if (smtpClientSupplier) {
+      new smtpMW.SmtpProxyMiddlewareSupplier(
+        () => smtpClientSupplier,
+        app,
+        router,
+        "/smtp",
+      );
+    }
+  }
+
   protected prepareUserAgentScripts(router: oak.Router) {
     // the right hand value must return governance.ServerUserAgentContext object
     const scriptRightHandValue = () => {
@@ -367,6 +388,7 @@ export class PublicationServer {
     this.prepareAssurance(app, router);
     this.prepareRuntimeSqlProxy(app, router);
     this.prepareUserAgentScripts(router);
+    this.prepareSmtpMiddleware(app, router);
 
     app.addEventListener("error", (event) => {
       // don't show errors which don't have a message
