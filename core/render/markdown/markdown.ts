@@ -2,7 +2,7 @@ import * as safety from "../../../lib/safety/mod.ts";
 import { default as markdownIt } from "https://jspm.dev/markdown-it@12.2.0";
 import { default as markdownItReplaceLink } from "https://jspm.dev/markdown-it-replace-link@1.1.0";
 import { default as markdownItFootnote } from "https://jspm.dev/markdown-it-footnote@3.0.3";
-import { default as markdownItAnchor } from "https://jspm.dev/markdown-it-anchor@8.3.0";
+import { default as markdownItAnchor } from "https://jspm.dev/markdown-it-anchor@8.6.4";
 import { default as markdownItTitle } from "https://jspm.dev/markdown-it-title@4.0.0";
 import { default as markdownItDirective } from "https://jspm.dev/markdown-it-directive@1.0.1";
 import { default as markdownItDirectiveWC } from "https://jspm.dev/markdown-it-directive-webcomponents@1.2.0";
