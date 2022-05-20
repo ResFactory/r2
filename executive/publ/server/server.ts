@@ -13,6 +13,7 @@ import * as srJsTsProxy from "./middleware/server-runtime-script-proxy.ts";
 import * as rJSON from "../../../core/content/routes.json.ts";
 import * as fi from "./middleware/flow-image.ts";
 import * as smtp from "../../../lib/smtp/mod.ts";
+import * as mg from "../../../lib/smtp/mailgun.ts";
 import * as smtpMW from "./middleware/smtp.ts";
 
 export interface PublicationServerAccessContext
@@ -291,6 +292,19 @@ export class PublicationServer {
     app: oak.Application,
     router: oak.Router,
   ) {
+    const mailgunDomain = Deno.env.get("RFEXPLORER_SMTP_MAILGUN_DOMAIN");
+    const mailgunApiKey = Deno.env.get("RFEXPLORER_SMTP_MAILGUN_API_KEY");
+    if (mailgunDomain && mailgunApiKey) {
+      new smtpMW.MailgunProxyMiddlewareSupplier(
+        () =>
+          mg.mailgunClient({ apiKey: mailgunApiKey, domain: mailgunDomain }),
+        app,
+        router,
+        "/smtp",
+      );
+      return;
+    }
+
     const smtpClientSupplier = smtp.smtpServerEnvConfig({
       smtpEnvVarsPrefix: "RFEXPLORER_SMTP_",
       onError: (message) => console.error(`/smtp route not setup: ${message}`),
@@ -303,7 +317,12 @@ export class PublicationServer {
         router,
         "/smtp",
       );
+      return;
     }
+
+    console.warn(
+      "Neither Mailgun nor SMTP configuration detected, /smtp route is not available",
+    );
   }
 
   protected prepareUserAgentScripts(router: oak.Router) {
