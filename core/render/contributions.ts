@@ -117,7 +117,9 @@ export function contributions(placeholderText: string): Contributions {
                   .sort(compareWeight),
                 text: (separator) =>
                   result.storage.filter((cc) => cc.weight < 0)
-                    .sort(compareWeight).map((c) => c.content).join(separator),
+                    .sort(compareWeight).map((c) => c.content).join(
+                      separator ?? "\n",
+                    ),
               };
             case "prime":
               return {
@@ -126,7 +128,9 @@ export function contributions(placeholderText: string): Contributions {
                   .sort(compareWeight),
                 text: (separator) =>
                   result.storage.filter((cc) => cc.weight == 0)
-                    .sort(compareWeight).map((c) => c.content).join(separator),
+                    .sort(compareWeight).map((c) => c.content).join(
+                      separator ?? "\n",
+                    ),
               };
             case "aft":
               return {
@@ -135,7 +139,9 @@ export function contributions(placeholderText: string): Contributions {
                   .sort(compareWeight),
                 text: (separator) =>
                   result.storage.filter((cc) => cc.weight > 0)
-                    .sort(compareWeight).map((c) => c.content).join(separator),
+                    .sort(compareWeight).map((c) => c.content).join(
+                      separator ?? "\n",
+                    ),
               };
           }
         } else {
@@ -145,7 +151,7 @@ export function contributions(placeholderText: string): Contributions {
             text: (separator) =>
               result.storage.filter(filter).sort(compareWeight).map((c) =>
                 c.content
-              ).join(separator),
+              ).join(separator ?? "\n"),
           };
         }
       }
@@ -154,7 +160,7 @@ export function contributions(placeholderText: string): Contributions {
         contributions: result.storage.sort(compareWeight),
         text: (separator) =>
           result.storage.sort(compareWeight).map((c) => c.content).join(
-            separator,
+            separator ?? "\n",
           ),
       };
     },
