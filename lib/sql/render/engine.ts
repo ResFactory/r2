@@ -9,27 +9,278 @@ const isUnindentSupplier = safety.typeGuard<UnindentSupplier>(
   "unindentWhitespace",
 );
 
-export interface SqlDialect {
-  readonly tableColumnsConstructionHelpers?: <
-    Context extends EngineContext,
+export interface TableColumnsFactory<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+> {
+  readonly autoIncPrimaryKey: (
+    columnName: ColumnName,
+    options?: Partial<TableColumnNullabilitySupplier>,
+  ) => TableAutoIncPrimaryKeyColumnDefinition<ColumnName>;
+  readonly text: (
+    columnName: ColumnName,
+    options?:
+      & Partial<TableColumnNullabilitySupplier>
+      & Partial<TableColumnPrimaryKeySupplier>,
+  ) => TableTextColumnDefinition<ColumnName>;
+  readonly integer: (
+    columnName: ColumnName,
+    options?:
+      & Partial<TableColumnNullabilitySupplier>
+      & Partial<TableColumnPrimaryKeySupplier>,
+  ) => TableIntegerColumnDefinition<ColumnName>;
+  readonly dateTime: (
+    columnName: ColumnName,
+    options?:
+      & Partial<TableColumnNullabilitySupplier>
+      & Partial<TableColumnPrimaryKeySupplier>,
+  ) => TableDateTimeColumnDefinition<ColumnName>;
+  readonly creationTimestamp: (
+    columnName: ColumnName,
+  ) => TableCreationStampColumnDefinition<ColumnName>;
+  readonly JSON: (
+    columnName: ColumnName,
+    options?: Partial<TableColumnNullabilitySupplier>,
+  ) => TableJsonColumnDefinition<ColumnName>;
+  readonly foreignKey: (
+    // deno-lint-ignore no-explicit-any
+    reference: TableDefinitionSupplier<Context, any, any> & {
+      readonly tableColumnDefn:
+        // deno-lint-ignore no-explicit-any
+        & TableColumnNameSupplier<any>
+        // deno-lint-ignore no-explicit-any
+        & TableColumnDataTypeSupplier<any, any>;
+    },
+    columnName?: ColumnName,
+    options?: Partial<TableColumnNullabilitySupplier>,
+    // deno-lint-ignore no-explicit-any
+  ) => TableForeignKeyColumnDefinition<Context, any, ColumnName>;
+}
+
+export interface TableDecoratorsFactory<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+> {
+  readonly unique: (...columnNames: ColumnName[]) => void;
+}
+
+export interface SqlDialect<Context extends EngineContext> {
+  readonly tableColumnsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
     tableName: TableName,
-  ) => ConstructTableColumnsHelpers<Context, TableName, ColumnName> | undefined;
-  readonly tableDefnConstructionHelpers?: <
-    Context extends EngineContext,
+  ) => TableColumnsFactory<Context, TableName, ColumnName>;
+  readonly tableDecoratorsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
-    tableName: TableName,
-  ) => ConstructTableDefnHelpers<Context, TableName, ColumnName> | undefined;
+    tableDefn: TableDefinition<Context, TableName, ColumnName>,
+  ) => TableDecoratorsFactory<Context, TableName, ColumnName>;
+  readonly tableColumnDefnSqlTextSupplier: <
+    TableName extends string,
+    ColumnName extends string,
+  >(
+    ctx: TableColumnDefinitionContext<Context, TableName, ColumnName>,
+    options?: SqlTextEmitOptions,
+  ) => string;
+}
+
+export interface SqlDialectSupplier<Context extends EngineContext> {
+  readonly dialect: SqlDialect<Context>;
+}
+
+export function isSqlDialectSupplier<Context extends EngineContext>(
+  o: unknown,
+): o is SqlDialectSupplier<Context> {
+  const isSDS = safety.typeGuard<SqlDialectSupplier<Context>>("dialect");
+  return isSDS(o);
+}
+
+export function typicalTableColumnsFactory<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+>(): TableColumnsFactory<
+  Context,
+  TableName,
+  ColumnName
+> {
+  return {
+    autoIncPrimaryKey: (columnName) => {
+      const result:
+        & TableAutoIncPrimaryKeyColumnDefinition<ColumnName>
+        & TableColumnNullabilitySupplier
+        & TableColumnPrimaryKeySupplier
+        & SqlTextSupplier<
+          TableColumnDefinitionContext<Context, TableName, ColumnName>
+        > = {
+          columnName: columnName as ColumnName,
+          sqlDataType: "INTEGER",
+          tsDataType: safety.typeGuard<number>(),
+          isPrimaryKey: true,
+          isNullable: false,
+          SQL: (ctx, steOptions) => {
+            return `${
+              ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
+            } AUTO INCREMENT`;
+          },
+        };
+      return result;
+    },
+    integer: (columnName, options) => {
+      return {
+        columnName: columnName as ColumnName,
+        sqlDataType: "INTEGER",
+        tsDataType: safety.typeGuard<number>(),
+        isPrimaryKey: options?.isPrimaryKey ?? false,
+        isNullable: options?.isNullable ?? false,
+      };
+    },
+    dateTime: (columnName, options) => {
+      const result: TableDateTimeColumnDefinition<ColumnName> = {
+        columnName: columnName as ColumnName,
+        sqlDataType: "DATETIME",
+        tsDataType: safety.typeGuard<Date>(),
+        isPrimaryKey: options?.isPrimaryKey ?? false,
+        isNullable: options?.isNullable ?? false,
+      };
+      return result;
+    },
+    creationTimestamp: (columnName) => {
+      const result:
+        & TableCreationStampColumnDefinition<ColumnName>
+        & TableColumnDeclareWeightSupplier
+        & SqlTextSupplier<
+          TableColumnDefinitionContext<Context, TableName, ColumnName>
+        > = {
+          columnName: columnName as ColumnName,
+          sqlDataType: "DATETIME",
+          tsDataType: safety.typeGuard<Date>(),
+          declarationWeight: 99,
+          SQL: (ctx, steOptions) => {
+            return `${
+              ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
+            } DEFAULT CURRENT_TIMESTAMP`;
+          },
+        };
+      return result;
+    },
+    text: (columnName, options) => {
+      return {
+        columnName: columnName as ColumnName,
+        sqlDataType: "TEXT",
+        tsDataType: safety.typeGuard<string>(),
+        isPrimaryKey: options?.isPrimaryKey ?? false,
+        isNullable: options?.isNullable ?? false,
+      };
+    },
+    JSON: (columnName, options) => {
+      return {
+        columnName: columnName as ColumnName,
+        sqlDataType: "JSON",
+        tsDataType: safety.typeGuard<Record<string, unknown>>(),
+        isNullable: options?.isNullable ?? false,
+      };
+    },
+    foreignKey: (reference, columnName) => {
+      const result:
+        // deno-lint-ignore no-explicit-any
+        & TableForeignKeyColumnDefinition<Context, any, ColumnName>
+        // deno-lint-ignore no-explicit-any
+        & TableColumnDataTypeSupplier<any, any> = {
+          columnName: columnName ?? reference.tableColumnDefn.columnName,
+          sqlDataType: reference.tableColumnDefn.sqlDataType ??
+            `?FK(${reference.tableDefn.tableName})`,
+          tsDataType: reference.tableColumnDefn.tsDataType ??
+            `?FK(${reference.tableDefn.tableName})`,
+          foreignKey: {
+            tableDefn: reference.tableDefn,
+            tableColumnDefn: reference.tableColumnDefn,
+          },
+        };
+      return result;
+    },
+  };
+}
+
+export function typicalTableColumnDefnSqlTextSupplier<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+>(): (
+  ctx: TableColumnDefinitionContext<Context, TableName, ColumnName>,
+  options?: SqlTextEmitOptions,
+) => string {
+  return (ctx, steOptions) => {
+    const tCD = ctx.tableColumnDefn;
+    const columnName = steOptions?.columnName?.({
+      tableName: ctx.tableDefn.tableName,
+      columnName: ctx.tableColumnDefn.columnName,
+    }) ??
+      ctx.tableColumnDefn.columnName;
+    const sqlDataType = isTableColumnDataTypeSupplier(tCD)
+      ? ` ${tCD.sqlDataType}`
+      : "";
+    const primaryKey = isTableColumnPrimaryKeySupplier(tCD)
+      ? tCD.isPrimaryKey ? " PRIMARY KEY" : ""
+      : "";
+    const notNull = primaryKey.length == 0
+      ? isTableColumnNullabilitySupplier(tCD)
+        ? tCD.isNullable ? "" : " NOT NULL"
+        : ""
+      : "";
+    // deno-fmt-ignore
+    return `${steOptions?.indentation?.("define table column") ?? ""}${columnName}${sqlDataType}${primaryKey}${notNull}`;
+  };
+}
+
+export function typicalTableDecoratorsFactory<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+>(
+  tableDefn: TableDefinition<Context, TableName, ColumnName>,
+): TableDecoratorsFactory<Context, TableName, ColumnName> {
+  return {
+    unique: (...columnNames) => {
+      tableDefn.decorators.push({
+        SQL: (_ctx, steOptions) =>
+          `UNIQUE(${
+            columnNames.map((cn) =>
+              steOptions?.columnName?.({
+                tableName: tableDefn.tableName,
+                columnName: cn,
+              }) ?? cn
+            ).join(", ")
+          })`,
+      });
+    },
+  };
+}
+
+export function sqliteDialect<Context extends EngineContext>(): SqlDialect<
+  Context
+> {
+  return {
+    tableColumnsFactory: () => typicalTableColumnsFactory(),
+    tableColumnDefnSqlTextSupplier: typicalTableColumnDefnSqlTextSupplier<
+      Context,
+      // deno-lint-ignore no-explicit-any
+      any,
+      // deno-lint-ignore no-explicit-any
+      any
+    >(),
+    tableDecoratorsFactory: typicalTableDecoratorsFactory,
+  };
 }
 
 export interface EngineContext {
-  readonly registerTable: <TableName extends string>(
+  readonly registerTable: <TableName extends string, ColumnName extends string>(
     // deno-lint-ignore no-explicit-any
-    table: CreateTableRequest<any, TableName>,
+    table: TableDefinition<any, TableName, ColumnName>,
   ) => void;
   readonly reference: <TableName extends string, ColumnName extends string>(
     tableName: TableName,
@@ -37,23 +288,25 @@ export interface EngineContext {
   ) =>
     | (
       // deno-lint-ignore no-explicit-any
-      & CreateTableRequestSupplier<any, TableName>
+      & TableDefinitionSupplier<any, TableName, ColumnName>
       & {
         readonly tableColumnDefn:
-          & TableColumnNameSupplier
+          & TableColumnNameSupplier<ColumnName>
           // deno-lint-ignore no-explicit-any
           & TableColumnDataTypeSupplier<any, any>;
       }
     )
     | undefined;
-  readonly dialect?: SqlDialect;
+  // deno-lint-ignore no-explicit-any
+  readonly dialect: SqlDialect<any>;
 }
 
-export interface CreateTableRequestSupplier<
+export interface TableDefinitionSupplier<
   Context extends EngineContext,
   TableName extends string,
+  ColumnName extends string,
 > {
-  readonly createTableRequest: CreateTableRequest<Context, TableName>;
+  readonly tableDefn: TableDefinition<Context, TableName, ColumnName>;
 }
 
 export interface SqlLintIssueSupplier {
@@ -61,7 +314,7 @@ export interface SqlLintIssueSupplier {
 }
 
 export interface SqlLintIssuesSupplier {
-  readonly lintIssues: () => SqlLintIssueSupplier[];
+  readonly lintIssues: SqlLintIssueSupplier[];
 }
 
 export const isSqlLintIssuesSupplier = safety.typeGuard<SqlLintIssuesSupplier>(
@@ -89,12 +342,13 @@ export function isSqlTextSupplier<Context extends EngineContext>(
   return isSTS(o);
 }
 
-export interface TableColumnNameSupplier {
-  readonly columnName: string;
+export interface TableColumnNameSupplier<ColumnName extends string> {
+  readonly columnName: ColumnName;
 }
 
 export const isTableColumnNameSupplier = safety.typeGuard<
-  TableColumnNameSupplier
+  // deno-lint-ignore no-explicit-any
+  TableColumnNameSupplier<any>
 >("columnName");
 
 export interface TableColumnPrimaryKeySupplier {
@@ -108,19 +362,27 @@ export const isTableColumnPrimaryKeySupplier = safety.typeGuard<
 export interface TableColumnForeignKeySupplier<
   Context extends EngineContext,
   TableName extends string,
+  ColumnName extends string,
 > {
-  readonly foreignKey: CreateTableRequestSupplier<Context, TableName> & {
-    // deno-lint-ignore no-explicit-any
-    tableColumnDefn: TableColumnDataTypeSupplier<any, any>;
-  };
+  readonly foreignKey:
+    & TableDefinitionSupplier<Context, TableName, ColumnName>
+    & {
+      tableColumnDefn:
+        & TableColumnNameSupplier<ColumnName>
+        // deno-lint-ignore no-explicit-any
+        & TableColumnDataTypeSupplier<any, any>;
+    };
 }
 
 export function isTableColumnForeignKeySupplier<
   Context extends EngineContext,
   TableName extends string,
->(o: unknown): o is TableColumnForeignKeySupplier<Context, TableName> {
+  ColumnName extends string,
+>(
+  o: unknown,
+): o is TableColumnForeignKeySupplier<Context, TableName, ColumnName> {
   const isFKS = safety.typeGuard<
-    TableColumnForeignKeySupplier<Context, TableName>
+    TableColumnForeignKeySupplier<Context, TableName, ColumnName>
   >("foreignKey");
   return isFKS(o);
 }
@@ -151,334 +413,134 @@ export const isTableColumnDataTypeSupplier = safety.typeGuard<
   TableColumnDataTypeSupplier<any, any>
 >("sqlDataType", "tsDataType");
 
-export interface TableAutoIncPrimaryKeyColumnDefinition
+export interface TableAutoIncPrimaryKeyColumnDefinition<
+  ColumnName extends string,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"INTEGER", number> {
+}
+
+export interface TableIntegerColumnDefinition<ColumnName extends string>
   extends
-    TableColumnNameSupplier,
+    TableColumnNameSupplier<ColumnName>,
     TableColumnDataTypeSupplier<"INTEGER", number>,
-    TableColumnNullabilitySupplier,
-    TableColumnPrimaryKeySupplier {
+    Partial<TableColumnNullabilitySupplier>,
+    Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableIntegerColumnDefinition
+export interface TableDateTimeColumnDefinition<ColumnName extends string>
   extends
-    TableColumnNameSupplier,
-    TableColumnDataTypeSupplier<"INTEGER", number>,
-    TableColumnNullabilitySupplier,
-    TableColumnPrimaryKeySupplier {
-}
-
-export interface TableDateTimeColumnDefinition
-  extends
-    TableColumnNameSupplier,
+    TableColumnNameSupplier<ColumnName>,
     TableColumnDataTypeSupplier<"DATETIME", Date>,
-    TableColumnNullabilitySupplier,
-    TableColumnPrimaryKeySupplier {
+    Partial<TableColumnNullabilitySupplier>,
+    Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableCreationStampColumnDefinition
+export interface TableCreationStampColumnDefinition<ColumnName extends string>
   extends
-    TableColumnNameSupplier,
-    TableColumnDataTypeSupplier<"DATETIME", Date>,
-    TableColumnNullabilitySupplier,
-    TableColumnDeclareWeightSupplier {
-  // defined to differentiate from TableDateTimeColumnDefinition
-  readonly isCreationStampColumnDefinition: true;
+    TableColumnNameSupplier<ColumnName>,
+    TableColumnDataTypeSupplier<"DATETIME", Date> {
 }
 
-export interface TableTextColumnDefinition
+export interface TableTextColumnDefinition<ColumnName extends string>
   extends
-    TableColumnNameSupplier,
+    TableColumnNameSupplier<ColumnName>,
     TableColumnDataTypeSupplier<"TEXT", string>,
-    TableColumnNullabilitySupplier,
-    TableColumnPrimaryKeySupplier {
+    Partial<TableColumnNullabilitySupplier>,
+    Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableJsonColumnDefinition
+export interface TableJsonColumnDefinition<ColumnName extends string>
   extends
-    TableColumnNameSupplier,
+    TableColumnNameSupplier<ColumnName>,
     TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
-    TableColumnNullabilitySupplier {
+    Partial<TableColumnNullabilitySupplier> {
 }
 
-export type TableColumnDefinition =
-  | TableColumnNameSupplier
-  | TableAutoIncPrimaryKeyColumnDefinition
-  | TableIntegerColumnDefinition
-  | TableDateTimeColumnDefinition
-  | TableCreationStampColumnDefinition
-  | TableTextColumnDefinition
-  | TableJsonColumnDefinition;
+export interface TableForeignKeyColumnDefinition<
+  Context extends EngineContext,
+  ForeignTableName extends string,
+  ColumnName extends string,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnForeignKeySupplier<Context, ForeignTableName, ColumnName>,
+  Partial<TableColumnNullabilitySupplier> {
+}
 
-export function isTableColumnDefinition(
+export type TableColumnDefinition<ColumnName extends string> =
+  TableColumnNameSupplier<ColumnName>;
+
+export function isTableColumnDefinition<ColumnName extends string>(
   o: unknown,
-): o is TableColumnDefinition {
-  const isCD = safety.typeGuard<TableColumnDefinition>("columnName");
+): o is TableColumnDefinition<ColumnName> {
+  const isCD = safety.typeGuard<TableColumnDefinition<ColumnName>>(
+    "columnName",
+  );
   return isCD(o);
 }
 
-export interface TableColumnDefinitionSupplier {
-  readonly tableColumnDefn: TableColumnDefinition;
+export interface TableColumnDefinitionSupplier<ColumnName extends string> {
+  readonly tableColumnDefn: TableColumnDefinition<ColumnName>;
 }
+
+export type TableDefinitionContext<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+> =
+  & Context
+  & TableDefinitionSupplier<Context, TableName, ColumnName>;
 
 export type TableColumnDefinitionContext<
   Context extends EngineContext,
   TableName extends string,
+  ColumnName extends string,
 > =
   & Context
-  & CreateTableRequestSupplier<Context, TableName>
-  & TableColumnDefinitionSupplier;
+  & TableDefinitionSupplier<Context, TableName, ColumnName>
+  & TableColumnDefinitionSupplier<ColumnName>;
 
-export type TableStructDefinitionSupplier<
+export interface TableDefinition<
   Context extends EngineContext,
   TableName extends string,
-> = (
-  ctx: Context & CreateTableRequestSupplier<Context, TableName>,
-) =>
-  | TableColumnDefinition
-  | TableColumnDefinition
-    & SqlTextSupplier<TableColumnDefinitionContext<Context, TableName>>
-  | c.TextContributionsPlaceholder
-  | void;
-
-export interface CreateTableRequest<
-  Context extends EngineContext,
-  TableName extends string,
+  ColumnName extends string,
 > extends SqlTextSupplier<Context> {
   readonly tableName: TableName;
   readonly isIdempotent?: boolean;
-  readonly columns: TableColumnDefinition[];
-  readonly define: (
-    literals: TemplateStringsArray,
-    ...expressions: (TableStructDefinitionSupplier<Context, TableName>)[]
-  ) => void;
-  readonly tableDefnSql: c.Contributions;
+  readonly columns: TableColumnDefinition<ColumnName>[];
+  readonly decorators: SqlTextSupplier<
+    TableDefinitionContext<Context, TableName, ColumnName>
+  >[];
+  readonly foreignKeyReference: (
+    columnName?: ColumnName,
+  ) =>
+    | (
+      // deno-lint-ignore no-explicit-any
+      & TableDefinitionSupplier<any, TableName, ColumnName>
+      & {
+        readonly tableColumnDefn:
+          & TableColumnNameSupplier<ColumnName>
+          // deno-lint-ignore no-explicit-any
+          & TableColumnDataTypeSupplier<any, any>;
+      }
+    )
+    | undefined;
 }
 
-export function isCreateTableRequest<
+export function isTableDefinition<
   Context extends EngineContext,
   TableName extends string,
+  ColumnName extends string,
 >(
   o: unknown,
-): o is CreateTableRequest<Context, TableName> {
-  const isCTR = safety.typeGuard<CreateTableRequest<Context, TableName>>(
+): o is TableDefinition<Context, TableName, ColumnName> {
+  const isCTR = safety.typeGuard<
+    TableDefinition<Context, TableName, ColumnName>
+  >(
     "tableName",
     "isIdempotent",
   );
   return isCTR(o);
-}
-
-export interface ConstructTableColumnsHelpers<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
-> {
-  readonly autoIncPrimaryKey: (
-    columnName: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly text: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly integer: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly dateTime: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly creationTimestamp: (
-    columnName: ColumnName,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly JSON: (
-    columnName: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-  readonly foreignKey: (
-    // deno-lint-ignore no-explicit-any
-    reference: CreateTableRequestSupplier<Context, any> & {
-      readonly tableColumnDefn:
-        & TableColumnNameSupplier
-        // deno-lint-ignore no-explicit-any
-        & TableColumnDataTypeSupplier<any, any>;
-    },
-    columnName?: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-}
-
-export function typicalTableColumnDefnSqlTextSupplier<
-  Context extends EngineContext,
-  TableName extends string,
->(): (
-  ctx: TableColumnDefinitionContext<Context, TableName>,
-  options?: SqlTextEmitOptions,
-) => string {
-  return (ctx, steOptions) => {
-    const tCD = ctx.tableColumnDefn;
-    const columnName = steOptions?.columnName?.({
-      tableName: ctx.createTableRequest.tableName,
-      columnName: ctx.tableColumnDefn.columnName,
-    }) ??
-      ctx.tableColumnDefn.columnName;
-    const sqlDataType = isTableColumnDataTypeSupplier(tCD)
-      ? ` ${tCD.sqlDataType}`
-      : "";
-    const primaryKey = isTableColumnPrimaryKeySupplier(tCD)
-      ? tCD.isPrimaryKey ? " PRIMARY KEY" : ""
-      : "";
-    const notNull = primaryKey.length == 0
-      ? isTableColumnNullabilitySupplier(tCD)
-        ? tCD.isNullable ? "" : " NOT NULL"
-        : ""
-      : "";
-    // deno-fmt-ignore
-    return `${steOptions?.indentation?.("define table column") ?? ""}${columnName}${sqlDataType}${primaryKey}${notNull}`;
-  };
-}
-
-export function typicalTableColumnsConstructionHelpers<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
->(): ConstructTableColumnsHelpers<
-  Context,
-  TableName,
-  ColumnName
-> {
-  const ttcdSTS = typicalTableColumnDefnSqlTextSupplier<Context, TableName>();
-  return {
-    autoIncPrimaryKey: (columnName) => {
-      return () => {
-        return {
-          columnName: columnName as ColumnName,
-          sqlDataType: "INTEGER",
-          tsDataType: safety.typeGuard<number>(),
-          isPrimaryKey: true,
-          isNullable: false,
-          SQL: (ctx, steOptions) => {
-            return `${ttcdSTS(ctx, steOptions)} AUTO INCREMENT`;
-          },
-        };
-      };
-    },
-    integer: (columnName, options) => {
-      return () => {
-        return {
-          columnName: columnName as ColumnName,
-          sqlDataType: "INTEGER",
-          tsDataType: safety.typeGuard<number>(),
-          isPrimaryKey: options?.isPrimaryKey ?? false,
-          isNullable: options?.isNullable ?? false,
-        };
-      };
-    },
-    dateTime: (columnName, options) => {
-      return () => {
-        return {
-          columnName: columnName as ColumnName,
-          sqlDataType: "DATETIME",
-          tsDataType: safety.typeGuard<Date>(),
-          isPrimaryKey: options?.isPrimaryKey ?? false,
-          isNullable: options?.isNullable ?? false,
-        };
-      };
-    },
-    creationTimestamp: (columnName) => {
-      return () => {
-        return {
-          isCreationStampColumnDefinition: true,
-          columnName: columnName as ColumnName,
-          sqlDataType: "DATETIME",
-          tsDataType: safety.typeGuard<Date>(),
-          declarationWeight: 99,
-          isNullable: false,
-          SQL: (ctx, steOptions) => {
-            return `${ttcdSTS(ctx, steOptions)} DEFAULT CURRENT_TIMESTAMP`;
-          },
-        };
-      };
-    },
-    text: (columnName, options) => {
-      return () => {
-        return {
-          columnName: columnName as ColumnName,
-          sqlDataType: "TEXT",
-          tsDataType: safety.typeGuard<string>(),
-          isPrimaryKey: options?.isPrimaryKey ?? false,
-          isNullable: options?.isNullable ?? false,
-        };
-      };
-    },
-    JSON: (columnName, options) => {
-      return () => {
-        return {
-          columnName: columnName as ColumnName,
-          sqlDataType: "JSON",
-          tsDataType: safety.typeGuard<Record<string, unknown>>(),
-          isNullable: options?.isNullable ?? false,
-        };
-      };
-    },
-    foreignKey: (reference, columnName) => {
-      return (ctx) => {
-        const result:
-          & TableColumnNameSupplier
-          // deno-lint-ignore no-explicit-any
-          & TableColumnDataTypeSupplier<any, any>
-          // deno-lint-ignore no-explicit-any
-          & TableColumnForeignKeySupplier<Context, any> = {
-            columnName: columnName ?? reference.tableColumnDefn.columnName,
-            sqlDataType: reference.tableColumnDefn.sqlDataType ??
-              `?FK(${reference.createTableRequest.tableName})`,
-            tsDataType: reference.tableColumnDefn.tsDataType ??
-              `?FK(${reference.createTableRequest.tableName})`,
-            foreignKey: {
-              ...ctx,
-              createTableRequest: reference.createTableRequest,
-              tableColumnDefn: reference.tableColumnDefn,
-            },
-          };
-        return result;
-      };
-    },
-  };
-}
-
-export interface ConstructTableDefnHelpers<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
-> {
-  readonly unique: (
-    ...columnNames: ColumnName[]
-  ) => TableStructDefinitionSupplier<Context, TableName>;
-}
-
-export function typicalTableDefnConstructionHelpers<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
->(): ConstructTableDefnHelpers<
-  Context,
-  TableName,
-  ColumnName
-> {
-  return {
-    unique: (...columnNames) => {
-      return (ctx) => {
-        // deno-fmt-ignore
-        ctx.createTableRequest.tableDefnSql.aft`UNIQUE(${columnNames.join(", ")})`;
-      };
-    },
-  };
 }
 
 export interface TableLintIssue<TableName extends string>
@@ -488,65 +550,118 @@ export interface TableLintIssue<TableName extends string>
 
 export interface DefineTableOptions {
   readonly isIdempotent: boolean;
+  readonly enforceForeignKeyRefs:
+    | false
+    | "table-decorator"; /* TODO: | "alter-table" */
+}
+
+export interface DefineTableInit<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+> {
+  readonly tableDefn:
+    & TableDefinition<Context, TableName, ColumnName>
+    & SqlLintIssuesSupplier
+    & {
+      readonly finalizeDefn: () => void;
+      readonly registerLintIssues: (...slis: SqlLintIssueSupplier[]) => void;
+    };
+  readonly columnsFactory: TableColumnsFactory<
+    Context,
+    TableName,
+    ColumnName
+  >;
+  readonly decoratorsFactory: TableDecoratorsFactory<
+    Context,
+    TableName,
+    ColumnName
+  >;
+  readonly ctx: Context;
 }
 
 export function defineTable<
   Context extends EngineContext,
   TableName extends string,
   ColumnName extends string,
-  DefnHelpers extends ConstructTableDefnHelpers<Context, TableName, ColumnName>,
-  ColumnsHelpers extends ConstructTableColumnsHelpers<
-    Context,
-    TableName,
-    ColumnName
-  >,
 >(
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
+  defineTable?: (init: DefineTableInit<Context, TableName, ColumnName>) => void,
   options?: DefineTableOptions,
-):
-  & CreateTableRequest<Context, TableName>
-  & { defnHelpers: () => DefnHelpers }
-  & { columnsHelpers: () => ColumnsHelpers } {
+): TableDefinition<Context, TableName, ColumnName> {
   const { isIdempotent } = options ?? { isIdempotent: true };
-  const columns: TableColumnDefinition[] = [];
-  const tableDefnSql: c.Contributions = c.contributions("-- custom tableDefns");
-  const CTR:
-    & CreateTableRequest<Context, TableName>
-    & { defnHelpers: () => DefnHelpers }
-    & { columnsHelpers: () => ColumnsHelpers }
-    & SqlLintIssuesSupplier = {
+  const columns: TableColumnDefinition<ColumnName>[] = [];
+  const decorators: SqlTextSupplier<
+    TableDefinitionContext<Context, TableName, ColumnName>
+  >[] = [];
+  const lintIssues: SqlLintIssueSupplier[] = [];
+  const tableDefn:
+    & TableDefinition<Context, TableName, ColumnName>
+    & SqlLintIssuesSupplier
+    & {
+      finalizeDefn: () => void;
+      registerLintIssues: (...slis: SqlLintIssueSupplier[]) => void;
+    } = {
       tableName,
       isIdempotent,
       columns,
-      lintIssues: () => {
-        const lintIssues: SqlLintIssueSupplier[] = [];
-        for (const vcn of validColumnNames) {
-          if (!columns.find((c) => c.columnName == vcn)) {
-            const lintIssue: TableLintIssue<TableName> = {
-              tableName,
-              lintIssue:
-                `column '${vcn}' declared but not defined in createTable(${tableName})`,
+      lintIssues,
+      registerLintIssues: (...slis) => {
+        for (const li of slis) {
+          const tli: TableLintIssue<TableName> = { tableName, ...li };
+          lintIssues.push(tli);
+        }
+      },
+      decorators,
+      foreignKeyReference: (columnName) => {
+        if (!columnName) {
+          const tableColumnDefn = tableDefn.columns.find((fc) =>
+            isTableColumnPrimaryKeySupplier(fc) &&
+            isTableColumnDataTypeSupplier(fc)
+          ) as
+            | (
+              & TableColumnNameSupplier<ColumnName>
+              // deno-lint-ignore no-explicit-any
+              & TableColumnDataTypeSupplier<Context, any>
+            )
+            | undefined;
+          if (tableColumnDefn) {
+            return {
+              tableDefn,
+              tableColumnDefn,
             };
-            lintIssues.push(lintIssue);
+          }
+        } else {
+          const tableColumnDefn = tableDefn.columns.find((fc) =>
+            isTableColumnNameSupplier(fc) &&
+            (fc.columnName as string) == columnName
+          ) as
+            | (
+              & TableColumnNameSupplier<ColumnName>
+              // deno-lint-ignore no-explicit-any
+              & TableColumnDataTypeSupplier<Context, any>
+            )
+            | undefined;
+          if (tableColumnDefn) {
+            return {
+              tableDefn,
+              tableColumnDefn,
+            };
           }
         }
-        return lintIssues;
+        return undefined;
       },
-      tableDefnSql,
       SQL: (sqlCtx, steOptions) => {
         const columnDefns: string[] = [];
         const tableCtx:
           & Context
-          & CreateTableRequestSupplier<Context, TableName> = {
+          & TableDefinitionSupplier<Context, TableName, ColumnName> = {
             ...sqlCtx,
-            createTableRequest: CTR,
+            tableDefn: tableDefn,
           };
-        const ttcdSTS = typicalTableColumnDefnSqlTextSupplier<
-          Context,
-          TableName
-        >();
+        const ttcdSTS = sqlCtx.dialect.tableColumnDefnSqlTextSupplier;
         for (
           const c of columns.sort((a, b) =>
             isTableColumnDeclareWeightSupplier(a) &&
@@ -565,82 +680,86 @@ export function defineTable<
           );
         }
         const indent = steOptions?.indentation?.("define table column");
-        const fore = tableCtx.createTableRequest.tableDefnSql.contributions(
-          "fore",
-        )
-          .text("\n");
-        const aft = tableCtx.createTableRequest.tableDefnSql.contributions(
-          "aft",
-        )
-          .text("\n");
+        const decoratorsSQL = tableCtx.tableDefn.decorators.map((sts) =>
+          sts.SQL(tableCtx, steOptions)
+        ).join(",\n");
 
         // deno-fmt-ignore
         const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
-          (fore.length > 0 ? `${indent}${fore},\n` : "") +
           columnDefns.join(",\n") +
-          (aft.length > 0 ? `,\n${indent}${aft}` : "") +
+          (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
           "\n);";
         return result;
       },
-      columnsHelpers: () => {
-        const custom = ctx.dialect?.tableColumnsConstructionHelpers?.(
-          tableName,
-        );
-        const result = custom ??
-          typicalTableColumnsConstructionHelpers<
-            Context,
-            TableName,
-            ColumnName
-          >();
-        return result as ColumnsHelpers;
-      },
-      defnHelpers: () => {
-        const custom = ctx.dialect?.tableDefnConstructionHelpers?.(tableName);
-        const result = custom ??
-          typicalTableDefnConstructionHelpers<Context, TableName, ColumnName>();
-        return result as DefnHelpers;
-      },
-      define: (_, ...suppliedExprs) => {
-        const interpolate: (
-          ctx: Context & CreateTableRequestSupplier<Context, TableName>,
-        ) => void = (ctx) => {
-          // evaluate expressions and look for contribution placeholders;
-          const placeholders: number[] = [];
-          const expressions: unknown[] = [];
-          let exprIndex = 0;
-          for (let i = 0; i < suppliedExprs.length; i++) {
-            const expr = suppliedExprs[i];
-            if (typeof expr === "function") {
-              const exprValue = expr(ctx);
-              if (isTableColumnDefinition(exprValue)) {
-                columns.push(exprValue);
-              } else if (c.isTextContributionsPlaceholder(exprValue)) {
-                placeholders.push(exprIndex);
-                expressions[exprIndex] = expr; // we're going to run the function later
-              } else {
-                expressions[exprIndex] = exprValue;
-              }
-            } else {
-              expressions[exprIndex] = expr;
-            }
-            exprIndex++;
+      finalizeDefn: () => {
+        for (const vcn of validColumnNames) {
+          if (!columns.find((c) => c.columnName == vcn)) {
+            const lintIssue: TableLintIssue<TableName> = {
+              tableName,
+              lintIssue:
+                `column '${vcn}' declared but not defined in createTable(${tableName})`,
+            };
+            lintIssues.push(lintIssue);
           }
-          // TODO: if other text is found, add it into proper definition locations
-          // if (placeholders.length > 0) {
-          //   for (const ph of placeholders) {
-          //     const tcph = (expressions[ph] as SqlTextPartial<Context>)(
-          //       ctx as Context,
-          //     );
-          //     expressions[ph] = c.isTextContributionsPlaceholder(tcph)
-          //       ? tcph.contributions.map((c) => c.content).join("\n")
-          //       : tcph;
-          //   }
-          // }
-        };
-        interpolate({ ...ctx, createTableRequest: CTR });
+        }
+        if (
+          options?.enforceForeignKeyRefs &&
+          options?.enforceForeignKeyRefs == "table-decorator"
+        ) {
+          for (const c of tableDefn.columns) {
+            if (isTableColumnForeignKeySupplier(c)) {
+              tableDefn.decorators.push({
+                SQL: (_ctx, steOptions) => {
+                  const tn = steOptions?.tableName;
+                  const cn = steOptions?.columnName;
+                  return `FOREIGN KEY(${
+                    cn?.({ tableName, columnName: c.columnName }) ??
+                      c.columnName
+                  }) REFERENCES ${
+                    tn?.(c.foreignKey.tableDefn.tableName) ??
+                      c.foreignKey.tableDefn.tableName
+                  }(${
+                    cn?.({
+                      tableName: c.foreignKey.tableDefn.tableName,
+                      columnName: c.foreignKey.tableColumnDefn.columnName,
+                    }) ?? c.foreignKey.tableColumnDefn.columnName
+                  })`;
+                },
+              });
+            }
+          }
+        }
       },
     };
-  return CTR;
+  defineTable?.({
+    tableDefn,
+    columnsFactory: ctx.dialect.tableColumnsFactory(tableName),
+    decoratorsFactory: ctx.dialect.tableDecoratorsFactory(tableDefn),
+    ctx,
+  });
+  return tableDefn;
+}
+
+export interface ForeignKeyReferenceLookup<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+> extends Partial<TableColumnNameSupplier<ColumnName>> {
+  readonly fkeyTable:
+    | string
+    | TableDefinition<Context, TableName, ColumnName>;
+  readonly fkeyColumnName?: string;
+}
+
+export function isForeignKeyReferenceLookup<
+  Context extends EngineContext,
+  TableName extends string,
+  ColumnName extends string,
+>(o: unknown): o is ForeignKeyReferenceLookup<Context, TableName, ColumnName> {
+  const isFKRL = safety.typeGuard<
+    ForeignKeyReferenceLookup<Context, TableName, ColumnName>
+  >("fkeyTable");
+  return isFKRL(o);
 }
 
 export function typicalTablePreparer<
@@ -651,27 +770,89 @@ export function typicalTablePreparer<
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
-  options?: DefineTableOptions,
+  options: DefineTableOptions = {
+    isIdempotent: true,
+    enforceForeignKeyRefs: "table-decorator",
+  },
 ) {
-  return () => {
+  return (
+    customDefineTable?: (
+      defineColumns: (
+        ...column: (
+          | TableColumnDefinition<ColumnName>
+          // deno-lint-ignore no-explicit-any
+          | ForeignKeyReferenceLookup<Context, any, any>
+        )[]
+      ) => void,
+      init: DefineTableInit<Context, TableName, ColumnName>,
+    ) => void,
+  ) => {
     const result = defineTable(
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, `created_at`],
+      (init) => {
+        const { tableDefn, columnsFactory: cf } = init;
+        tableDefn.columns.push(cf.autoIncPrimaryKey(`${tableName}_id`));
+        customDefineTable?.(
+          (...columns) => {
+            for (const column of columns) {
+              if (isForeignKeyReferenceLookup(column)) {
+                if (typeof column.fkeyTable === "string") {
+                  const fKeyRef = ctx.reference(
+                    column.fkeyTable,
+                    column.fkeyColumnName,
+                  );
+                  if (fKeyRef) {
+                    tableDefn.columns.push(
+                      cf.foreignKey(fKeyRef, column.columnName),
+                    );
+                  } else {
+                    tableDefn.registerLintIssues({
+                      lintIssue:
+                        `Unable to create foreign key in ${tableName} using reference ${
+                          Deno.inspect(column)
+                        }`,
+                    });
+                  }
+                } else {
+                  const fkeyRef = column.fkeyTable.foreignKeyReference(
+                    column.fkeyColumnName,
+                  );
+                  if (fkeyRef) {
+                    tableDefn.columns.push(
+                      cf.foreignKey(fkeyRef, column.columnName),
+                    );
+                  } else {
+                    tableDefn.registerLintIssues({
+                      lintIssue:
+                        `Unable to obtain default foreign key reference (the primary key) from ${tableName}`,
+                    });
+                  }
+                }
+              } else if (isTableColumnDefinition<ColumnName>(column)) {
+                tableDefn.columns.push(column);
+              }
+            }
+          },
+          // deno-lint-ignore no-explicit-any
+          init as any, // TODO: figure out why cast to any is required
+        );
+        tableDefn.columns.push(cf.creationTimestamp(`created_at`));
+        tableDefn.finalizeDefn();
+      },
       options,
     );
-    const [tc] = [result.columnsHelpers()];
-    result.define`
-      ${tc.autoIncPrimaryKey(`${tableName}_id`)}
-      ${tc.creationTimestamp(`created_at`)}
-    `;
     return result;
   };
 }
 
-type SqlTextPartial<Context extends EngineContext> =
+export type SqlTextPartial<Context extends EngineContext> =
   | ((ctx: Context) => c.TextContributionsPlaceholder)
-  | ((ctx: Context) => CreateTableRequest<Context, string>);
+  // deno-lint-ignore no-explicit-any
+  | ((ctx: Context) => TableDefinition<Context, any, any>)
+  // deno-lint-ignore no-explicit-any
+  | TableDefinition<Context, any, any>;
 
 export function sqlText<Context extends EngineContext>(): (
   literals: TemplateStringsArray,
@@ -694,7 +875,8 @@ export function sqlText<Context extends EngineContext>(): (
         const expr = suppliedExprs[i];
         if (typeof expr === "function") {
           const exprValue = expr(ctx);
-          if (isCreateTableRequest<Context, string>(exprValue)) {
+          // deno-lint-ignore no-explicit-any
+          if (isTableDefinition<Context, any, any>(exprValue)) {
             ctx.registerTable(exprValue);
             expressions[exprIndex] = exprValue;
           } else if (c.isTextContributionsPlaceholder(exprValue)) {
@@ -704,18 +886,25 @@ export function sqlText<Context extends EngineContext>(): (
             expressions[exprIndex] = exprValue;
           }
         } else {
-          expressions[exprIndex] = expr;
+          // deno-lint-ignore no-explicit-any
+          if (isTableDefinition<Context, any, any>(expr)) {
+            ctx.registerTable(expr);
+            expressions[exprIndex] = expr;
+          } else {
+            expressions[exprIndex] = expr;
+          }
         }
         exprIndex++;
       }
       if (placeholders.length > 0) {
         for (const ph of placeholders) {
-          const tcph = (expressions[ph] as SqlTextPartial<Context>)(
-            ctx as Context,
-          );
-          expressions[ph] = c.isTextContributionsPlaceholder(tcph)
-            ? tcph.contributions.map((c) => c.content).join("\n")
-            : tcph;
+          const expr = expressions[ph];
+          if (typeof expr === "function") {
+            const tcph = expr(ctx);
+            expressions[ph] = c.isTextContributionsPlaceholder(tcph)
+              ? tcph.contributions.map((c) => c.content).join("\n")
+              : tcph;
+          }
         }
       }
       let interpolated = "";
@@ -725,12 +914,12 @@ export function sqlText<Context extends EngineContext>(): (
         const expr = expressions[i];
         interpolated += typeof expr === "string"
           ? expr
-          : (isCreateTableRequest(expr)
+          : (isTableDefinition(expr)
             ? expr.SQL(ctx, steOptions)
             : Deno.inspect(expr));
 
         if (isSqlLintIssuesSupplier(expr)) {
-          lintIssues.push(...expr.lintIssues());
+          lintIssues.push(...expr.lintIssues);
         }
       }
       interpolated += literals[literals.length - 1];
@@ -741,7 +930,7 @@ export function sqlText<Context extends EngineContext>(): (
         const SQL = interpolate(ctx, steOptions);
         return isUnindentSupplier(ctx) ? ctx.unindentWhitespace(SQL) : SQL;
       },
-      lintIssues: () => lintIssues,
+      lintIssues,
     };
   };
 }

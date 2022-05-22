@@ -1,6 +1,5 @@
 import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./mod.ts";
-import { typicalTablePreparer } from "./mod.ts";
 import * as ws from "../../text/whitespace.ts";
 
 // CREATE TABLE IF NOT EXISTS publ_host (
@@ -60,27 +59,27 @@ import * as ws from "../../text/whitespace.ts";
 //   FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
 // );
 
-interface TestContext extends mod.EngineContext, mod.UnindentSupplier {
+interface TestContext
+  extends mod.EngineContext, mod.UnindentSupplier, mod.SqlLintIssuesSupplier {
 }
 
-export function publHost(ctx: TestContext) {
-  const result = typicalTablePreparer(ctx, "publ_host", [
+export function allTableDefns(ctx: TestContext) {
+  const publHost = mod.typicalTablePreparer(ctx, "publ_host", [
     "host",
     "host_identity",
     "mutation_count",
-  ])();
-  const [tc, td] = [result.columnsHelpers(), result.defnHelpers()];
-  result.define`
-      ${tc.text("host")}
-      ${tc.JSON("host_identity", { isNullable: true })}
-      ${tc.integer("mutation_count")}
-      ${td.unique("host")}
-    `;
-  return result;
-}
+  ])(
+    (defineColumns, { columnsFactory: cf, decoratorsFactory: df }) => {
+      defineColumns(
+        cf.text("host"),
+        cf.JSON("host_identity", { isNullable: true }),
+        cf.integer("mutation_count"),
+      );
+      df.unique("host");
+    },
+  );
 
-export function publBuildEvent(ctx: TestContext) {
-  const result = typicalTablePreparer(ctx, "publ_build_event", [
+  const publBuildEvent = mod.typicalTablePreparer(ctx, "publ_build_event", [
     "publ_host_id",
     "iteration_index",
     "build_initiated_at",
@@ -89,80 +88,43 @@ export function publBuildEvent(ctx: TestContext) {
     "resources_originated_count",
     "resources_persisted_count",
     "resources_memoized_count",
-  ])();
-  const [tc, td] = [
-    result.columnsHelpers(),
-    result.defnHelpers(),
-  ];
-  const publHostRef = ctx.reference("publ_host");
-  if (publHostRef) {
-    result.define`
-      ${tc.foreignKey(publHostRef)}
-    `;
-  }
-  result.define`
-      ${tc.integer("iteration_index")}
-      ${tc.dateTime("build_initiated_at")}
-      ${tc.dateTime("build_completed_at")}
-      ${tc.integer("build_duration_ms")}
-      ${tc.integer("resources_originated_count")}
-      ${tc.integer("resources_persisted_count")}
-      ${tc.integer("resources_memoized_count")}
-      `;
-  return result;
+  ])(
+    (defineColumns, { columnsFactory: cf }) => {
+      defineColumns(
+        { fkeyTable: publHost }, // calls cf.foreignKey()
+        cf.integer("iteration_index"),
+        cf.dateTime("build_initiated_at"),
+        cf.dateTime("build_completed_at"),
+        cf.integer("build_duration_ms"),
+        cf.integer("resources_originated_count"),
+        cf.integer("resources_persisted_count"),
+        cf.integer("resources_memoized_count"),
+      );
+    },
+  );
+
+  return [publHost, publBuildEvent];
 }
 
 Deno.test("idempotent SQL DDL", () => {
   // deno-lint-ignore no-explicit-any
-  const tables = new Map<string, mod.CreateTableRequest<TestContext, any>>();
+  const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
+  const lintIssues: mod.SqlLintIssueSupplier[] = [];
   const ctx: TestContext = {
+    dialect: mod.sqliteDialect<TestContext>(),
     registerTable: (table) => {
       tables.set(table.tableName, table);
     },
     reference: (tableName, columnName) => {
-      const createTableRequest = tables.get(tableName);
-      if (createTableRequest) {
-        if (!columnName) {
-          const tableColumnDefn = createTableRequest.columns.find((fc) =>
-            mod.isTableColumnPrimaryKeySupplier(fc) &&
-            mod.isTableColumnDataTypeSupplier(fc)
-          ) as
-            | (
-              & mod.TableColumnNameSupplier
-              // deno-lint-ignore no-explicit-any
-              & mod.TableColumnDataTypeSupplier<TestContext, any>
-            )
-            | undefined;
-          if (tableColumnDefn) {
-            return {
-              createTableRequest,
-              tableColumnDefn,
-            };
-          }
-        } else {
-          const tableColumnDefn = createTableRequest.columns.find((fc) =>
-            mod.isTableColumnNameSupplier(fc) &&
-            fc.columnName == columnName
-          ) as
-            | (
-              & mod.TableColumnNameSupplier
-              // deno-lint-ignore no-explicit-any
-              & mod.TableColumnDataTypeSupplier<TestContext, any>
-            )
-            | undefined;
-          if (tableColumnDefn) {
-            return {
-              createTableRequest,
-              tableColumnDefn,
-            };
-          }
-        }
-      }
+      const tableDefn = tables.get(tableName);
+      if (tableDefn) return tableDefn.foreignKeyReference(columnName);
       return undefined;
     },
     unindentWhitespace: (text) => ws.unindentWhitespace(text, true),
+    lintIssues,
   };
 
+  const [publHost, publBuildEvent] = allTableDefns(ctx);
   const DDL = mod.sqlText<TestContext>()`
     ${publHost}
     ${publBuildEvent}`;
