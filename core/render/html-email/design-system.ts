@@ -3,7 +3,7 @@ import * as govn from "../../../governance/mod.ts";
 import * as eGovn from "./governance.ts";
 import * as fm from "../../std/frontmatter.ts";
 import * as el from "./layout.ts";
-import * as contrib from "../contributions.ts";
+import * as contrib from "../../../lib/text/contributions.ts";
 import * as m from "../../../core/std/model.ts";
 import * as extn from "../../../lib/module/mod.ts";
 import * as render from "../../../core/std/render.ts";

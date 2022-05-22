@@ -1,6 +1,6 @@
 import * as govn from "../../../governance/mod.ts";
 import * as ds from "./design-system.ts";
-import * as contrib from "../contributions.ts";
+import * as contrib from "../../../lib/text/contributions.ts";
 
 export interface HtmlEmailLayoutContributions {
   readonly stylesheets: contrib.Contributions;

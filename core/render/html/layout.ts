@@ -1,7 +1,7 @@
 import * as govn from "../../../governance/mod.ts";
 import * as hGovn from "./governance.ts";
 import * as c from "../../../core/std/content.ts";
-import * as contrib from "../contributions.ts";
+import * as contrib from "../../../lib/text/contributions.ts";
 import * as r from "../../../core/std/render.ts";
 import * as obs from "../../../core/std/observability.ts";
 import * as e from "../../../lib/text/escape.ts";

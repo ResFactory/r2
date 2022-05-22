@@ -4,7 +4,7 @@ import * as ws from "../../../lib/workspace/mod.ts";
 import * as govn from "../../../governance/mod.ts";
 import * as fm from "../../std/frontmatter.ts";
 import * as html from "../../render/html/mod.ts";
-import * as contrib from "../contributions.ts";
+import * as contrib from "../../../lib/text/contributions.ts";
 import * as m from "../../../core/std/model.ts";
 import * as r from "../../../core/std/resource.ts";
 import * as route from "../../../core/std/route.ts";
