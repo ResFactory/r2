@@ -43,19 +43,6 @@ export interface TableColumnsFactory<
     columnName: ColumnName,
     options?: Partial<TableColumnNullabilitySupplier>,
   ) => TableJsonColumnDefinition<ColumnName>;
-  readonly foreignKey: (
-    // deno-lint-ignore no-explicit-any
-    reference: TableDefinitionSupplier<Context, any, any> & {
-      readonly tableColumnDefn:
-        // deno-lint-ignore no-explicit-any
-        & TableColumnNameSupplier<any>
-        // deno-lint-ignore no-explicit-any
-        & TableColumnDataTypeSupplier<any, any>;
-    },
-    columnName?: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-    // deno-lint-ignore no-explicit-any
-  ) => TableForeignKeyColumnDefinition<Context, any, ColumnName>;
 }
 
 export interface TableDecoratorsFactory<
@@ -71,7 +58,7 @@ export interface SqlDialect<Context extends EngineContext> {
     TableName extends string,
     ColumnName extends string,
   >(
-    tableName: TableName,
+    tableDefn: TableDefinition<Context, TableName, ColumnName>,
   ) => TableColumnsFactory<Context, TableName, ColumnName>;
   readonly tableDecoratorsFactory: <
     TableName extends string,
@@ -103,7 +90,9 @@ export function typicalTableColumnsFactory<
   Context extends EngineContext,
   TableName extends string,
   ColumnName extends string,
->(): TableColumnsFactory<
+>(
+  tableDefn: TableDefinition<Context, TableName, ColumnName>,
+): TableColumnsFactory<
   Context,
   TableName,
   ColumnName
@@ -117,7 +106,7 @@ export function typicalTableColumnsFactory<
         & SqlTextSupplier<
           TableColumnDefinitionContext<Context, TableName, ColumnName>
         > = {
-          columnName: columnName as ColumnName,
+          columnName: columnName,
           sqlDataType: "INTEGER",
           tsDataType: safety.typeGuard<number>(),
           isPrimaryKey: true,
@@ -127,12 +116,28 @@ export function typicalTableColumnsFactory<
               ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
             } AUTO INCREMENT`;
           },
+          foreignKeyTableColDefn: (foreignColumnName, options) => {
+            const fkeyTableColDefnResult:
+              & TableIntegerColumnDefinition<ColumnName>
+              // deno-lint-ignore no-explicit-any
+              & TableColumnForeignKeySupplier<Context, any, ColumnName> = {
+                columnName: foreignColumnName ?? columnName,
+                sqlDataType: "INTEGER",
+                tsDataType: safety.typeGuard<number>(),
+                isNullable: options?.isNullable ?? false,
+                foreignKey: {
+                  tableDefn,
+                  tableColumnDefn: result,
+                },
+              };
+            return fkeyTableColDefnResult;
+          },
         };
       return result;
     },
     integer: (columnName, options) => {
       return {
-        columnName: columnName as ColumnName,
+        columnName: columnName,
         sqlDataType: "INTEGER",
         tsDataType: safety.typeGuard<number>(),
         isPrimaryKey: options?.isPrimaryKey ?? false,
@@ -141,7 +146,7 @@ export function typicalTableColumnsFactory<
     },
     dateTime: (columnName, options) => {
       const result: TableDateTimeColumnDefinition<ColumnName> = {
-        columnName: columnName as ColumnName,
+        columnName: columnName,
         sqlDataType: "DATETIME",
         tsDataType: safety.typeGuard<Date>(),
         isPrimaryKey: options?.isPrimaryKey ?? false,
@@ -156,7 +161,7 @@ export function typicalTableColumnsFactory<
         & SqlTextSupplier<
           TableColumnDefinitionContext<Context, TableName, ColumnName>
         > = {
-          columnName: columnName as ColumnName,
+          columnName: columnName,
           sqlDataType: "DATETIME",
           tsDataType: safety.typeGuard<Date>(),
           declarationWeight: 99,
@@ -170,7 +175,7 @@ export function typicalTableColumnsFactory<
     },
     text: (columnName, options) => {
       return {
-        columnName: columnName as ColumnName,
+        columnName: columnName,
         sqlDataType: "TEXT",
         tsDataType: safety.typeGuard<string>(),
         isPrimaryKey: options?.isPrimaryKey ?? false,
@@ -179,29 +184,11 @@ export function typicalTableColumnsFactory<
     },
     JSON: (columnName, options) => {
       return {
-        columnName: columnName as ColumnName,
+        columnName: columnName,
         sqlDataType: "JSON",
         tsDataType: safety.typeGuard<Record<string, unknown>>(),
         isNullable: options?.isNullable ?? false,
       };
-    },
-    foreignKey: (reference, columnName) => {
-      const result:
-        // deno-lint-ignore no-explicit-any
-        & TableForeignKeyColumnDefinition<Context, any, ColumnName>
-        // deno-lint-ignore no-explicit-any
-        & TableColumnDataTypeSupplier<any, any> = {
-          columnName: columnName ?? reference.tableColumnDefn.columnName,
-          sqlDataType: reference.tableColumnDefn.sqlDataType ??
-            `?FK(${reference.tableDefn.tableName})`,
-          tsDataType: reference.tableColumnDefn.tsDataType ??
-            `?FK(${reference.tableDefn.tableName})`,
-          foreignKey: {
-            tableDefn: reference.tableDefn,
-            tableColumnDefn: reference.tableColumnDefn,
-          },
-        };
-      return result;
     },
   };
 }
@@ -265,7 +252,7 @@ export function sqliteDialect<Context extends EngineContext>(): SqlDialect<
   Context
 > {
   return {
-    tableColumnsFactory: () => typicalTableColumnsFactory(),
+    tableColumnsFactory: (tableDefn) => typicalTableColumnsFactory(tableDefn),
     tableColumnDefnSqlTextSupplier: typicalTableColumnDefnSqlTextSupplier<
       Context,
       // deno-lint-ignore no-explicit-any
@@ -282,21 +269,6 @@ export interface EngineContext {
     // deno-lint-ignore no-explicit-any
     table: TableDefinition<any, TableName, ColumnName>,
   ) => void;
-  readonly reference: <TableName extends string, ColumnName extends string>(
-    tableName: TableName,
-    columnName?: ColumnName,
-  ) =>
-    | (
-      // deno-lint-ignore no-explicit-any
-      & TableDefinitionSupplier<any, TableName, ColumnName>
-      & {
-        readonly tableColumnDefn:
-          & TableColumnNameSupplier<ColumnName>
-          // deno-lint-ignore no-explicit-any
-          & TableColumnDataTypeSupplier<any, any>;
-      }
-    )
-    | undefined;
   // deno-lint-ignore no-explicit-any
   readonly dialect: SqlDialect<any>;
 }
@@ -359,6 +331,26 @@ export const isTableColumnPrimaryKeySupplier = safety.typeGuard<
   TableColumnPrimaryKeySupplier
 >("isPrimaryKey");
 
+export interface ForeignKeyTableColumnDefnFactory<
+  ColumnName extends string,
+> {
+  readonly foreignKeyTableColDefn: (
+    columnName?: ColumnName,
+    options?: Partial<TableColumnNullabilitySupplier>,
+  ) => TableColumnDefinition<ColumnName>;
+}
+
+export function isForeignKeyTableColumnDefnFactory<
+  ColumnName extends string,
+>(
+  o: unknown,
+): o is ForeignKeyTableColumnDefnFactory<ColumnName> {
+  const isTCFKF = safety.typeGuard<
+    ForeignKeyTableColumnDefnFactory<ColumnName>
+  >("foreignKeyTableColDefn");
+  return isTCFKF(o);
+}
+
 export interface TableColumnForeignKeySupplier<
   Context extends EngineContext,
   TableName extends string,
@@ -417,7 +409,8 @@ export interface TableAutoIncPrimaryKeyColumnDefinition<
   ColumnName extends string,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"INTEGER", number> {
+  TableColumnDataTypeSupplier<"INTEGER", number>,
+  ForeignKeyTableColumnDefnFactory<ColumnName> {
 }
 
 export interface TableIntegerColumnDefinition<ColumnName extends string>
@@ -455,16 +448,6 @@ export interface TableJsonColumnDefinition<ColumnName extends string>
     TableColumnNameSupplier<ColumnName>,
     TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
     Partial<TableColumnNullabilitySupplier> {
-}
-
-export interface TableForeignKeyColumnDefinition<
-  Context extends EngineContext,
-  ForeignTableName extends string,
-  ColumnName extends string,
-> extends
-  TableColumnNameSupplier<ColumnName>,
-  TableColumnForeignKeySupplier<Context, ForeignTableName, ColumnName>,
-  Partial<TableColumnNullabilitySupplier> {
 }
 
 export type TableColumnDefinition<ColumnName extends string> =
@@ -511,20 +494,6 @@ export interface TableDefinition<
   readonly decorators: SqlTextSupplier<
     TableDefinitionContext<Context, TableName, ColumnName>
   >[];
-  readonly foreignKeyReference: (
-    columnName?: ColumnName,
-  ) =>
-    | (
-      // deno-lint-ignore no-explicit-any
-      & TableDefinitionSupplier<any, TableName, ColumnName>
-      & {
-        readonly tableColumnDefn:
-          & TableColumnNameSupplier<ColumnName>
-          // deno-lint-ignore no-explicit-any
-          & TableColumnDataTypeSupplier<any, any>;
-      }
-    )
-    | undefined;
 }
 
 export function isTableDefinition<
@@ -615,44 +584,6 @@ export function defineTable<
         }
       },
       decorators,
-      foreignKeyReference: (columnName) => {
-        if (!columnName) {
-          const tableColumnDefn = tableDefn.columns.find((fc) =>
-            isTableColumnPrimaryKeySupplier(fc) &&
-            isTableColumnDataTypeSupplier(fc)
-          ) as
-            | (
-              & TableColumnNameSupplier<ColumnName>
-              // deno-lint-ignore no-explicit-any
-              & TableColumnDataTypeSupplier<Context, any>
-            )
-            | undefined;
-          if (tableColumnDefn) {
-            return {
-              tableDefn,
-              tableColumnDefn,
-            };
-          }
-        } else {
-          const tableColumnDefn = tableDefn.columns.find((fc) =>
-            isTableColumnNameSupplier(fc) &&
-            (fc.columnName as string) == columnName
-          ) as
-            | (
-              & TableColumnNameSupplier<ColumnName>
-              // deno-lint-ignore no-explicit-any
-              & TableColumnDataTypeSupplier<Context, any>
-            )
-            | undefined;
-          if (tableColumnDefn) {
-            return {
-              tableDefn,
-              tableColumnDefn,
-            };
-          }
-        }
-        return undefined;
-      },
       SQL: (sqlCtx, steOptions) => {
         const columnDefns: string[] = [];
         const tableCtx:
@@ -733,33 +664,11 @@ export function defineTable<
     };
   defineTable?.({
     tableDefn,
-    columnsFactory: ctx.dialect.tableColumnsFactory(tableName),
+    columnsFactory: ctx.dialect.tableColumnsFactory(tableDefn),
     decoratorsFactory: ctx.dialect.tableDecoratorsFactory(tableDefn),
     ctx,
   });
   return tableDefn;
-}
-
-export interface ForeignKeyReferenceLookup<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
-> extends Partial<TableColumnNameSupplier<ColumnName>> {
-  readonly fkeyTable:
-    | string
-    | TableDefinition<Context, TableName, ColumnName>;
-  readonly fkeyColumnName?: string;
-}
-
-export function isForeignKeyReferenceLookup<
-  Context extends EngineContext,
-  TableName extends string,
-  ColumnName extends string,
->(o: unknown): o is ForeignKeyReferenceLookup<Context, TableName, ColumnName> {
-  const isFKRL = safety.typeGuard<
-    ForeignKeyReferenceLookup<Context, TableName, ColumnName>
-  >("fkeyTable");
-  return isFKRL(o);
 }
 
 export function typicalTablePreparer<
@@ -777,63 +686,26 @@ export function typicalTablePreparer<
 ) {
   return (
     customDefineTable?: (
-      defineColumns: (
-        ...column: (
-          | TableColumnDefinition<ColumnName>
-          // deno-lint-ignore no-explicit-any
-          | ForeignKeyReferenceLookup<Context, any, any>
-        )[]
-      ) => void,
+      defineColumns: (...column: TableColumnDefinition<ColumnName>[]) => void,
       init: DefineTableInit<Context, TableName, ColumnName>,
     ) => void,
   ) => {
-    const result = defineTable(
+    let primaryKeyColDefn: TableAutoIncPrimaryKeyColumnDefinition<
+      `${TableName}_id`
+    >;
+    const tableDefn = defineTable(
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, `created_at`],
       (init) => {
         const { tableDefn, columnsFactory: cf } = init;
-        tableDefn.columns.push(cf.autoIncPrimaryKey(`${tableName}_id`));
+        primaryKeyColDefn = cf.autoIncPrimaryKey(
+          `${tableName}_id`,
+        ) as TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
+        tableDefn.columns.push(primaryKeyColDefn);
         customDefineTable?.(
           (...columns) => {
-            for (const column of columns) {
-              if (isForeignKeyReferenceLookup(column)) {
-                if (typeof column.fkeyTable === "string") {
-                  const fKeyRef = ctx.reference(
-                    column.fkeyTable,
-                    column.fkeyColumnName,
-                  );
-                  if (fKeyRef) {
-                    tableDefn.columns.push(
-                      cf.foreignKey(fKeyRef, column.columnName),
-                    );
-                  } else {
-                    tableDefn.registerLintIssues({
-                      lintIssue:
-                        `Unable to create foreign key in ${tableName} using reference ${
-                          Deno.inspect(column)
-                        }`,
-                    });
-                  }
-                } else {
-                  const fkeyRef = column.fkeyTable.foreignKeyReference(
-                    column.fkeyColumnName,
-                  );
-                  if (fkeyRef) {
-                    tableDefn.columns.push(
-                      cf.foreignKey(fkeyRef, column.columnName),
-                    );
-                  } else {
-                    tableDefn.registerLintIssues({
-                      lintIssue:
-                        `Unable to obtain default foreign key reference (the primary key) from ${tableName}`,
-                    });
-                  }
-                }
-              } else if (isTableColumnDefinition<ColumnName>(column)) {
-                tableDefn.columns.push(column);
-              }
-            }
+            tableDefn.columns.push(...columns);
           },
           // deno-lint-ignore no-explicit-any
           init as any, // TODO: figure out why cast to any is required
@@ -843,7 +715,8 @@ export function typicalTablePreparer<
       },
       options,
     );
-    return result;
+    // we use ! after primaryKeyColDefn because linter thinks it's not set but we know it is
+    return { tableDefn, primaryKeyColDefn: primaryKeyColDefn! };
   };
 }
 

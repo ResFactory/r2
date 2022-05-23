@@ -64,34 +64,42 @@ interface TestContext
 }
 
 export function allTableDefns(ctx: TestContext) {
-  const publHost = mod.typicalTablePreparer(ctx, "publ_host", [
-    "host",
-    "host_identity",
-    "mutation_count",
-  ])(
-    (defineColumns, { columnsFactory: cf, decoratorsFactory: df }) => {
-      defineColumns(
-        cf.text("host"),
-        cf.JSON("host_identity", { isNullable: true }),
-        cf.integer("mutation_count"),
-      );
-      df.unique("host");
-    },
-  );
+  const { tableDefn: publHost, primaryKeyColDefn: publHostPK } = mod
+    .typicalTablePreparer(ctx, "publ_host", [
+      "host",
+      "host_identity",
+      "mutation_count",
+    ])(
+      (
+        defineColumns,
+        { columnsFactory: cf, decoratorsFactory: df },
+      ) => {
+        defineColumns(
+          cf.text("host"),
+          cf.JSON("host_identity", { isNullable: true }),
+          cf.integer("mutation_count"),
+        );
+        df.unique("host");
+      },
+    );
 
-  const publBuildEvent = mod.typicalTablePreparer(ctx, "publ_build_event", [
-    "publ_host_id",
-    "iteration_index",
-    "build_initiated_at",
-    "build_completed_at",
-    "build_duration_ms",
-    "resources_originated_count",
-    "resources_persisted_count",
-    "resources_memoized_count",
-  ])(
+  const { tableDefn: publBuildEvent } = mod.typicalTablePreparer(
+    ctx,
+    "publ_build_event",
+    [
+      "publ_host_id",
+      "iteration_index",
+      "build_initiated_at",
+      "build_completed_at",
+      "build_duration_ms",
+      "resources_originated_count",
+      "resources_persisted_count",
+      "resources_memoized_count",
+    ],
+  )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(
-        { fkeyTable: publHost }, // calls cf.foreignKey()
+        publHostPK.foreignKeyTableColDefn(),
         cf.integer("iteration_index"),
         cf.dateTime("build_initiated_at"),
         cf.dateTime("build_completed_at"),
@@ -114,11 +122,6 @@ Deno.test("idempotent SQL DDL", () => {
     dialect: mod.sqliteDialect<TestContext>(),
     registerTable: (table) => {
       tables.set(table.tableName, table);
-    },
-    reference: (tableName, columnName) => {
-      const tableDefn = tables.get(tableName);
-      if (tableDefn) return tableDefn.foreignKeyReference(columnName);
-      return undefined;
     },
     unindentWhitespace: (text) => ws.unindentWhitespace(text, true),
     lintIssues,
