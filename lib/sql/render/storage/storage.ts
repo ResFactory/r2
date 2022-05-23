@@ -1,9 +1,11 @@
-import * as safety from "../../safety/mod.ts";
-import * as st from "./text.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as st from "../text.ts";
 import * as govn from "./governance.ts";
+import * as l from "../lint.ts";
+import * as t from "../text.ts";
 
 export function typicalTableColumnsFactory<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -19,7 +21,7 @@ export function typicalTableColumnsFactory<
         & govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName>
         & govn.TableColumnNullabilitySupplier
         & govn.TableColumnPrimaryKeySupplier
-        & govn.SqlTextSupplier<
+        & t.SqlTextSupplier<
           govn.TableColumnDefinitionContext<Context, TableName, ColumnName>
         > = {
           columnName: columnName,
@@ -29,7 +31,10 @@ export function typicalTableColumnsFactory<
           isNullable: false,
           SQL: (ctx, steOptions) => {
             return `${
-              ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
+              ctx.storageFactories.tableColumnDefnSqlTextSupplier(
+                ctx,
+                steOptions,
+              )
             } AUTOINCREMENT`;
           },
           foreignKeyTableColDefn: (foreignColumnName, options) => {
@@ -74,7 +79,7 @@ export function typicalTableColumnsFactory<
       const result:
         & govn.TableCreationStampColumnDefinition<ColumnName>
         & govn.TableColumnDeclareWeightSupplier
-        & govn.SqlTextSupplier<
+        & t.SqlTextSupplier<
           govn.TableColumnDefinitionContext<Context, TableName, ColumnName>
         > = {
           columnName: columnName,
@@ -83,7 +88,10 @@ export function typicalTableColumnsFactory<
           declarationWeight: 99,
           SQL: (ctx, steOptions) => {
             return `${
-              ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
+              ctx.storageFactories.tableColumnDefnSqlTextSupplier(
+                ctx,
+                steOptions,
+              )
             } DEFAULT CURRENT_TIMESTAMP`;
           },
         };
@@ -110,12 +118,12 @@ export function typicalTableColumnsFactory<
 }
 
 export function typicalTableColumnDefnSqlTextSupplier<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(): (
   ctx: govn.TableColumnDefinitionContext<Context, TableName, ColumnName>,
-  options?: govn.SqlTextEmitOptions,
+  options?: t.SqlTextEmitOptions,
 ) => string {
   return (ctx, steOptions) => {
     const tCD = ctx.tableColumnDefn;
@@ -140,13 +148,13 @@ export function typicalTableColumnDefnSqlTextSupplier<
   };
 }
 
-export function typicalTableDecoratorsFactory<
-  Context extends govn.SqlAssemblerContext,
+export function typicalTableDefnDecoratorsFactory<
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
-): govn.TableDecoratorsFactory<Context, TableName, ColumnName> {
+): govn.TableDefnDecoratorsFactory<Context, TableName, ColumnName> {
   return {
     unique: (...columnNames) => {
       tableDefn.decorators.push({
@@ -185,7 +193,7 @@ export function isForeignKeyTableColumnDefnFactory<
 }
 
 export function isTableColumnForeignKeySupplier<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -220,7 +228,7 @@ export function isTableColumnDefinition<ColumnName extends string>(
 }
 
 export function isTableDefinition<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -243,17 +251,17 @@ export interface DefineTableOptions {
 }
 
 export interface DefineTableInit<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 > {
   readonly tableDefn:
     & govn.TableDefinition<Context, TableName, ColumnName>
-    & govn.SqlLintIssuesSupplier
+    & l.SqlLintIssuesSupplier
     & {
       readonly finalizeDefn: () => void;
       readonly registerLintIssues: (
-        ...slis: govn.SqlLintIssueSupplier[]
+        ...slis: l.SqlLintIssueSupplier[]
       ) => void;
     };
   readonly columnsFactory: govn.TableColumnsFactory<
@@ -261,7 +269,7 @@ export interface DefineTableInit<
     TableName,
     ColumnName
   >;
-  readonly decoratorsFactory: govn.TableDecoratorsFactory<
+  readonly decoratorsFactory: govn.TableDefnDecoratorsFactory<
     Context,
     TableName,
     ColumnName
@@ -269,8 +277,13 @@ export interface DefineTableInit<
   readonly ctx: Context;
 }
 
+export interface TableLintIssue<TableName extends string>
+  extends l.SqlLintIssueSupplier {
+  readonly tableName: TableName;
+}
+
 export function defineTable<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -282,16 +295,16 @@ export function defineTable<
 ): govn.TableDefinition<Context, TableName, ColumnName> {
   const { isIdempotent } = options ?? { isIdempotent: true };
   const columns: govn.TableColumnDefinition<ColumnName>[] = [];
-  const decorators: govn.SqlTextSupplier<
+  const decorators: t.SqlTextSupplier<
     govn.TableDefinitionContext<Context, TableName, ColumnName>
   >[] = [];
-  const lintIssues: govn.SqlLintIssueSupplier[] = [];
+  const lintIssues: l.SqlLintIssueSupplier[] = [];
   const tableDefn:
     & govn.TableDefinition<Context, TableName, ColumnName>
-    & govn.SqlLintIssuesSupplier
+    & l.SqlLintIssuesSupplier
     & {
       finalizeDefn: () => void;
-      registerLintIssues: (...slis: govn.SqlLintIssueSupplier[]) => void;
+      registerLintIssues: (...slis: l.SqlLintIssueSupplier[]) => void;
     } = {
       tableName,
       isIdempotent,
@@ -299,7 +312,7 @@ export function defineTable<
       lintIssues,
       registerLintIssues: (...slis) => {
         for (const li of slis) {
-          const tli: govn.TableLintIssue<TableName> = { tableName, ...li };
+          const tli: TableLintIssue<TableName> = { tableName, ...li };
           lintIssues.push(tli);
         }
       },
@@ -312,7 +325,7 @@ export function defineTable<
             ...sqlCtx,
             tableDefn: tableDefn,
           };
-        const ttcdSTS = sqlCtx.dialect.tableColumnDefnSqlTextSupplier;
+        const ttcdSTS = sqlCtx.storageFactories.tableColumnDefnSqlTextSupplier;
         for (
           const c of columns.sort((a, b) =>
             isTableColumnDeclareWeightSupplier(a) &&
@@ -347,7 +360,7 @@ export function defineTable<
       finalizeDefn: () => {
         for (const vcn of validColumnNames) {
           if (!columns.find((c) => c.columnName == vcn)) {
-            const lintIssue: govn.TableLintIssue<TableName> = {
+            const lintIssue: TableLintIssue<TableName> = {
               tableName,
               lintIssue:
                 `column '${vcn}' declared but not defined in createTable(${tableName})`,
@@ -386,15 +399,17 @@ export function defineTable<
     };
   defineTable?.({
     tableDefn,
-    columnsFactory: ctx.dialect.tableColumnsFactory(tableDefn),
-    decoratorsFactory: ctx.dialect.tableDecoratorsFactory(tableDefn),
+    columnsFactory: ctx.storageFactories.tableColumnsFactory(tableDefn),
+    decoratorsFactory: ctx.storageFactories.tableDefnDecoratorsFactory(
+      tableDefn,
+    ),
     ctx,
   });
   return tableDefn;
 }
 
 export function typicalTableDefn<
-  Context extends govn.SqlAssemblerContext,
+  Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(

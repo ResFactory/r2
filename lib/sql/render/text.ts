@@ -1,9 +1,22 @@
 import * as safety from "../../safety/mod.ts";
-import * as govn from "./governance.ts";
 
-export function isSqlTextSupplier<Context extends govn.SqlAssemblerContext>(
+export interface SqlTextEmitOptions {
+  readonly tableName?: (tableName: string) => string;
+  readonly columnName?: (
+    column: { tableName: string; columnName: string },
+  ) => string;
+  readonly indentation?: (
+    nature: "create table" | "define table column",
+  ) => string;
+}
+
+export interface SqlTextSupplier<Context> {
+  readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
+}
+
+export function isSqlTextSupplier<Context>(
   o: unknown,
-): o is govn.SqlTextSupplier<Context> {
-  const isSTS = safety.typeGuard<govn.SqlTextSupplier<Context>>("SQL");
+): o is SqlTextSupplier<Context> {
+  const isSTS = safety.typeGuard<SqlTextSupplier<Context>>("SQL");
   return isSTS(o);
 }

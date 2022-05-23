@@ -2,8 +2,7 @@ import { path, testingAsserts as ta } from "./deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as mod from "./mod.ts";
 
-interface TestContext
-  extends mod.SqlAssemblerContext, mod.SqlLintIssuesSupplier {
+interface TestContext extends mod.StorageContext, mod.SqlLintIssuesSupplier {
 }
 
 export function allTableDefns(ctx: TestContext) {
@@ -140,7 +139,7 @@ Deno.test("SQLa (assembler)", () => {
   const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
   const lintIssues: mod.SqlLintIssueSupplier[] = [];
   const ctx: TestContext = {
-    dialect: mod.sqliteDialect<TestContext>(),
+    storageFactories: mod.sqliteDialect<TestContext>(),
     registerTable: (table) => {
       tables.set(table.tableName, table);
     },

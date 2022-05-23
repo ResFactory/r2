@@ -1,7 +1,8 @@
-import * as safety from "../../safety/mod.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as t from "../text.ts";
 
 export interface TableColumnsFactory<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -36,77 +37,51 @@ export interface TableColumnsFactory<
   ) => TableJsonColumnDefinition<ColumnName>;
 }
 
-export interface TableDecoratorsFactory<
-  Context extends SqlAssemblerContext,
+export interface TableDefnDecoratorsFactory<
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > {
   readonly unique: (...columnNames: ColumnName[]) => void;
 }
 
-export interface SqlDialect<Context extends SqlAssemblerContext> {
+export interface StorageFactoriesSupplier<Context extends StorageContext> {
   readonly tableColumnsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
     tableDefn: TableDefinition<Context, TableName, ColumnName>,
   ) => TableColumnsFactory<Context, TableName, ColumnName>;
-  readonly tableDecoratorsFactory: <
+  readonly tableDefnDecoratorsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
     tableDefn: TableDefinition<Context, TableName, ColumnName>,
-  ) => TableDecoratorsFactory<Context, TableName, ColumnName>;
+  ) => TableDefnDecoratorsFactory<Context, TableName, ColumnName>;
   readonly tableColumnDefnSqlTextSupplier: <
     TableName extends string,
     ColumnName extends string,
   >(
     ctx: TableColumnDefinitionContext<Context, TableName, ColumnName>,
-    options?: SqlTextEmitOptions,
+    options?: t.SqlTextEmitOptions,
   ) => string;
 }
 
-export interface SqlDialectSupplier<Context extends SqlAssemblerContext> {
-  readonly dialect: SqlDialect<Context>;
-}
-
-export interface SqlAssemblerContext {
+export interface StorageContext {
   readonly registerTable: <TableName extends string, ColumnName extends string>(
     // deno-lint-ignore no-explicit-any
     table: TableDefinition<any, TableName, ColumnName>,
   ) => void;
   // deno-lint-ignore no-explicit-any
-  readonly dialect: SqlDialect<any>;
+  readonly storageFactories: StorageFactoriesSupplier<any>;
 }
 
 export interface TableDefinitionSupplier<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > {
   readonly tableDefn: TableDefinition<Context, TableName, ColumnName>;
-}
-
-export interface SqlLintIssueSupplier {
-  readonly lintIssue: string;
-}
-
-export interface SqlLintIssuesSupplier {
-  readonly lintIssues: SqlLintIssueSupplier[];
-}
-
-export interface SqlTextEmitOptions {
-  readonly tableName?: (tableName: string) => string;
-  readonly columnName?: (
-    column: { tableName: string; columnName: string },
-  ) => string;
-  readonly indentation?: (
-    nature: "create table" | "define table column",
-  ) => string;
-}
-
-export interface SqlTextSupplier<Context extends SqlAssemblerContext> {
-  readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
 }
 
 export interface TableColumnNameSupplier<ColumnName extends string> {
@@ -127,7 +102,7 @@ export interface ForeignKeyTableColumnDefnFactory<
 }
 
 export interface TableColumnForeignKeySupplier<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -207,7 +182,7 @@ export interface TableColumnDefinitionSupplier<ColumnName extends string> {
 }
 
 export type TableDefinitionContext<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -215,7 +190,7 @@ export type TableDefinitionContext<
   & TableDefinitionSupplier<Context, TableName, ColumnName>;
 
 export type TableColumnDefinitionContext<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -224,19 +199,14 @@ export type TableColumnDefinitionContext<
   & TableColumnDefinitionSupplier<ColumnName>;
 
 export interface TableDefinition<
-  Context extends SqlAssemblerContext,
+  Context extends StorageContext,
   TableName extends string,
   ColumnName extends string,
-> extends SqlTextSupplier<Context> {
+> extends t.SqlTextSupplier<Context> {
   readonly tableName: TableName;
   readonly isIdempotent?: boolean;
   readonly columns: TableColumnDefinition<ColumnName>[];
-  readonly decorators: SqlTextSupplier<
+  readonly decorators: t.SqlTextSupplier<
     TableDefinitionContext<Context, TableName, ColumnName>
   >[];
-}
-
-export interface TableLintIssue<TableName extends string>
-  extends SqlLintIssueSupplier {
-  readonly tableName: TableName;
 }

@@ -1,15 +1,15 @@
 import * as c from "../../text/contributions.ts";
 import * as ws from "../../text/whitespace.ts";
-import * as govn from "./governance.ts";
-import * as t from "./table.ts";
+import * as s from "./storage/mod.ts";
 import * as l from "./lint.ts";
+import * as t from "./text.ts";
 
-export type SqlAssemblerPartial<Context extends govn.SqlAssemblerContext> =
+export type SqlAssemblerPartial<Context extends s.StorageContext> =
   | ((ctx: Context) => c.TextContributionsPlaceholder)
   // deno-lint-ignore no-explicit-any
-  | ((ctx: Context) => govn.TableDefinition<Context, any, any>)
+  | ((ctx: Context) => s.TableDefinition<Context, any, any>)
   // deno-lint-ignore no-explicit-any
-  | govn.TableDefinition<Context, any, any>
+  | s.TableDefinition<Context, any, any>
   | string;
 
 export interface SqlAssemblerOptions {
@@ -19,13 +19,13 @@ export interface SqlAssemblerOptions {
   ) => ws.TemplateLiteralIndexedTextSupplier;
 }
 
-export function assembleSQL<Context extends govn.SqlAssemblerContext>(
+export function assembleSQL<Context extends s.StorageContext>(
   options?: SqlAssemblerOptions,
 ): (
   literals: TemplateStringsArray,
   ...expressions: SqlAssemblerPartial<Context>[]
-) => govn.SqlTextSupplier<Context> & Partial<govn.SqlLintIssuesSupplier> {
-  const lintIssues: govn.SqlLintIssueSupplier[] = [];
+) => t.SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
+  const lintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
     // by default no pre-processing of text literals are done; if auto-unindent is desired pass in
     //   options.literalSupplier = (literals, suppliedExprs) => ws.whitespaceSensitiveTemplateLiteralSupplier(literals, suppliedExprs)
@@ -34,7 +34,7 @@ export function assembleSQL<Context extends govn.SqlAssemblerContext>(
       : (index: number) => literals[index];
     const interpolate: (
       ctx: Context,
-      steOptions?: govn.SqlTextEmitOptions,
+      steOptions?: t.SqlTextEmitOptions,
     ) => string = (
       ctx,
       steOptions,
@@ -50,7 +50,7 @@ export function assembleSQL<Context extends govn.SqlAssemblerContext>(
         if (typeof expr === "function") {
           const exprValue = expr(ctx);
           // deno-lint-ignore no-explicit-any
-          if (t.isTableDefinition<Context, any, any>(exprValue)) {
+          if (s.isTableDefinition<Context, any, any>(exprValue)) {
             ctx.registerTable(exprValue);
             expressions[exprIndex] = exprValue;
           } else if (c.isTextContributionsPlaceholder(exprValue)) {
@@ -61,7 +61,7 @@ export function assembleSQL<Context extends govn.SqlAssemblerContext>(
           }
         } else {
           // deno-lint-ignore no-explicit-any
-          if (t.isTableDefinition<Context, any, any>(expr)) {
+          if (s.isTableDefinition<Context, any, any>(expr)) {
             ctx.registerTable(expr);
             expressions[exprIndex] = expr;
           } else {
@@ -87,7 +87,7 @@ export function assembleSQL<Context extends govn.SqlAssemblerContext>(
         interpolated += literalSupplier(i);
         const expr = expressions[i];
 
-        if (t.isTableDefinition(expr)) {
+        if (s.isTableDefinition(expr)) {
           interpolated += expr.SQL(ctx, steOptions);
         } else if (typeof expr === "string") {
           interpolated += expr;

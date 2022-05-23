@@ -1,6 +1,13 @@
 import * as safety from "../../safety/mod.ts";
-import * as govn from "./governance.ts";
 
-export const isSqlLintIssuesSupplier = safety.typeGuard<
-  govn.SqlLintIssuesSupplier
->("lintIssues");
+export interface SqlLintIssueSupplier {
+  readonly lintIssue: string;
+}
+
+export interface SqlLintIssuesSupplier {
+  readonly lintIssues: SqlLintIssueSupplier[];
+}
+
+export const isSqlLintIssuesSupplier = safety.typeGuard<SqlLintIssuesSupplier>(
+  "lintIssues",
+);
