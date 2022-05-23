@@ -1,5 +1,6 @@
 import * as safety from "../../safety/mod.ts";
 import * as c from "../../text/contributions.ts";
+import * as ws from "../../text/whitespace.ts";
 
 export interface UnindentSupplier {
   readonly unindentWhitespace: (text: string) => string;
@@ -114,7 +115,7 @@ export function typicalTableColumnsFactory<
           SQL: (ctx, steOptions) => {
             return `${
               ctx.dialect.tableColumnDefnSqlTextSupplier(ctx, steOptions)
-            } AUTO INCREMENT`;
+            } AUTOINCREMENT`;
           },
           foreignKeyTableColDefn: (foreignColumnName, options) => {
             const fkeyTableColDefnResult:
@@ -617,9 +618,9 @@ export function defineTable<
 
         // deno-fmt-ignore
         const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
-          columnDefns.join(",\n") +
-          (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
-          "\n);";
+        columnDefns.join(",\n") +
+        (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
+        "\n);";
         return result;
       },
       finalizeDefn: () => {
@@ -671,7 +672,7 @@ export function defineTable<
   return tableDefn;
 }
 
-export function typicalTablePreparer<
+export function typicalTableDefn<
   Context extends EngineContext,
   TableName extends string,
   ColumnName extends string,
@@ -725,14 +726,30 @@ export type SqlTextPartial<Context extends EngineContext> =
   // deno-lint-ignore no-explicit-any
   | ((ctx: Context) => TableDefinition<Context, any, any>)
   // deno-lint-ignore no-explicit-any
-  | TableDefinition<Context, any, any>;
+  | TableDefinition<Context, any, any>
+  | string;
 
-export function sqlText<Context extends EngineContext>(): (
+export interface SqlTextOptions {
+  readonly literalSupplier: ws.TemplateLiteralIndexedTextSupplier;
+}
+
+export function sqlText<Context extends EngineContext>(
+  options?: SqlTextOptions,
+): (
   literals: TemplateStringsArray,
   ...expressions: SqlTextPartial<Context>[]
 ) => SqlTextSupplier<Context> & Partial<SqlLintIssuesSupplier> {
   const lintIssues: SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
+    const {
+      // we want to unindent and remove initial newline by default; if this
+      // behavior is not desired, pass in an alternate literal supplier
+      // function
+      literalSupplier = ws.whitespaceSensitiveTemplateLiteralSupplier(
+        literals,
+        suppliedExprs,
+      ),
+    } = options ?? {};
     const interpolate: (
       ctx: Context,
       steOptions?: SqlTextEmitOptions,
@@ -741,6 +758,8 @@ export function sqlText<Context extends EngineContext>(): (
       steOptions,
     ) => {
       // evaluate expressions and look for contribution placeholders;
+      // we pre-evaluate expressions so that text at the beginning of
+      // a template could refer to expressions at the bottom.
       const placeholders: number[] = [];
       const expressions: unknown[] = [];
       let exprIndex = 0;
@@ -780,22 +799,25 @@ export function sqlText<Context extends EngineContext>(): (
           }
         }
       }
+
       let interpolated = "";
       for (let i = 0; i < expressions.length; i++) {
-        interpolated += literals[i];
-
+        interpolated += literalSupplier(i);
         const expr = expressions[i];
-        interpolated += typeof expr === "string"
-          ? expr
-          : (isTableDefinition(expr)
-            ? expr.SQL(ctx, steOptions)
-            : Deno.inspect(expr));
+
+        if (isTableDefinition(expr)) {
+          interpolated += expr.SQL(ctx, steOptions);
+        } else if (typeof expr === "string") {
+          interpolated += expr;
+        } else {
+          interpolated += Deno.inspect(expr);
+        }
 
         if (isSqlLintIssuesSupplier(expr)) {
           lintIssues.push(...expr.lintIssues);
         }
       }
-      interpolated += literals[literals.length - 1];
+      interpolated += literalSupplier(literals.length - 1);
       return interpolated;
     };
     return {

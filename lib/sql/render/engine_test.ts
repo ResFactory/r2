@@ -2,70 +2,13 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./mod.ts";
 import * as ws from "../../text/whitespace.ts";
 
-// CREATE TABLE IF NOT EXISTS publ_host (
-//   publ_host_id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   host TEXT NOT NULL,
-//   host_identity JSON,
-//   mutation_count INTEGER,
-//   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//   UNIQUE(host)
-// );
-
-// CREATE TABLE IF NOT EXISTS publ_build_event (
-//   publ_build_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   publ_host_id INTEGER NOT NULL,
-//   iteration_index INTEGER NOT NULL,
-//   build_initiated_at DATETIME NOT NULL,
-//   build_completed_at DATETIME NOT NULL,
-//   build_duration_ms INTEGER NOT NULL,
-//   resources_originated_count INTEGER NOT NULL,
-//   resources_persisted_count INTEGER NOT NULL,
-//   resources_memoized_count INTEGER, -- NULL if not memoizing, non-zero if memoized
-//   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//   FOREIGN KEY(publ_host_id) REFERENCES publ_host(publ_host_id)
-// );
-
-// CREATE TABLE IF NOT EXISTS publ_server_service (
-//   publ_server_service_id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   service_started_at DATETIME,
-//   listen_host TEXT NOT NULL,
-//   listen_port INTEGER NOT NULL,
-//   publish_url TEXT NOT NULL,
-//   publ_build_event_id INTEGER NOT NULL,
-//   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//   FOREIGN KEY(publ_build_event_id) REFERENCES publ_build_event(publ_build_event_id)
-// );
-
-// -- TODO: add indexes to improve query performance
-// CREATE TABLE IF NOT EXISTS publ_server_static_access_log (
-//   publ_server_static_access_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   status INTEGER NOT NULL,
-//   asset_nature TEXT NOT NULL,
-//   location_href TEXT NOT NULL,
-//   filesys_target_path TEXT NOT NULL,
-//   filesys_target_symlink TEXT,
-//   publ_server_service_id INTEGER NOT NULL,
-//   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//   FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
-// );
-
-// CREATE TABLE IF NOT EXISTS publ_server_error_log (
-//   publ_server_error_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-//   location_href TEXT NOT NULL,
-//   error_summary TEXT NOT NULL,
-//   error_elaboration JSON,
-//   publ_server_service_id INTEGER NOT NULL,
-//   created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//   FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
-// );
-
 interface TestContext
   extends mod.EngineContext, mod.UnindentSupplier, mod.SqlLintIssuesSupplier {
 }
 
 export function allTableDefns(ctx: TestContext) {
   const { tableDefn: publHost, primaryKeyColDefn: publHostPK } = mod
-    .typicalTablePreparer(ctx, "publ_host", [
+    .typicalTableDefn(ctx, "publ_host", [
       "host",
       "host_identity",
       "mutation_count",
@@ -83,35 +26,113 @@ export function allTableDefns(ctx: TestContext) {
       },
     );
 
-  const { tableDefn: publBuildEvent } = mod.typicalTablePreparer(
+  const { tableDefn: publBuildEvent, primaryKeyColDefn: publBuildEventPK } = mod
+    .typicalTableDefn(
+      ctx,
+      "publ_build_event",
+      [
+        "publ_host_id",
+        "iteration_index",
+        "build_initiated_at",
+        "build_completed_at",
+        "build_duration_ms",
+        "resources_originated_count",
+        "resources_persisted_count",
+        "resources_memoized_count",
+      ],
+    )(
+      (defineColumns, { columnsFactory: cf }) => {
+        defineColumns(
+          publHostPK.foreignKeyTableColDefn(),
+          cf.integer("iteration_index"),
+          cf.dateTime("build_initiated_at"),
+          cf.dateTime("build_completed_at"),
+          cf.integer("build_duration_ms"),
+          cf.integer("resources_originated_count"),
+          cf.integer("resources_persisted_count"),
+          cf.integer("resources_memoized_count"),
+        );
+      },
+    );
+
+  const {
+    tableDefn: publServerService,
+    primaryKeyColDefn: publServerServicePK,
+  } = mod.typicalTableDefn(
     ctx,
-    "publ_build_event",
+    "publ_server_service",
     [
-      "publ_host_id",
-      "iteration_index",
-      "build_initiated_at",
-      "build_completed_at",
-      "build_duration_ms",
-      "resources_originated_count",
-      "resources_persisted_count",
-      "resources_memoized_count",
+      "service_started_at",
+      "listen_host",
+      "listen_port",
+      "publish_url",
+      "publ_build_event_id",
     ],
   )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(
-        publHostPK.foreignKeyTableColDefn(),
-        cf.integer("iteration_index"),
-        cf.dateTime("build_initiated_at"),
-        cf.dateTime("build_completed_at"),
-        cf.integer("build_duration_ms"),
-        cf.integer("resources_originated_count"),
-        cf.integer("resources_persisted_count"),
-        cf.integer("resources_memoized_count"),
+        cf.dateTime("service_started_at"),
+        cf.text("listen_host"),
+        cf.integer("listen_port"),
+        cf.text("publish_url"),
+        publBuildEventPK.foreignKeyTableColDefn(),
       );
     },
   );
 
-  return [publHost, publBuildEvent];
+  // -- TODO: add indexes to improve query performance
+  const { tableDefn: publServerStaticAccessLog } = mod.typicalTableDefn(
+    ctx,
+    "publ_server_static_access_log",
+    [
+      "status",
+      "asset_nature",
+      "location_href",
+      "filesys_target_path",
+      "filesys_target_symlink",
+      "publ_server_service_id",
+    ],
+  )(
+    (defineColumns, { columnsFactory: cf }) => {
+      defineColumns(
+        cf.integer("status"),
+        cf.text("asset_nature"),
+        cf.text("location_href"),
+        cf.text("filesys_target_path"),
+        cf.text("filesys_target_symlink", { isNullable: true }),
+        publServerServicePK.foreignKeyTableColDefn(),
+      );
+    },
+  );
+
+  // -- TODO: add indexes to improve query performance
+  const { tableDefn: publServerErrorLog } = mod.typicalTableDefn(
+    ctx,
+    "publ_server_error_log",
+    [
+      "location_href",
+      "error_summary",
+      "error_elaboration",
+      "publ_server_service_id",
+    ],
+  )(
+    (defineColumns, { columnsFactory: cf }) => {
+      defineColumns(
+        cf.text("location_href"),
+        cf.text("error_summary"),
+        cf.JSON("error_elaboration", { isNullable: true }),
+        publServerServicePK.foreignKeyTableColDefn(),
+      );
+    },
+  );
+
+  return [
+    publHost,
+    publBuildEvent,
+    publServerService,
+    publServerStaticAccessLog,
+    publServerErrorLog,
+  ];
 }
 
 Deno.test("idempotent SQL DDL", () => {
@@ -127,10 +148,42 @@ Deno.test("idempotent SQL DDL", () => {
     lintIssues,
   };
 
-  const [publHost, publBuildEvent] = allTableDefns(ctx);
+  const [
+    publHost,
+    publBuildEvent,
+    publServerService,
+    publServerStaticAccessLog,
+    publServerErrorLog,
+  ] = allTableDefns(ctx);
   const DDL = mod.sqlText<TestContext>()`
+    -- This SQL is auto-generated and may be version-controlled but not human edited.
+    -- Source: ${import.meta.url}
+
+    -- Governance:
+    -- * use 3rd normal form for tables
+    -- * use views to wrap business logic
+    -- * when denormalizing is required, use views (don't denormalize tables)
+    -- * each table name MUST be singular (not plural) noun
+    -- * each table MUST have a \`table_name\`_id primary key (typicalTableDefn will do this automatically)
+    -- * each table MUST have \`created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL\` column (typicalTableDefn will do this automatically)
+    -- * if table's rows are mutable, it MUST have a \`updated_at DATETIME\` column (not having an updated_at means it's immutable)
+    -- * if table's rows are deleteable, it MUST have a \`deleted_at DATETIME\` column for soft deletes (not having an deleted_at means it's immutable)
+
+    -- TODO: create a govn_* set of tables that would contain business logic, assurance, presentation, and other details
+    --       govn_entity would be a table that stores table meta data (descriptions, immutability, presentation, migration instructions, etc.)
+    --       govn_entity_property would be a table that stores table column meta data (descriptions, immutability, presentation, migration instructions, etc.)
+    --       govn_entity_relationship would be a table that stores entity/property relationships (1:N, 1:M, etc.) for literate programming documentation, etc.
+    --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
+
     ${publHost}
-    ${publBuildEvent}`;
+
+    ${publBuildEvent}
+
+    ${publServerService}
+
+    ${publServerStaticAccessLog}
+
+    ${publServerErrorLog}`;
 
   console.log(DDL.SQL(ctx, {
     indentation: (nature) => {
