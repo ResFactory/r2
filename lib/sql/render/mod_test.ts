@@ -2,7 +2,8 @@ import { path, testingAsserts as ta } from "./deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as mod from "./mod.ts";
 
-interface TestContext extends mod.EngineContext, mod.SqlLintIssuesSupplier {
+interface TestContext
+  extends mod.SqlAssemblerContext, mod.SqlLintIssuesSupplier {
 }
 
 export function allTableDefns(ctx: TestContext) {
@@ -134,7 +135,7 @@ export function allTableDefns(ctx: TestContext) {
   ];
 }
 
-Deno.test("idempotent SQL DDL", () => {
+Deno.test("SQLa (assembler)", () => {
   // deno-lint-ignore no-explicit-any
   const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
   const lintIssues: mod.SqlLintIssueSupplier[] = [];
@@ -153,7 +154,7 @@ Deno.test("idempotent SQL DDL", () => {
     publServerStaticAccessLog,
     publServerErrorLog,
   ] = allTableDefns(ctx);
-  const DDL = mod.sqlText<TestContext>({
+  const DDL = mod.assembleSQL<TestContext>({
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),

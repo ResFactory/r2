@@ -2,7 +2,7 @@ import * as safety from "../../safety/mod.ts";
 import * as govn from "./governance.ts";
 import * as t from "./table.ts";
 
-export function isSqlDialectSupplier<Context extends govn.EngineContext>(
+export function isSqlDialectSupplier<Context extends govn.SqlAssemblerContext>(
   o: unknown,
 ): o is govn.SqlDialectSupplier<Context> {
   const isSDS = safety.typeGuard<govn.SqlDialectSupplier<Context>>("dialect");
@@ -10,7 +10,7 @@ export function isSqlDialectSupplier<Context extends govn.EngineContext>(
 }
 
 export function sqliteDialect<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
 >(): govn.SqlDialect<
   Context
 > {

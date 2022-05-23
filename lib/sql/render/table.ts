@@ -3,7 +3,7 @@ import * as st from "./text.ts";
 import * as govn from "./governance.ts";
 
 export function typicalTableColumnsFactory<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -110,7 +110,7 @@ export function typicalTableColumnsFactory<
 }
 
 export function typicalTableColumnDefnSqlTextSupplier<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(): (
@@ -141,7 +141,7 @@ export function typicalTableColumnDefnSqlTextSupplier<
 }
 
 export function typicalTableDecoratorsFactory<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -185,7 +185,7 @@ export function isForeignKeyTableColumnDefnFactory<
 }
 
 export function isTableColumnForeignKeySupplier<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -220,7 +220,7 @@ export function isTableColumnDefinition<ColumnName extends string>(
 }
 
 export function isTableDefinition<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -243,7 +243,7 @@ export interface DefineTableOptions {
 }
 
 export interface DefineTableInit<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -270,7 +270,7 @@ export interface DefineTableInit<
 }
 
 export function defineTable<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -339,9 +339,9 @@ export function defineTable<
 
         // deno-fmt-ignore
         const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
-                columnDefns.join(",\n") +
-                (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
-                "\n);";
+        columnDefns.join(",\n") +
+        (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
+        "\n);";
         return result;
       },
       finalizeDefn: () => {
@@ -394,7 +394,7 @@ export function defineTable<
 }
 
 export function typicalTableDefn<
-  Context extends govn.EngineContext,
+  Context extends govn.SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 >(

@@ -1,3 +1,4 @@
+export * from "./assemble.ts";
 export * from "./dialect.ts";
 export * from "./governance.ts";
 export * from "./lint.ts";

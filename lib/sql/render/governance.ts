@@ -1,7 +1,7 @@
 import * as safety from "../../safety/mod.ts";
 
 export interface TableColumnsFactory<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -37,14 +37,14 @@ export interface TableColumnsFactory<
 }
 
 export interface TableDecoratorsFactory<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > {
   readonly unique: (...columnNames: ColumnName[]) => void;
 }
 
-export interface SqlDialect<Context extends EngineContext> {
+export interface SqlDialect<Context extends SqlAssemblerContext> {
   readonly tableColumnsFactory: <
     TableName extends string,
     ColumnName extends string,
@@ -66,11 +66,11 @@ export interface SqlDialect<Context extends EngineContext> {
   ) => string;
 }
 
-export interface SqlDialectSupplier<Context extends EngineContext> {
+export interface SqlDialectSupplier<Context extends SqlAssemblerContext> {
   readonly dialect: SqlDialect<Context>;
 }
 
-export interface EngineContext {
+export interface SqlAssemblerContext {
   readonly registerTable: <TableName extends string, ColumnName extends string>(
     // deno-lint-ignore no-explicit-any
     table: TableDefinition<any, TableName, ColumnName>,
@@ -80,7 +80,7 @@ export interface EngineContext {
 }
 
 export interface TableDefinitionSupplier<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -105,7 +105,7 @@ export interface SqlTextEmitOptions {
   ) => string;
 }
 
-export interface SqlTextSupplier<Context extends EngineContext> {
+export interface SqlTextSupplier<Context extends SqlAssemblerContext> {
   readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
 }
 
@@ -127,7 +127,7 @@ export interface ForeignKeyTableColumnDefnFactory<
 }
 
 export interface TableColumnForeignKeySupplier<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -207,7 +207,7 @@ export interface TableColumnDefinitionSupplier<ColumnName extends string> {
 }
 
 export type TableDefinitionContext<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -215,7 +215,7 @@ export type TableDefinitionContext<
   & TableDefinitionSupplier<Context, TableName, ColumnName>;
 
 export type TableColumnDefinitionContext<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -224,7 +224,7 @@ export type TableColumnDefinitionContext<
   & TableColumnDefinitionSupplier<ColumnName>;
 
 export interface TableDefinition<
-  Context extends EngineContext,
+  Context extends SqlAssemblerContext,
   TableName extends string,
   ColumnName extends string,
 > extends SqlTextSupplier<Context> {
