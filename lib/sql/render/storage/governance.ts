@@ -1,75 +1,8 @@
 import * as safety from "../../../safety/mod.ts";
 import * as t from "../text.ts";
 
-export interface TableColumnsFactory<
-  Context extends StorageContext,
-  TableName extends string,
-  ColumnName extends string,
-> {
-  readonly autoIncPrimaryKey: (
-    columnName: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableAutoIncPrimaryKeyColumnDefinition<ColumnName>;
-  readonly text: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableTextColumnDefinition<ColumnName>;
-  readonly integer: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableIntegerColumnDefinition<ColumnName>;
-  readonly dateTime: (
-    columnName: ColumnName,
-    options?:
-      & Partial<TableColumnNullabilitySupplier>
-      & Partial<TableColumnPrimaryKeySupplier>,
-  ) => TableDateTimeColumnDefinition<ColumnName>;
-  readonly creationTimestamp: (
-    columnName: ColumnName,
-  ) => TableCreationStampColumnDefinition<ColumnName>;
-  readonly JSON: (
-    columnName: ColumnName,
-    options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableJsonColumnDefinition<ColumnName>;
-}
-
-export interface TableDefnDecoratorsFactory<
-  Context extends StorageContext,
-  TableName extends string,
-  ColumnName extends string,
-> {
-  readonly unique: (...columnNames: ColumnName[]) => void;
-}
-
-export interface StorageFactoriesSupplier<Context extends StorageContext> {
-  readonly tableColumnsFactory: <
-    TableName extends string,
-    ColumnName extends string,
-  >(
-    tableDefn: TableDefinition<Context, TableName, ColumnName>,
-  ) => TableColumnsFactory<Context, TableName, ColumnName>;
-  readonly tableDefnDecoratorsFactory: <
-    TableName extends string,
-    ColumnName extends string,
-  >(
-    tableDefn: TableDefinition<Context, TableName, ColumnName>,
-  ) => TableDefnDecoratorsFactory<Context, TableName, ColumnName>;
-  readonly tableColumnDefnSqlTextSupplier: <
-    TableName extends string,
-    ColumnName extends string,
-  >(
-    ctx: TableColumnDefinitionContext<Context, TableName, ColumnName>,
-    options?: t.SqlTextEmitOptions,
-  ) => string;
-}
-
+// deno-lint-ignore no-empty-interface
 export interface StorageContext {
-  // deno-lint-ignore no-explicit-any
-  readonly storageFactories: StorageFactoriesSupplier<any>;
 }
 
 export interface TableDefinitionSupplier<

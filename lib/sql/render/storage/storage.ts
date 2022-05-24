@@ -4,17 +4,82 @@ import * as l from "../lint.ts";
 import * as t from "../text.ts";
 import * as tr from "../../../tabular/mod.ts";
 
+export interface TableColumnsFactory<
+  Context extends govn.StorageContext,
+  TableName extends string,
+  ColumnName extends string,
+> {
+  readonly autoIncPrimaryKey: (
+    columnName: ColumnName,
+    options?: Partial<govn.TableColumnNullabilitySupplier>,
+  ) => govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName>;
+  readonly text: (
+    columnName: ColumnName,
+    options?:
+      & Partial<govn.TableColumnNullabilitySupplier>
+      & Partial<govn.TableColumnPrimaryKeySupplier>,
+  ) => govn.TableTextColumnDefinition<ColumnName>;
+  readonly integer: (
+    columnName: ColumnName,
+    options?:
+      & Partial<govn.TableColumnNullabilitySupplier>
+      & Partial<govn.TableColumnPrimaryKeySupplier>,
+  ) => govn.TableIntegerColumnDefinition<ColumnName>;
+  readonly dateTime: (
+    columnName: ColumnName,
+    options?:
+      & Partial<govn.TableColumnNullabilitySupplier>
+      & Partial<govn.TableColumnPrimaryKeySupplier>,
+  ) => govn.TableDateTimeColumnDefinition<ColumnName>;
+  readonly creationTimestamp: (
+    columnName: ColumnName,
+  ) => govn.TableCreationStampColumnDefinition<ColumnName>;
+  readonly JSON: (
+    columnName: ColumnName,
+    options?: Partial<govn.TableColumnNullabilitySupplier>,
+  ) => govn.TableJsonColumnDefinition<ColumnName>;
+}
+
+export interface TableDefnDecoratorsFactory<
+  Context extends govn.StorageContext,
+  TableName extends string,
+  ColumnName extends string,
+> {
+  readonly unique: (...columnNames: ColumnName[]) => void;
+}
+
+export interface TableDefnFactoriesSupplier<
+  Context extends govn.StorageContext,
+> {
+  readonly tableColumnsFactory: <
+    TableName extends string,
+    ColumnName extends string,
+  >(
+    tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+  ) => TableColumnsFactory<Context, TableName, ColumnName>;
+  readonly tableDefnDecoratorsFactory: <
+    TableName extends string,
+    ColumnName extends string,
+  >(
+    tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+  ) => TableDefnDecoratorsFactory<Context, TableName, ColumnName>;
+  readonly tableColumnDefnSqlTextSupplier: <
+    TableName extends string,
+    ColumnName extends string,
+  >(
+    ctx: govn.TableColumnDefinitionContext<Context, TableName, ColumnName>,
+    options?: t.SqlTextEmitOptions,
+  ) => string;
+}
+
 export function typicalTableColumnsFactory<
   Context extends govn.StorageContext,
   TableName extends string,
   ColumnName extends string,
 >(
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
-): govn.TableColumnsFactory<
-  Context,
-  TableName,
-  ColumnName
-> {
+  tdfs: TableDefnFactoriesSupplier<Context>,
+): TableColumnsFactory<Context, TableName, ColumnName> {
   return {
     autoIncPrimaryKey: (columnName) => {
       const result:
@@ -31,10 +96,7 @@ export function typicalTableColumnsFactory<
           isNullable: false,
           SQL: (ctx, steOptions) => {
             return `${
-              ctx.storageFactories.tableColumnDefnSqlTextSupplier(
-                ctx,
-                steOptions,
-              )
+              tdfs.tableColumnDefnSqlTextSupplier(ctx, steOptions)
             } AUTOINCREMENT`;
           },
           foreignKeyTableColDefn: (foreignColumnName, options) => {
@@ -88,10 +150,7 @@ export function typicalTableColumnsFactory<
           declarationWeight: 99,
           SQL: (ctx, steOptions) => {
             return `${
-              ctx.storageFactories.tableColumnDefnSqlTextSupplier(
-                ctx,
-                steOptions,
-              )
+              tdfs.tableColumnDefnSqlTextSupplier(ctx, steOptions)
             } DEFAULT CURRENT_TIMESTAMP`;
           },
         };
@@ -154,7 +213,7 @@ export function typicalTableDefnDecoratorsFactory<
   ColumnName extends string,
 >(
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
-): govn.TableDefnDecoratorsFactory<Context, TableName, ColumnName> {
+): TableDefnDecoratorsFactory<Context, TableName, ColumnName> {
   return {
     unique: (...columnNames) => {
       tableDefn.decorators.push({
@@ -264,12 +323,12 @@ export interface DefineTableInit<
         ...slis: l.SqlLintIssueSupplier[]
       ) => void;
     };
-  readonly columnsFactory: govn.TableColumnsFactory<
+  readonly columnsFactory: TableColumnsFactory<
     Context,
     TableName,
     ColumnName
   >;
-  readonly decoratorsFactory: govn.TableDefnDecoratorsFactory<
+  readonly decoratorsFactory: TableDefnDecoratorsFactory<
     Context,
     TableName,
     ColumnName
@@ -290,6 +349,7 @@ export function defineTable<
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
+  tdfs: TableDefnFactoriesSupplier<Context>,
   defineTable?: (init: DefineTableInit<Context, TableName, ColumnName>) => void,
   options?: DefineTableOptions,
 ): govn.TableDefinition<Context, TableName, ColumnName> {
@@ -325,7 +385,7 @@ export function defineTable<
             ...sqlCtx,
             tableDefn: tableDefn,
           };
-        const ttcdSTS = sqlCtx.storageFactories.tableColumnDefnSqlTextSupplier;
+        const ttcdSTS = tdfs.tableColumnDefnSqlTextSupplier;
         for (
           const c of columns.sort((a, b) =>
             isTableColumnDeclareWeightSupplier(a) &&
@@ -399,8 +459,8 @@ export function defineTable<
     };
   defineTable?.({
     tableDefn,
-    columnsFactory: ctx.storageFactories.tableColumnsFactory(tableDefn),
-    decoratorsFactory: ctx.storageFactories.tableDefnDecoratorsFactory(
+    columnsFactory: tdfs.tableColumnsFactory(tableDefn),
+    decoratorsFactory: tdfs.tableDefnDecoratorsFactory(
       tableDefn,
     ),
     ctx,
@@ -416,6 +476,7 @@ export function typicalTableDefn<
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
+  tdfs: TableDefnFactoriesSupplier<Context>,
   options: DefineTableOptions = {
     isIdempotent: true,
     enforceForeignKeyRefs: "table-decorator",
@@ -436,6 +497,7 @@ export function typicalTableDefn<
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, `created_at`],
+      tdfs,
       (init) => {
         const { tableDefn, columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
@@ -475,6 +537,7 @@ export function typicalTabledDefnDML<
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
+  tdfs: TableDefnFactoriesSupplier<Context>,
   options: DefineTableOptions = {
     isIdempotent: true,
     enforceForeignKeyRefs: "table-decorator",
@@ -496,6 +559,7 @@ export function typicalTabledDefnDML<
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, createdAtColName],
+      tdfs,
       (init) => {
         const { tableDefn, columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
