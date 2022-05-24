@@ -24,6 +24,36 @@ export interface SqlTextEmitOptions {
   ) => string;
 }
 
+export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
+  return {
+    comments: (text, indent = "") => `${indent}-- ${text}`,
+    indentation: (nature, content) => {
+      let indent = "";
+      switch (nature) {
+        case "create table":
+          indent = "";
+          break;
+
+        case "define table column":
+          indent = "    ";
+          break;
+
+        case "create view":
+          indent = "";
+          break;
+
+        case "create view select statement":
+          indent = "    ";
+          break;
+      }
+      if (content) {
+        return indent.length > 0 ? content.replaceAll(/^/gm, indent) : content;
+      }
+      return indent;
+    },
+  };
+}
+
 export interface SqlTextSupplier<Context> {
   readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
 }
