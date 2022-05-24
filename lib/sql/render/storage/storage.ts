@@ -1,8 +1,8 @@
 import * as safety from "../../../safety/mod.ts";
-import * as st from "../text.ts";
 import * as govn from "./governance.ts";
 import * as l from "../lint.ts";
 import * as t from "../text.ts";
+import * as tr from "../../../tabular/mod.ts";
 
 export function typicalTableColumnsFactory<
   Context extends govn.StorageContext,
@@ -338,7 +338,7 @@ export function defineTable<
                   : 0))
           )
         ) {
-          const columnDefnSQL = st.isSqlTextSupplier<Context>(c)
+          const columnDefnSQL = t.isSqlTextSupplier<Context>(c)
             ? c.SQL
             : ttcdSTS;
           columnDefns.push(
@@ -354,7 +354,7 @@ export function defineTable<
         const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
         columnDefns.join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
-        "\n);";
+        "\n)";
         return result;
       },
       finalizeDefn: () => {
@@ -456,5 +456,138 @@ export function typicalTableDefn<
     );
     // we use ! after primaryKeyColDefn because linter thinks it's not set but we know it is
     return { tableDefn, primaryKeyColDefn: primaryKeyColDefn! };
+  };
+}
+
+export function typicalTabledDefnDML<
+  InsertableRecord extends tr.UntypedTabularRecordObject,
+  Context extends govn.StorageContext,
+  TableName extends string,
+  ColumnName extends keyof InsertableRecord & string =
+    & keyof InsertableRecord
+    & string,
+  InsertableObject extends tr.TabularRecordToObject<InsertableRecord> =
+    tr.TabularRecordToObject<InsertableRecord>,
+  UpdatableRecord extends Partial<InsertableRecord> = Partial<InsertableRecord>,
+  UpdatableObject extends tr.TabularRecordToObject<UpdatableRecord> =
+    tr.TabularRecordToObject<UpdatableRecord>,
+>(
+  ctx: Context,
+  tableName: TableName,
+  validColumnNames: ColumnName[],
+  options: DefineTableOptions = {
+    isIdempotent: true,
+    enforceForeignKeyRefs: "table-decorator",
+  },
+) {
+  const createdAtColName = `created_at`;
+  return (
+    customDefineTable?: (
+      defineColumns: (
+        ...column: govn.TableColumnDefinition<ColumnName>[]
+      ) => void,
+      init: DefineTableInit<Context, TableName, ColumnName>,
+    ) => void,
+  ) => {
+    let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
+      `${TableName}_id`
+    >;
+    const tableDefn = defineTable(
+      ctx,
+      tableName,
+      [`${tableName}_id`, ...validColumnNames, createdAtColName],
+      (init) => {
+        const { tableDefn, columnsFactory: cf } = init;
+        primaryKeyColDefn = cf.autoIncPrimaryKey(
+          `${tableName}_id`,
+        ) as govn.TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
+        tableDefn.columns.push(primaryKeyColDefn);
+        customDefineTable?.(
+          (...columns) => {
+            tableDefn.columns.push(...columns);
+          },
+          // deno-lint-ignore no-explicit-any
+          init as any, // TODO: figure out why cast to any is required
+        );
+        tableDefn.columns.push(cf.creationTimestamp(createdAtColName));
+        tableDefn.finalizeDefn();
+      },
+      options,
+    );
+    // we use ! after primaryKeyColDefn because linter thinks it's not set but we know it is
+    return {
+      tableDefn,
+      primaryKeyColDefn: primaryKeyColDefn!,
+      prepareInsert: (
+        o: InsertableObject,
+        rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
+        options?: tr.TransformTabularRecordOptions<InsertableRecord>,
+      ) => tr.transformTabularRecord(o, rowState, options),
+      prepareUpdate: (
+        o: UpdatableObject,
+        rowState?: tr.TransformTabularRecordsRowState<UpdatableRecord>,
+        options?: tr.TransformTabularRecordOptions<UpdatableRecord>,
+      ) => tr.transformTabularRecord(o, rowState, options),
+      insertDML: (
+        o: InsertableObject,
+        insertDmlOptions?: {
+          readonly emitColumnNames: (
+            record: InsertableRecord,
+            steOptions?: t.SqlTextEmitOptions,
+          ) => ColumnName[];
+          readonly emitValueLiteral: (
+            colName: ColumnName,
+            record: InsertableRecord,
+            steOptions?: t.SqlTextEmitOptions,
+          ) => string;
+        },
+      ): t.SqlTextSupplier<Context> => {
+        return {
+          SQL: (_, steOptions) => {
+            const {
+              emitColumnNames = (
+                record: InsertableRecord,
+                steOptions?: t.SqlTextEmitOptions,
+              ) => {
+                const result = Object.keys(record).filter((cn) =>
+                  cn == `${tableName}_id` || cn == createdAtColName
+                    ? false
+                    : true
+                );
+                if (steOptions?.columnName) {
+                  return result.map((cn) =>
+                    steOptions!.columnName!({ tableName, columnName: cn })
+                  );
+                }
+                return result;
+              },
+              emitValueLiteral = (
+                colName: ColumnName,
+                record: InsertableRecord,
+              ) => {
+                const value = record[colName];
+                if (typeof value === "undefined") return "NULL";
+                if (typeof value === "string") {
+                  return `'${value.replaceAll("'", "''")}'`;
+                }
+                return String(value);
+              },
+            } = insertDmlOptions ?? {};
+            const record = tr.transformTabularRecord<
+              InsertableRecord,
+              InsertableObject
+            >(o);
+            const names = emitColumnNames(record);
+            return `INSERT INTO ${
+              steOptions?.tableName?.(tableName) ?? tableName
+            } (${names.join(", ")}) VALUES (${
+              names.map((colName) =>
+                emitValueLiteral(colName as ColumnName, record)
+              ).join(", ")
+            })`;
+          },
+        };
+      },
+    };
   };
 }

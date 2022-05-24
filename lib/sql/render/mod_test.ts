@@ -5,25 +5,39 @@ import * as mod from "./mod.ts";
 interface TestContext extends mod.StorageContext, mod.SqlLintIssuesSupplier {
 }
 
-export function allTableDefns(ctx: TestContext) {
-  const { tableDefn: publHost, primaryKeyColDefn: publHostPK } = mod
-    .typicalTableDefn(ctx, "publ_host", [
-      "host",
-      "host_identity",
-      "mutation_count",
-    ])(
-      (
-        defineColumns,
-        { columnsFactory: cf, decoratorsFactory: df },
-      ) => {
-        defineColumns(
-          cf.text("host"),
-          cf.JSON("host_identity", { isNullable: true }),
-          cf.integer("mutation_count"),
-        );
-        df.unique("host");
-      },
-    );
+Deno.test("SQLa (assembler)", () => {
+  // deno-lint-ignore no-explicit-any
+  const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
+  const lintIssues: mod.SqlLintIssueSupplier[] = [];
+  const ctx: TestContext = {
+    storageFactories: mod.sqliteDialect<TestContext>(),
+    registerTable: (table) => {
+      tables.set(table.tableName, table);
+    },
+    lintIssues,
+  };
+
+  const {
+    tableDefn: publHost,
+    primaryKeyColDefn: publHostPK,
+    insertDML: publHostInsert,
+  } = mod.typicalTabledDefnDML<
+    { host: string; host_identity: unknown; mutation_count: number },
+    TestContext,
+    "publ_host"
+  >(ctx, "publ_host", ["host", "host_identity", "mutation_count"])(
+    (
+      defineColumns,
+      { columnsFactory: cf, decoratorsFactory: df },
+    ) => {
+      defineColumns(
+        cf.text("host"),
+        cf.JSON("host_identity", { isNullable: true }),
+        cf.integer("mutation_count"),
+      );
+      df.unique("host");
+    },
+  );
 
   const { tableDefn: publBuildEvent, primaryKeyColDefn: publBuildEventPK } = mod
     .typicalTableDefn(
@@ -125,34 +139,7 @@ export function allTableDefns(ctx: TestContext) {
     },
   );
 
-  return [
-    publHost,
-    publBuildEvent,
-    publServerService,
-    publServerStaticAccessLog,
-    publServerErrorLog,
-  ];
-}
-
-Deno.test("SQLa (assembler)", () => {
-  // deno-lint-ignore no-explicit-any
-  const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
-  const lintIssues: mod.SqlLintIssueSupplier[] = [];
-  const ctx: TestContext = {
-    storageFactories: mod.sqliteDialect<TestContext>(),
-    registerTable: (table) => {
-      tables.set(table.tableName, table);
-    },
-    lintIssues,
-  };
-
-  const [
-    publHost,
-    publBuildEvent,
-    publServerService,
-    publServerStaticAccessLog,
-    publServerErrorLog,
-  ] = allTableDefns(ctx);
+  // deno-fmt-ignore
   const DDL = mod.assembleSQL<TestContext>({
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
@@ -183,7 +170,9 @@ Deno.test("SQLa (assembler)", () => {
 
     ${publServerStaticAccessLog}
 
-    ${publServerErrorLog}`;
+    ${publServerErrorLog}
+
+    ${publHostInsert({ host: "test", hostIdentity: "testHI", mutationCount: 0 })}`;
 
   const syntheticSQL = DDL.SQL(ctx, {
     indentation: (nature) => {
@@ -275,4 +264,6 @@ const fixturePrime = ws.unindentWhitespace(`
       publ_server_service_id INTEGER NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
-  );`);
+  );
+
+  INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test', 'testHI', 0);`);

@@ -6,10 +6,8 @@ import * as t from "./text.ts";
 
 export type SqlAssemblerPartial<Context extends s.StorageContext> =
   | ((ctx: Context) => c.TextContributionsPlaceholder)
-  // deno-lint-ignore no-explicit-any
-  | ((ctx: Context) => s.TableDefinition<Context, any, any>)
-  // deno-lint-ignore no-explicit-any
-  | s.TableDefinition<Context, any, any>
+  | ((ctx: Context) => t.SqlTextSupplier<Context>)
+  | t.SqlTextSupplier<Context>
   | string;
 
 export interface SqlAssemblerOptions {
@@ -57,16 +55,15 @@ export function assembleSQL<Context extends s.StorageContext>(
             placeholders.push(exprIndex);
             expressions[exprIndex] = expr; // we're going to run the function later
           } else {
+            // either a string or SqlTextSupplier
             expressions[exprIndex] = exprValue;
           }
         } else {
           // deno-lint-ignore no-explicit-any
           if (s.isTableDefinition<Context, any, any>(expr)) {
             ctx.registerTable(expr);
-            expressions[exprIndex] = expr;
-          } else {
-            expressions[exprIndex] = expr;
           }
+          expressions[exprIndex] = expr;
         }
         exprIndex++;
       }
@@ -87,8 +84,8 @@ export function assembleSQL<Context extends s.StorageContext>(
         interpolated += literalSupplier(i);
         const expr = expressions[i];
 
-        if (s.isTableDefinition(expr)) {
-          interpolated += expr.SQL(ctx, steOptions);
+        if (t.isSqlTextSupplier<Context>(expr)) {
+          interpolated += expr.SQL(ctx, steOptions) + ";";
         } else if (typeof expr === "string") {
           interpolated += expr;
         } else {
