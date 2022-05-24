@@ -3,6 +3,7 @@ import * as govn from "./governance.ts";
 import * as l from "../lint.ts";
 import * as t from "../text.ts";
 import * as tr from "../../../tabular/mod.ts";
+import * as v from "../view.ts";
 
 export interface TableColumnsFactory<
   Context extends govn.StorageContext,
@@ -297,12 +298,13 @@ export function isTableDefinition<
     govn.TableDefinition<Context, TableName, ColumnName>
   >(
     "tableName",
-    "isIdempotent",
+    "columns",
   );
   return isCTR(o);
 }
 
 export interface DefineTableOptions {
+  readonly isTemp?: boolean;
   readonly isIdempotent: boolean;
   readonly enforceForeignKeyRefs:
     | false
@@ -353,7 +355,7 @@ export function defineTable<
   defineTable?: (init: DefineTableInit<Context, TableName, ColumnName>) => void,
   options?: DefineTableOptions,
 ): govn.TableDefinition<Context, TableName, ColumnName> {
-  const { isIdempotent } = options ?? { isIdempotent: true };
+  const { isTemp, isIdempotent } = options ?? { isIdempotent: true };
   const columns: govn.TableColumnDefinition<ColumnName>[] = [];
   const decorators: t.SqlTextSupplier<
     govn.TableDefinitionContext<Context, TableName, ColumnName>
@@ -411,7 +413,7 @@ export function defineTable<
         ).join(",\n");
 
         // deno-fmt-ignore
-        const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
+        const result = `${steOptions?.indentation?.("create table") ?? ''}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${steOptions?.tableName?.(tableName) ?? tableName} (\n` +
         columnDefns.join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
         "\n)";
@@ -654,4 +656,37 @@ export function typicalTabledDefnDML<
       },
     };
   };
+}
+
+export function tableDefnViewWrapper<
+  Context extends govn.StorageContext,
+  ViewName extends string,
+  TableName extends string,
+  ColumnName extends string,
+>(
+  _ctx: Context,
+  tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+  viewName: ViewName,
+  options?: v.SqlViewDefnOptions<Context, ViewName, ColumnName>,
+) {
+  const selectColumnNames = options?.viewColumns
+    ? options?.viewColumns
+    : tableDefn.columns.map((c) => c.columnName);
+  const selectColumnNamesSS: t.SqlTextSupplier<Context> = {
+    SQL: (_, steOptions) =>
+      (steOptions?.tableColumnName
+        ? selectColumnNames.map((cn) =>
+          steOptions!.tableColumnName!({
+            tableName: tableDefn.tableName,
+            columnName: cn,
+          })
+        )
+        : selectColumnNames).join(", "),
+  };
+  const tableNameSS: t.SqlTextSupplier<Context> = {
+    SQL: (_, steOptions) =>
+      steOptions?.tableName?.(tableDefn.tableName) ?? tableDefn.tableName,
+  };
+  return v.sqlView<Context, ViewName, ColumnName>(viewName, options)
+    `SELECT ${selectColumnNamesSS}\nFROM ${tableNameSS}`;
 }

@@ -6,6 +6,11 @@ interface TestContext extends mod.StorageContext {
   readonly tdfs: mod.TableDefnFactoriesSupplier<TestContext>;
 }
 
+const _testView = mod.sqlView("X")`
+  SELECT X
+    FROM Y
+   WHERE that`;
+
 export function testTableDefns(ctx: TestContext) {
   const { tdfs } = ctx;
   const publHost = mod.typicalTabledDefnDML<
@@ -24,6 +29,12 @@ export function testTableDefns(ctx: TestContext) {
       );
       df.unique("host");
     },
+  );
+  const publHostView = mod.tableDefnViewWrapper(
+    ctx,
+    publHost.tableDefn,
+    "publ_host_vw",
+    { isIdempotent: true },
   );
 
   const publBuildEvent = mod.typicalTableDefn(ctx, "publ_build_event", [
@@ -122,7 +133,7 @@ export function testTableDefns(ctx: TestContext) {
   );
 
   return {
-    publHost,
+    publHost: { ...publHost, viewWrapper: publHostView },
     publBuildEvent,
     publServerService,
     publServerStaticAccessLog,
@@ -137,7 +148,8 @@ Deno.test("SQLa (assembler)", () => {
   const schema = testTableDefns(ctx);
 
   // deno-fmt-ignore
-  const DDL = mod.assembleSQL<TestContext>({
+  const DDL = mod.sqlPartial<TestContext>({
+    sqlSuppliersDelimText: ";",
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
@@ -161,6 +173,8 @@ Deno.test("SQLa (assembler)", () => {
 
     ${schema.publHost.tableDefn}
 
+    ${schema.publHost.viewWrapper}
+
     ${schema.publBuildEvent.tableDefn}
 
     ${schema.publServerService.tableDefn}
@@ -172,13 +186,30 @@ Deno.test("SQLa (assembler)", () => {
     ${schema.publHost.insertDML({ host: "test", hostIdentity: "testHI", mutationCount: 0 })}`;
 
   const syntheticSQL = DDL.SQL(ctx, {
-    indentation: (nature) => {
+    comments: (text, indent = "") => `${indent}-- ${text}`,
+    indentation: (nature, content) => {
+      let indent = "";
       switch (nature) {
         case "create table":
-          return "";
+          indent = "";
+          break;
+
         case "define table column":
-          return "    ";
+          indent = "    ";
+          break;
+
+        case "create view":
+          indent = "";
+          break;
+
+        case "create view select statement":
+          indent = "    ";
+          break;
       }
+      if (content) {
+        return indent.length > 0 ? content.replaceAll(/^/gm, indent) : content;
+      }
+      return indent;
     },
   });
   if (DDL.lintIssues?.length) {
@@ -215,6 +246,10 @@ const fixturePrime = ws.unindentWhitespace(`
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(host)
   );
+
+  CREATE VIEW IF NOT EXISTS publ_host_vw AS
+      SELECT publ_host_id, host, host_identity, mutation_count, created_at
+      FROM publ_host;
 
   CREATE TABLE IF NOT EXISTS publ_build_event (
       publ_build_event_id INTEGER PRIMARY KEY AUTOINCREMENT,

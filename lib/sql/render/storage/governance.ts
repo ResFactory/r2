@@ -133,6 +133,7 @@ export interface TableDefinition<
   ColumnName extends string,
 > extends t.SqlTextSupplier<Context> {
   readonly tableName: TableName;
+  readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
   readonly columns: TableColumnDefinition<ColumnName>[];
   readonly decorators: t.SqlTextSupplier<
