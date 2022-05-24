@@ -186,7 +186,7 @@ export function typicalTableColumnDefnSqlTextSupplier<
 ) => string {
   return (ctx, steOptions) => {
     const tCD = ctx.tableColumnDefn;
-    const columnName = steOptions?.columnName?.({
+    const columnName = steOptions?.tableColumnName?.({
       tableName: ctx.tableDefn.tableName,
       columnName: ctx.tableColumnDefn.columnName,
     }) ??
@@ -220,7 +220,7 @@ export function typicalTableDefnDecoratorsFactory<
         SQL: (_ctx, steOptions) =>
           `UNIQUE(${
             columnNames.map((cn) =>
-              steOptions?.columnName?.({
+              steOptions?.tableColumnName?.({
                 tableName: tableDefn.tableName,
                 columnName: cn,
               }) ?? cn
@@ -437,7 +437,7 @@ export function defineTable<
               tableDefn.decorators.push({
                 SQL: (_ctx, steOptions) => {
                   const tn = steOptions?.tableName;
-                  const cn = steOptions?.columnName;
+                  const cn = steOptions?.tableColumnName;
                   return `FOREIGN KEY(${
                     cn?.({ tableName, columnName: c.columnName }) ??
                       c.columnName
@@ -618,9 +618,9 @@ export function typicalTabledDefnDML<
                     ? false
                     : true
                 );
-                if (steOptions?.columnName) {
+                if (steOptions?.tableColumnName) {
                   return result.map((cn) =>
-                    steOptions!.columnName!({ tableName, columnName: cn })
+                    steOptions!.tableColumnName!({ tableName, columnName: cn })
                   );
                 }
                 return result;

@@ -2,7 +2,7 @@ import * as safety from "../../safety/mod.ts";
 
 export interface SqlTextEmitOptions {
   readonly tableName?: (tableName: string) => string;
-  readonly columnName?: (
+  readonly tableColumnName?: (
     column: { tableName: string; columnName: string },
   ) => string;
   readonly indentation?: (
