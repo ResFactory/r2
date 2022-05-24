@@ -47,22 +47,14 @@ export function assembleSQL<Context extends s.StorageContext>(
         const expr = suppliedExprs[i];
         if (typeof expr === "function") {
           const exprValue = expr(ctx);
-          // deno-lint-ignore no-explicit-any
-          if (s.isTableDefinition<Context, any, any>(exprValue)) {
-            ctx.registerTable(exprValue);
-            expressions[exprIndex] = exprValue;
-          } else if (c.isTextContributionsPlaceholder(exprValue)) {
+          if (c.isTextContributionsPlaceholder(exprValue)) {
             placeholders.push(exprIndex);
             expressions[exprIndex] = expr; // we're going to run the function later
           } else {
-            // either a string or SqlTextSupplier
+            // either a string, TableDefinition, or arbitrary SqlTextSupplier
             expressions[exprIndex] = exprValue;
           }
         } else {
-          // deno-lint-ignore no-explicit-any
-          if (s.isTableDefinition<Context, any, any>(expr)) {
-            ctx.registerTable(expr);
-          }
           expressions[exprIndex] = expr;
         }
         exprIndex++;

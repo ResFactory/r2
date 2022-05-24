@@ -6,14 +6,9 @@ interface TestContext extends mod.StorageContext, mod.SqlLintIssuesSupplier {
 }
 
 Deno.test("SQLa (assembler)", () => {
-  // deno-lint-ignore no-explicit-any
-  const tables = new Map<string, mod.TableDefinition<TestContext, any, any>>();
   const lintIssues: mod.SqlLintIssueSupplier[] = [];
   const ctx: TestContext = {
     storageFactories: mod.sqliteDialect<TestContext>(),
-    registerTable: (table) => {
-      tables.set(table.tableName, table);
-    },
     lintIssues,
   };
 

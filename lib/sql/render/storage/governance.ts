@@ -68,10 +68,6 @@ export interface StorageFactoriesSupplier<Context extends StorageContext> {
 }
 
 export interface StorageContext {
-  readonly registerTable: <TableName extends string, ColumnName extends string>(
-    // deno-lint-ignore no-explicit-any
-    table: TableDefinition<any, TableName, ColumnName>,
-  ) => void;
   // deno-lint-ignore no-explicit-any
   readonly storageFactories: StorageFactoriesSupplier<any>;
 }
