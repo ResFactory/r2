@@ -752,104 +752,6 @@ export function typicalTableDefnDML<
   };
 }
 
-export function tableDefnDML<
-  InsertableRecord extends tr.UntypedTabularRecordObject,
-  Context,
-  TableName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
-  ColumnName extends keyof InsertableRecord & string =
-    & keyof InsertableRecord
-    & string,
-  InsertableObject extends tr.TabularRecordToObject<InsertableRecord> =
-    tr.TabularRecordToObject<InsertableRecord>,
-  UpdatableRecord extends Partial<InsertableRecord> = Partial<InsertableRecord>,
-  UpdatableObject extends tr.TabularRecordToObject<UpdatableRecord> =
-    tr.TabularRecordToObject<UpdatableRecord>,
->(
-  _ctx: Context,
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
-) {
-  return () => {
-    // we use ! after primaryKeyColDefn because linter thinks it's not set but we know it is
-    return {
-      prepareInsert: (
-        o: InsertableObject,
-        rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
-        options?: tr.TransformTabularRecordOptions<InsertableRecord>,
-      ) => tr.transformTabularRecord(o, rowState, options),
-      prepareUpdate: (
-        o: UpdatableObject,
-        rowState?: tr.TransformTabularRecordsRowState<UpdatableRecord>,
-        options?: tr.TransformTabularRecordOptions<UpdatableRecord>,
-      ) => tr.transformTabularRecord(o, rowState, options),
-      insertDML: (
-        o: InsertableObject,
-        insertDmlOptions?: {
-          readonly emitColumnNames: (
-            record: InsertableRecord,
-            steOptions?: t.SqlTextEmitOptions,
-          ) => ColumnName[];
-          readonly emitValueLiteral: (
-            colName: ColumnName,
-            record: InsertableRecord,
-            steOptions?: t.SqlTextEmitOptions,
-          ) => string;
-        },
-      ): t.SqlTextSupplier<Context, EmitOptions> => {
-        return {
-          SQL: (_, steOptions) => {
-            const {
-              emitColumnNames = (
-                _record: InsertableRecord,
-                steOptions?: t.SqlTextEmitOptions,
-              ) => {
-                const result = tableDefn.columns.filter((c) =>
-                  isTableColumnDmlContributionsSupplier(c)
-                    ? c.sqlDmlContributions.isInInsertColumnsList
-                    : true
-                );
-                if (steOptions?.tableColumnName) {
-                  return result.map((cn) =>
-                    steOptions!.tableColumnName!({
-                      tableName: tableDefn.tableName,
-                      columnName: cn as unknown as ColumnName,
-                    })
-                  );
-                }
-                return result;
-              },
-              emitValueLiteral = (
-                colName: ColumnName,
-                record: InsertableRecord,
-              ) => {
-                const value = record[colName];
-                if (typeof value === "undefined") return "NULL";
-                if (typeof value === "string") {
-                  return `'${value.replaceAll("'", "''")}'`;
-                }
-                return String(value);
-              },
-            } = insertDmlOptions ?? {};
-            const record = tr.transformTabularRecord<
-              InsertableRecord,
-              InsertableObject
-            >(o);
-            const names = emitColumnNames(record);
-            const { tableName } = tableDefn;
-            return `INSERT INTO ${
-              steOptions?.tableName?.(tableName) ?? tableName
-            } (${names.join(", ")}) VALUES (${
-              names.map((colName) =>
-                emitValueLiteral(colName as ColumnName, record)
-              ).join(", ")
-            })`;
-          },
-        };
-      },
-    };
-  };
-}
-
 export function tableDefnViewWrapper<
   Context,
   ViewName extends string,
@@ -860,7 +762,8 @@ export function tableDefnViewWrapper<
   _ctx: Context,
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
   viewName: ViewName,
-  options?: v.SqlViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
+  factory: v.ViewDefnFactory<Context, EmitOptions>,
+  options?: v.ViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
 ) {
   const selectColumnNames = options?.viewColumns
     ? options?.viewColumns
@@ -880,7 +783,7 @@ export function tableDefnViewWrapper<
     SQL: (_, steOptions) =>
       steOptions?.tableName?.(tableDefn.tableName) ?? tableDefn.tableName,
   };
-  return v.sqlView<Context, ViewName, ColumnName, EmitOptions>(
+  return factory.sqlViewStrTmplLiteral<ViewName, ColumnName>(
     viewName,
     options,
   )`SELECT ${selectColumnNamesSS}\nFROM ${tableNameSS}`;

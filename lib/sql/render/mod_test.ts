@@ -7,12 +7,8 @@ interface TestContext {
     TestContext,
     mod.SqlTextEmitOptions
   >;
+  readonly vdf: mod.ViewDefnFactory<TestContext, mod.SqlTextEmitOptions>;
 }
-
-const _testView = mod.sqlView("X")`
-  SELECT X
-    FROM Y
-   WHERE that`;
 
 export function testTableDefns(ctx: TestContext) {
   const { tdfs } = ctx;
@@ -39,6 +35,7 @@ export function testTableDefns(ctx: TestContext) {
     ctx,
     publHost.tableDefn,
     "publ_host_vw",
+    ctx.vdf,
     { isIdempotent: true },
   );
 
@@ -149,6 +146,7 @@ export function testTableDefns(ctx: TestContext) {
 Deno.test("SQLa (assembler)", () => {
   const ctx: TestContext = {
     tdfs: mod.sqliteTableDefnFactories<TestContext, mod.SqlTextEmitOptions>(),
+    vdf: mod.typicalSqlViewDefnFactory<TestContext, mod.SqlTextEmitOptions>(),
   };
   const schema = testTableDefns(ctx);
   const persist = (

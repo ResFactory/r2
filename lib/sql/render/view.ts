@@ -36,7 +36,7 @@ export function isViewDefinition<
   return isViewDefn(o);
 }
 
-export interface SqlViewDefnOptions<
+export interface ViewDefnOptions<
   Context,
   ViewName extends string,
   ColumnName extends string,
@@ -47,56 +47,73 @@ export interface SqlViewDefnOptions<
   readonly isIdempotent?: boolean;
 }
 
-export function sqlView<
+export interface ViewDefnFactory<
   Context,
-  ViewName extends string,
-  ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
->(
-  viewName: ViewName,
-  viewOptions?: SqlViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
-) {
-  return (
+> {
+  sqlViewStrTmplLiteral: <
+    ViewName extends string,
+    ColumnName extends string,
+  >(
+    viewName: ViewName,
+    viewOptions?: ViewDefnOptions<
+      Context,
+      ViewName,
+      ColumnName,
+      EmitOptions
+    >,
+  ) => (
     literals: TemplateStringsArray,
     ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
-  ):
+  ) =>
     & ViewDefinition<Context, ViewName, ColumnName, EmitOptions>
-    & Partial<l.SqlLintIssuesSupplier> => {
-    // deno-lint-ignore no-explicit-any
-    const partial = ss.selectStmt<Context, any, any, EmitOptions>({
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
-    const selectStmt = partial(literals, ...expressions);
-    const { isTemp, isIdempotent, viewColumns } = viewOptions ?? {};
-    return {
-      isValid: selectStmt.isValid,
-      viewName,
-      columns: viewColumns,
-      isTemp,
-      isIdempotent,
-      selectStmt,
-      SQL: (ctx, steOptions) => {
-        const rawSelectStmtSqlText = selectStmt.SQL(ctx, steOptions);
-        const viewSelectStmtSqlText = steOptions?.indentation?.(
-          "create view select statement",
-          rawSelectStmtSqlText,
-        ) ?? rawSelectStmtSqlText;
-        return `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
-          isIdempotent ? "IF NOT EXISTS " : ""
-        }${steOptions?.viewName?.(viewName) ?? viewName}${
-          viewColumns
-            ? `(${
-              viewColumns.map((cn) =>
-                steOptions?.viewDefnColumnName?.({
-                  viewName,
-                  columnName: cn,
-                }) ?? cn
-              ).join(", ")
-            })`
-            : ""
-        } AS\n${viewSelectStmtSqlText}`;
-      },
-      lintIssues: selectStmt.lintIssues,
-    };
+    & Partial<l.SqlLintIssuesSupplier>;
+}
+
+export function typicalSqlViewDefnFactory<
+  Context,
+  EmitOptions extends t.SqlTextEmitOptions,
+>(): ViewDefnFactory<Context, EmitOptions> {
+  return {
+    sqlViewStrTmplLiteral: (viewName, viewOptions) => {
+      return (literals, ...expressions) => {
+        // deno-lint-ignore no-explicit-any
+        const partial = ss.selectStmt<Context, any, any, EmitOptions>({
+          literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
+        });
+        const selectStmt = partial(literals, ...expressions);
+        const { isTemp, isIdempotent, viewColumns } = viewOptions ?? {};
+        return {
+          isValid: selectStmt.isValid,
+          viewName,
+          columns: viewColumns,
+          isTemp,
+          isIdempotent,
+          selectStmt,
+          SQL: (ctx, steOptions) => {
+            const rawSelectStmtSqlText = selectStmt.SQL(ctx, steOptions);
+            const viewSelectStmtSqlText = steOptions?.indentation?.(
+              "create view select statement",
+              rawSelectStmtSqlText,
+            ) ?? rawSelectStmtSqlText;
+            return `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
+              isIdempotent ? "IF NOT EXISTS " : ""
+            }${steOptions?.viewName?.(viewName) ?? viewName}${
+              viewColumns
+                ? `(${
+                  viewColumns.map((cn) =>
+                    steOptions?.viewDefnColumnName?.({
+                      viewName,
+                      columnName: cn,
+                    }) ?? cn
+                  ).join(", ")
+                })`
+                : ""
+            } AS\n${viewSelectStmtSqlText}`;
+          },
+          lintIssues: selectStmt.lintIssues,
+        };
+      };
+    },
   };
 }
