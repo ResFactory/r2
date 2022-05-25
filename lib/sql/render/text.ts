@@ -64,19 +64,28 @@ export function typicalSqlTextPersistOptions(): SqlTextPersistOptions {
   };
 }
 
-export interface SqlTextSupplier<Context> {
-  readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
+export interface SqlTextSupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> {
+  readonly SQL: (ctx: Context, options?: EmitOptions) => string;
 }
 
-export function isSqlTextSupplier<Context>(
+export function isSqlTextSupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
   o: unknown,
-): o is SqlTextSupplier<Context> {
-  const isSTS = safety.typeGuard<SqlTextSupplier<Context>>("SQL");
+): o is SqlTextSupplier<Context, EmitOptions> {
+  const isSTS = safety.typeGuard<SqlTextSupplier<Context, EmitOptions>>("SQL");
   return isSTS(o);
 }
 
-export interface PersistableSqlText<Context> {
-  readonly sqlTextSupplier: SqlTextSupplier<Context>;
+export interface PersistableSqlText<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> {
+  readonly sqlTextSupplier: SqlTextSupplier<Context, EmitOptions>;
   readonly persistDest: (
     ctx: Context,
     index: number,
@@ -84,10 +93,13 @@ export interface PersistableSqlText<Context> {
   ) => string;
 }
 
-export function isPersistableSqlText<Context>(
+export function isPersistableSqlText<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
   o: unknown,
-): o is PersistableSqlText<Context> {
-  const isPSTS = safety.typeGuard<PersistableSqlText<Context>>(
+): o is PersistableSqlText<Context, EmitOptions> {
+  const isPSTS = safety.typeGuard<PersistableSqlText<Context, EmitOptions>>(
     "sqlTextSupplier",
     "persistDest",
   );
@@ -102,15 +114,21 @@ export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
   PersistableSqlTextIndexSupplier
 >("persistableSqlTextIndex");
 
-export type SqlPartialExpression<Context> =
+export type SqlPartialExpression<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> =
   | ((ctx: Context) => c.TextContributionsPlaceholder)
-  | ((ctx: Context) => SqlTextSupplier<Context>)
-  | ((ctx: Context) => PersistableSqlText<Context>)
-  | SqlTextSupplier<Context>
-  | PersistableSqlText<Context>
+  | ((ctx: Context) => SqlTextSupplier<Context, EmitOptions>)
+  | ((ctx: Context) => PersistableSqlText<Context, EmitOptions>)
+  | SqlTextSupplier<Context, EmitOptions>
+  | PersistableSqlText<Context, EmitOptions>
   | string;
 
-export interface SqlPartialOptions<Context> {
+export interface SqlPartialOptions<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> {
   readonly sqlSuppliersDelimText?: string;
   readonly literalSupplier?: (
     literals: TemplateStringsArray,
@@ -119,16 +137,18 @@ export interface SqlPartialOptions<Context> {
   readonly persistIndexer?: { activeIndex: number };
   readonly persist?: (
     ctx: Context,
-    psts: PersistableSqlText<Context>,
+    psts: PersistableSqlText<Context, EmitOptions>,
     indexer: { activeIndex: number },
-    steOptions?: SqlTextEmitOptions,
-  ) => SqlTextSupplier<Context> | undefined;
+    steOptions?: EmitOptions,
+  ) => SqlTextSupplier<Context, EmitOptions> | undefined;
 }
 
-export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
+export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
+  options?: SqlPartialOptions<Context, EmitOptions>,
+): (
   literals: TemplateStringsArray,
-  ...expressions: SqlPartialExpression<Context>[]
-) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
+  ...expressions: SqlPartialExpression<Context, EmitOptions>[]
+) => SqlTextSupplier<Context, EmitOptions> & Partial<l.SqlLintIssuesSupplier> {
   const lintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
     const { sqlSuppliersDelimText, persistIndexer = { activeIndex: 0 } } =
@@ -140,7 +160,7 @@ export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
       : (index: number) => literals[index];
     const interpolate: (
       ctx: Context,
-      steOptions?: SqlTextEmitOptions,
+      steOptions?: EmitOptions,
     ) => string = (
       ctx,
       steOptions,
@@ -184,7 +204,7 @@ export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
         interpolated += literalSupplier(i);
         const expr = expressions[i];
 
-        if (isPersistableSqlText<Context>(expr)) {
+        if (isPersistableSqlText<Context, EmitOptions>(expr)) {
           persistIndexer.activeIndex++;
           if (options?.persist) {
             const persistenceSqlText = options.persist(
@@ -205,7 +225,7 @@ export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
                 }'`,
             });
           }
-        } else if (isSqlTextSupplier<Context>(expr)) {
+        } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
           interpolated += expr.SQL(ctx, steOptions);
           if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
         } else if (typeof expr === "string") {

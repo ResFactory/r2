@@ -51,24 +51,40 @@ export interface TableDefnDecoratorsFactory<
 
 export interface TableDefnFactoriesSupplier<
   Context,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly tableColumnsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
-    tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+    tableDefn: govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
   ) => TableColumnsFactory<Context, TableName, ColumnName>;
   readonly tableDefnDecoratorsFactory: <
     TableName extends string,
     ColumnName extends string,
   >(
-    tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+    tableDefn: govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
   ) => TableDefnDecoratorsFactory<Context, TableName, ColumnName>;
   readonly tableColumnDefnSqlTextSupplier: <
     TableName extends string,
     ColumnName extends string,
   >(
-    ctx: govn.TableColumnDefinitionContext<Context, TableName, ColumnName>,
+    ctx: govn.TableColumnDefinitionContext<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
     options?: t.SqlTextEmitOptions,
   ) => string;
 }
@@ -77,9 +93,10 @@ export function typicalTableColumnsFactory<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
-  tdfs: TableDefnFactoriesSupplier<Context>,
+  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
+  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
 ): TableColumnsFactory<Context, TableName, ColumnName> {
   return {
     autoIncPrimaryKey: (columnName) => {
@@ -88,7 +105,13 @@ export function typicalTableColumnsFactory<
         & govn.TableColumnNullabilitySupplier
         & govn.TableColumnPrimaryKeySupplier
         & t.SqlTextSupplier<
-          govn.TableColumnDefinitionContext<Context, TableName, ColumnName>
+          govn.TableColumnDefinitionContext<
+            Context,
+            TableName,
+            ColumnName,
+            EmitOptions
+          >,
+          EmitOptions
         > = {
           columnName: columnName,
           sqlDataType: "INTEGER",
@@ -104,7 +127,12 @@ export function typicalTableColumnsFactory<
             const fkeyTableColDefnResult:
               & govn.TableIntegerColumnDefinition<ColumnName>
               // deno-lint-ignore no-explicit-any
-              & govn.TableColumnForeignKeySupplier<Context, any, ColumnName> = {
+              & govn.TableColumnForeignKeySupplier<
+                Context,
+                any,
+                ColumnName,
+                EmitOptions
+              > = {
                 columnName: foreignColumnName ?? columnName,
                 sqlDataType: "INTEGER",
                 tsDataType: safety.typeGuard<number>(),
@@ -143,7 +171,13 @@ export function typicalTableColumnsFactory<
         & govn.TableCreationStampColumnDefinition<ColumnName>
         & govn.TableColumnDeclareWeightSupplier
         & t.SqlTextSupplier<
-          govn.TableColumnDefinitionContext<Context, TableName, ColumnName>
+          govn.TableColumnDefinitionContext<
+            Context,
+            TableName,
+            ColumnName,
+            EmitOptions
+          >,
+          EmitOptions
         > = {
           columnName: columnName,
           sqlDataType: "DATETIME",
@@ -181,8 +215,14 @@ export function typicalTableColumnDefnSqlTextSupplier<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(): (
-  ctx: govn.TableColumnDefinitionContext<Context, TableName, ColumnName>,
+  ctx: govn.TableColumnDefinitionContext<
+    Context,
+    TableName,
+    ColumnName,
+    EmitOptions
+  >,
   options?: t.SqlTextEmitOptions,
 ) => string {
   return (ctx, steOptions) => {
@@ -212,8 +252,9 @@ export function typicalTableDefnDecoratorsFactory<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
 ): TableDefnDecoratorsFactory<Context, TableName, ColumnName> {
   return {
     unique: (...columnNames) => {
@@ -256,11 +297,22 @@ export function isTableColumnForeignKeySupplier<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   o: unknown,
-): o is govn.TableColumnForeignKeySupplier<Context, TableName, ColumnName> {
+): o is govn.TableColumnForeignKeySupplier<
+  Context,
+  TableName,
+  ColumnName,
+  EmitOptions
+> {
   const isFKS = safety.typeGuard<
-    govn.TableColumnForeignKeySupplier<Context, TableName, ColumnName>
+    govn.TableColumnForeignKeySupplier<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >
   >("foreignKey");
   return isFKS(o);
 }
@@ -291,11 +343,12 @@ export function isTableDefinition<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   o: unknown,
-): o is govn.TableDefinition<Context, TableName, ColumnName> {
+): o is govn.TableDefinition<Context, TableName, ColumnName, EmitOptions> {
   const isCTR = safety.typeGuard<
-    govn.TableDefinition<Context, TableName, ColumnName>
+    govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
   >(
     "tableName",
     "columns",
@@ -315,9 +368,10 @@ export interface DefineTableInit<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly tableDefn:
-    & govn.TableDefinition<Context, TableName, ColumnName>
+    & govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
     & l.SqlLintIssuesSupplier
     & {
       readonly finalizeDefn: () => void;
@@ -347,22 +401,26 @@ export function defineTable<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context>,
-  defineTable?: (init: DefineTableInit<Context, TableName, ColumnName>) => void,
+  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
+  defineTable?: (
+    init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
+  ) => void,
   options?: DefineTableOptions,
-): govn.TableDefinition<Context, TableName, ColumnName> {
+): govn.TableDefinition<Context, TableName, ColumnName, EmitOptions> {
   const { isTemp, isIdempotent } = options ?? { isIdempotent: true };
   const columns: govn.TableColumnDefinition<ColumnName>[] = [];
   const decorators: t.SqlTextSupplier<
-    govn.TableDefinitionContext<Context, TableName, ColumnName>
+    govn.TableDefinitionContext<Context, TableName, ColumnName, EmitOptions>,
+    EmitOptions
   >[] = [];
   const lintIssues: l.SqlLintIssueSupplier[] = [];
   const tableDefn:
-    & govn.TableDefinition<Context, TableName, ColumnName>
+    & govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
     & l.SqlLintIssuesSupplier
     & {
       finalizeDefn: () => void;
@@ -383,7 +441,12 @@ export function defineTable<
         const columnDefns: string[] = [];
         const tableCtx:
           & Context
-          & govn.TableDefinitionSupplier<Context, TableName, ColumnName> = {
+          & govn.TableDefinitionSupplier<
+            Context,
+            TableName,
+            ColumnName,
+            EmitOptions
+          > = {
             ...sqlCtx,
             tableDefn: tableDefn,
           };
@@ -400,7 +463,7 @@ export function defineTable<
                   : 0))
           )
         ) {
-          const columnDefnSQL = t.isSqlTextSupplier<Context>(c)
+          const columnDefnSQL = t.isSqlTextSupplier<Context, EmitOptions>(c)
             ? c.SQL
             : ttcdSTS;
           columnDefns.push(
@@ -474,11 +537,12 @@ export function typicalTableDefn<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context>,
+  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
   options: DefineTableOptions = {
     isIdempotent: true,
     enforceForeignKeyRefs: "table-decorator",
@@ -489,7 +553,7 @@ export function typicalTableDefn<
       defineColumns: (
         ...column: govn.TableColumnDefinition<ColumnName>[]
       ) => void,
-      init: DefineTableInit<Context, TableName, ColumnName>,
+      init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
     ) => void,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
@@ -527,6 +591,7 @@ export function typicalTabledDefnDML<
   InsertableRecord extends tr.UntypedTabularRecordObject,
   Context,
   TableName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
   ColumnName extends keyof InsertableRecord & string =
     & keyof InsertableRecord
     & string,
@@ -539,7 +604,7 @@ export function typicalTabledDefnDML<
   ctx: Context,
   tableName: TableName,
   validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context>,
+  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
   options: DefineTableOptions = {
     isIdempotent: true,
     enforceForeignKeyRefs: "table-decorator",
@@ -551,7 +616,7 @@ export function typicalTabledDefnDML<
       defineColumns: (
         ...column: govn.TableColumnDefinition<ColumnName>[]
       ) => void,
-      init: DefineTableInit<Context, TableName, ColumnName>,
+      init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
     ) => void,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
@@ -607,7 +672,7 @@ export function typicalTabledDefnDML<
             steOptions?: t.SqlTextEmitOptions,
           ) => string;
         },
-      ): t.SqlTextSupplier<Context> => {
+      ): t.SqlTextSupplier<Context, EmitOptions> => {
         return {
           SQL: (_, steOptions) => {
             const {
@@ -663,16 +728,17 @@ export function tableDefnViewWrapper<
   ViewName extends string,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   _ctx: Context,
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName>,
+  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
   viewName: ViewName,
-  options?: v.SqlViewDefnOptions<Context, ViewName, ColumnName>,
+  options?: v.SqlViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
 ) {
   const selectColumnNames = options?.viewColumns
     ? options?.viewColumns
     : tableDefn.columns.map((c) => c.columnName);
-  const selectColumnNamesSS: t.SqlTextSupplier<Context> = {
+  const selectColumnNamesSS: t.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (_, steOptions) =>
       (steOptions?.tableColumnName
         ? selectColumnNames.map((cn) =>
@@ -683,10 +749,12 @@ export function tableDefnViewWrapper<
         )
         : selectColumnNames).join(", "),
   };
-  const tableNameSS: t.SqlTextSupplier<Context> = {
+  const tableNameSS: t.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (_, steOptions) =>
       steOptions?.tableName?.(tableDefn.tableName) ?? tableDefn.tableName,
   };
-  return v.sqlView<Context, ViewName, ColumnName>(viewName, options)
-    `SELECT ${selectColumnNamesSS}\nFROM ${tableNameSS}`;
+  return v.sqlView<Context, ViewName, ColumnName, EmitOptions>(
+    viewName,
+    options,
+  )`SELECT ${selectColumnNamesSS}\nFROM ${tableNameSS}`;
 }

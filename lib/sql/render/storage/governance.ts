@@ -5,8 +5,14 @@ export interface TableDefinitionSupplier<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
-  readonly tableDefn: TableDefinition<Context, TableName, ColumnName>;
+  readonly tableDefn: TableDefinition<
+    Context,
+    TableName,
+    ColumnName,
+    EmitOptions
+  >;
 }
 
 export interface TableColumnNameSupplier<ColumnName extends string> {
@@ -30,9 +36,10 @@ export interface TableColumnForeignKeySupplier<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly foreignKey:
-    & TableDefinitionSupplier<Context, TableName, ColumnName>
+    & TableDefinitionSupplier<Context, TableName, ColumnName, EmitOptions>
     & {
       tableColumnDefn:
         & TableColumnNameSupplier<ColumnName>
@@ -110,29 +117,33 @@ export type TableDefinitionContext<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > =
   & Context
-  & TableDefinitionSupplier<Context, TableName, ColumnName>;
+  & TableDefinitionSupplier<Context, TableName, ColumnName, EmitOptions>;
 
 export type TableColumnDefinitionContext<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > =
   & Context
-  & TableDefinitionSupplier<Context, TableName, ColumnName>
+  & TableDefinitionSupplier<Context, TableName, ColumnName, EmitOptions>
   & TableColumnDefinitionSupplier<ColumnName>;
 
 export interface TableDefinition<
   Context,
   TableName extends string,
   ColumnName extends string,
-> extends t.SqlTextSupplier<Context> {
+  EmitOptions extends t.SqlTextEmitOptions,
+> extends t.SqlTextSupplier<Context, EmitOptions> {
   readonly tableName: TableName;
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
   readonly columns: TableColumnDefinition<ColumnName>[];
   readonly decorators: t.SqlTextSupplier<
-    TableDefinitionContext<Context, TableName, ColumnName>
+    TableDefinitionContext<Context, TableName, ColumnName, EmitOptions>,
+    EmitOptions
   >[];
 }

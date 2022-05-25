@@ -3,7 +3,10 @@ import * as ws from "../../text/whitespace.ts";
 import * as mod from "./mod.ts";
 
 interface TestContext {
-  readonly tdfs: mod.TableDefnFactoriesSupplier<TestContext>;
+  readonly tdfs: mod.TableDefnFactoriesSupplier<
+    TestContext,
+    mod.SqlTextEmitOptions
+  >;
 }
 
 const _testView = mod.sqlView("X")`
@@ -16,7 +19,8 @@ export function testTableDefns(ctx: TestContext) {
   const publHost = mod.typicalTabledDefnDML<
     { host: string; host_identity: unknown; mutation_count: number },
     TestContext,
-    "publ_host"
+    "publ_host",
+    mod.SqlTextEmitOptions
   >(ctx, "publ_host", ["host", "host_identity", "mutation_count"], tdfs)(
     (
       defineColumns,
@@ -143,19 +147,23 @@ export function testTableDefns(ctx: TestContext) {
 
 Deno.test("SQLa (assembler)", () => {
   const ctx: TestContext = {
-    tdfs: mod.sqliteTableDefnFactories<TestContext>(),
+    tdfs: mod.sqliteTableDefnFactories<TestContext, mod.SqlTextEmitOptions>(),
   };
   const schema = testTableDefns(ctx);
-  const persist = (sts: mod.SqlTextSupplier<TestContext>, basename: string) => {
-    const result: mod.PersistableSqlText<TestContext> = {
-      sqlTextSupplier: sts,
-      persistDest: (_, index) => `${index}_${basename}`,
-    };
+  const persist = (
+    sts: mod.SqlTextSupplier<TestContext, mod.SqlTextEmitOptions>,
+    basename: string,
+  ) => {
+    const result: mod.PersistableSqlText<TestContext, mod.SqlTextEmitOptions> =
+      {
+        sqlTextSupplier: sts,
+        persistDest: (_, index) => `${index}_${basename}`,
+      };
     return result;
   };
 
   // deno-fmt-ignore
-  const DDL = mod.sqlPartial<TestContext>({
+  const DDL = mod.sqlPartial<TestContext, mod.SqlTextEmitOptions>({
     sqlSuppliersDelimText: ";",
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>

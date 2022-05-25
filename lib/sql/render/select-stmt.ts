@@ -12,9 +12,10 @@ export interface SelectStatement<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-> extends t.SqlTextSupplier<Context> {
+  EmitOptions extends t.SqlTextEmitOptions,
+> extends t.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
-  readonly selectStmt: t.SqlTextSupplier<Context>;
+  readonly selectStmt: t.SqlTextSupplier<Context, EmitOptions>;
   readonly selectStmtName?: SelectStmtName;
   readonly columns?: ColumnName[];
 }
@@ -33,11 +34,12 @@ export function isSelectStatement<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   o: unknown,
-): o is SelectStatement<Context, SelectStmtName, ColumnName> {
+): o is SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions> {
   const isSS = safety.typeGuard<
-    SelectStatement<Context, SelectStmtName, ColumnName>
+    SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
   >("selectStmt");
   return isSS(o);
 }
@@ -46,10 +48,11 @@ export function selectStmt<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
-  ssOptions?: t.SqlPartialOptions<Context> & {
+  ssOptions?: t.SqlPartialOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
-      & SelectStatement<Context, SelectStmtName, ColumnName>
+      & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
       & Partial<l.SqlLintIssuesSupplier>
     );
     readonly selectStmtName?: SelectStmtName;
@@ -58,9 +61,9 @@ export function selectStmt<
 ) {
   return (
     literals: TemplateStringsArray,
-    ...expressions: t.SqlPartialExpression<Context>[]
+    ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
   ):
-    & SelectStatement<Context, SelectStmtName, ColumnName>
+    & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
     & Partial<l.SqlLintIssuesSupplier> => {
     let invalid: SelectNotFirstWordLintIssue | undefined;
     const candidateSQL = literals[0];
@@ -76,7 +79,7 @@ export function selectStmt<
       }
     }
 
-    const partial = t.sqlPartial<Context>({
+    const partial = t.sqlPartial<Context, EmitOptions>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const selectStmt = partial(literals, ...expressions);
