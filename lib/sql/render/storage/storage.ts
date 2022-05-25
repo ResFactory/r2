@@ -126,9 +126,9 @@ export function typicalTableColumnsFactory<
           foreignKeyTableColDefn: (foreignColumnName, options) => {
             const fkeyTableColDefnResult:
               & govn.TableIntegerColumnDefinition<ColumnName>
-              // deno-lint-ignore no-explicit-any
               & govn.TableColumnForeignKeySupplier<
                 Context,
+                // deno-lint-ignore no-explicit-any
                 any,
                 ColumnName,
                 EmitOptions
@@ -143,6 +143,10 @@ export function typicalTableColumnsFactory<
                 },
               };
             return fkeyTableColDefnResult;
+          },
+          sqlDmlContributions: {
+            isInInsertColumnsList: () => false,
+            isInUpdateColumnsList: () => false,
           },
         };
       return result;
@@ -187,6 +191,10 @@ export function typicalTableColumnsFactory<
             return `${
               tdfs.tableColumnDefnSqlTextSupplier(ctx, steOptions)
             } DEFAULT CURRENT_TIMESTAMP`;
+          },
+          sqlDmlContributions: {
+            isInInsertColumnsList: () => false,
+            isInUpdateColumnsList: () => false,
           },
         };
       return result;
@@ -339,6 +347,14 @@ export function isTableColumnDefinition<ColumnName extends string>(
   return isCD(o);
 }
 
+export const isTableColumnDmlContributions = safety.typeGuard<
+  govn.TableColumnDmlContributions
+>("isInInsertColumnsList", "isInUpdateColumnsList");
+
+export const isTableColumnDmlContributionsSupplier = safety.typeGuard<
+  govn.TableColumnDmlContributionsSupplier
+>("sqlDmlContributions");
+
 export function isTableDefinition<
   Context,
   TableName extends string,
@@ -397,7 +413,7 @@ export interface TableLintIssue<TableName extends string>
   readonly tableName: TableName;
 }
 
-export function defineTable<
+export function staticTableDefn<
   Context,
   TableName extends string,
   ColumnName extends string,
@@ -533,7 +549,7 @@ export function defineTable<
   return tableDefn;
 }
 
-export function typicalTableDefn<
+export function typicalStaticTableDefn<
   Context,
   TableName extends string,
   ColumnName extends string,
@@ -559,7 +575,7 @@ export function typicalTableDefn<
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
       `${TableName}_id`
     >;
-    const tableDefn = defineTable(
+    const tableDefn = staticTableDefn(
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, `created_at`],
@@ -587,7 +603,7 @@ export function typicalTableDefn<
   };
 }
 
-export function typicalTabledDefnDML<
+export function typicalTableDefnDML<
   InsertableRecord extends tr.UntypedTabularRecordObject,
   Context,
   TableName extends string,
@@ -610,7 +626,6 @@ export function typicalTabledDefnDML<
     enforceForeignKeyRefs: "table-decorator",
   },
 ) {
-  const createdAtColName = `created_at`;
   return (
     customDefineTable?: (
       defineColumns: (
@@ -622,7 +637,8 @@ export function typicalTabledDefnDML<
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
       `${TableName}_id`
     >;
-    const tableDefn = defineTable(
+    const createdAtColName = `created_at`;
+    const tableDefn = staticTableDefn(
       ctx,
       tableName,
       [`${tableName}_id`, ...validColumnNames, createdAtColName],
@@ -662,6 +678,113 @@ export function typicalTabledDefnDML<
       insertDML: (
         o: InsertableObject,
         insertDmlOptions?: {
+          readonly emitColumnNames?: (
+            record: InsertableRecord,
+            steOptions?: t.SqlTextEmitOptions,
+          ) => string[];
+          readonly emitColumnValue?: (
+            colName: ColumnName,
+            record: InsertableRecord,
+            steOptions?: t.SqlTextEmitOptions,
+          ) => [value: unknown, sqlText: string];
+          readonly prepareSqlText?: (
+            record: InsertableRecord,
+            names: string[],
+            values: [value: unknown, sqlText: string][],
+          ) => string;
+        },
+      ): t.SqlTextSupplier<Context, EmitOptions> => {
+        return {
+          SQL: (_, steOptions) => {
+            const {
+              emitColumnNames = (
+                record: InsertableRecord,
+                steOptions?: t.SqlTextEmitOptions,
+              ) => {
+                const result = Object.keys(record).filter((cn) => {
+                  const c = tableDefn.columns.find((c) => c.columnName == cn);
+                  return isTableColumnDmlContributionsSupplier(c)
+                    ? c.sqlDmlContributions.isInInsertColumnsList(record)
+                    : true;
+                });
+                if (steOptions?.tableColumnName) {
+                  return result.map((cn) =>
+                    steOptions!.tableColumnName!({ tableName, columnName: cn })
+                  );
+                }
+                return result;
+              },
+              emitColumnValue = (
+                colName: ColumnName,
+                record: InsertableRecord,
+              ) => {
+                const value = record[colName];
+                if (typeof value === "undefined") return [value, "NULL"];
+                if (typeof value === "string") {
+                  return [value, `'${value.replaceAll("'", "''")}'`];
+                }
+                return [value, String(value)];
+              },
+              prepareSqlText = (
+                _record: InsertableRecord,
+                names: string[],
+                values: [value: unknown, sqlText: string][],
+              ) =>
+                `INSERT INTO ${
+                  steOptions?.tableName?.(tableName) ?? tableName
+                } (${names.join(", ")}) VALUES (${
+                  values.map((value) => value[1]).join(", ")
+                })`,
+            } = insertDmlOptions ?? {};
+            const record = tr.transformTabularRecord<
+              InsertableRecord,
+              InsertableObject
+            >(o);
+            const names = emitColumnNames(record);
+            const values = names.map((colName) =>
+              emitColumnValue(colName as ColumnName, record)
+            );
+            return prepareSqlText(record, names, values);
+          },
+        };
+      },
+    };
+  };
+}
+
+export function tableDefnDML<
+  InsertableRecord extends tr.UntypedTabularRecordObject,
+  Context,
+  TableName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+  ColumnName extends keyof InsertableRecord & string =
+    & keyof InsertableRecord
+    & string,
+  InsertableObject extends tr.TabularRecordToObject<InsertableRecord> =
+    tr.TabularRecordToObject<InsertableRecord>,
+  UpdatableRecord extends Partial<InsertableRecord> = Partial<InsertableRecord>,
+  UpdatableObject extends tr.TabularRecordToObject<UpdatableRecord> =
+    tr.TabularRecordToObject<UpdatableRecord>,
+>(
+  _ctx: Context,
+  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
+) {
+  return () => {
+    // we use ! after primaryKeyColDefn because linter thinks it's not set but we know it is
+    return {
+      prepareInsert: (
+        o: InsertableObject,
+        rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
+        options?: tr.TransformTabularRecordOptions<InsertableRecord>,
+      ) => tr.transformTabularRecord(o, rowState, options),
+      prepareUpdate: (
+        o: UpdatableObject,
+        rowState?: tr.TransformTabularRecordsRowState<UpdatableRecord>,
+        options?: tr.TransformTabularRecordOptions<UpdatableRecord>,
+      ) => tr.transformTabularRecord(o, rowState, options),
+      insertDML: (
+        o: InsertableObject,
+        insertDmlOptions?: {
           readonly emitColumnNames: (
             record: InsertableRecord,
             steOptions?: t.SqlTextEmitOptions,
@@ -677,17 +800,20 @@ export function typicalTabledDefnDML<
           SQL: (_, steOptions) => {
             const {
               emitColumnNames = (
-                record: InsertableRecord,
+                _record: InsertableRecord,
                 steOptions?: t.SqlTextEmitOptions,
               ) => {
-                const result = Object.keys(record).filter((cn) =>
-                  cn == `${tableName}_id` || cn == createdAtColName
-                    ? false
+                const result = tableDefn.columns.filter((c) =>
+                  isTableColumnDmlContributionsSupplier(c)
+                    ? c.sqlDmlContributions.isInInsertColumnsList
                     : true
                 );
                 if (steOptions?.tableColumnName) {
                   return result.map((cn) =>
-                    steOptions!.tableColumnName!({ tableName, columnName: cn })
+                    steOptions!.tableColumnName!({
+                      tableName: tableDefn.tableName,
+                      columnName: cn as unknown as ColumnName,
+                    })
                   );
                 }
                 return result;
@@ -709,6 +835,7 @@ export function typicalTabledDefnDML<
               InsertableObject
             >(o);
             const names = emitColumnNames(record);
+            const { tableName } = tableDefn;
             return `INSERT INTO ${
               steOptions?.tableName?.(tableName) ?? tableName
             } (${names.join(", ")}) VALUES (${

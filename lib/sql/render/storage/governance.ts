@@ -61,12 +61,22 @@ export interface TableColumnDeclareWeightSupplier {
   readonly declarationWeight: number;
 }
 
+export interface TableColumnDmlContributions {
+  readonly isInInsertColumnsList: <Record>(record?: Record) => boolean;
+  readonly isInUpdateColumnsList: <Record>(record?: Record) => boolean;
+}
+
+export interface TableColumnDmlContributionsSupplier {
+  readonly sqlDmlContributions: TableColumnDmlContributions;
+}
+
 export interface TableAutoIncPrimaryKeyColumnDefinition<
   ColumnName extends string,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"INTEGER", number>,
-  ForeignKeyTableColumnDefnFactory<ColumnName> {
+  ForeignKeyTableColumnDefnFactory<ColumnName>,
+  TableColumnDmlContributionsSupplier {
 }
 
 export interface TableIntegerColumnDefinition<ColumnName extends string>
@@ -88,7 +98,8 @@ export interface TableDateTimeColumnDefinition<ColumnName extends string>
 export interface TableCreationStampColumnDefinition<ColumnName extends string>
   extends
     TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"DATETIME", Date> {
+    TableColumnDataTypeSupplier<"DATETIME", Date>,
+    TableColumnDmlContributionsSupplier {
 }
 
 export interface TableTextColumnDefinition<ColumnName extends string>

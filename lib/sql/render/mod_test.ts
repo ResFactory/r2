@@ -16,7 +16,8 @@ const _testView = mod.sqlView("X")`
 
 export function testTableDefns(ctx: TestContext) {
   const { tdfs } = ctx;
-  const publHost = mod.typicalTabledDefnDML<
+
+  const publHost = mod.typicalTableDefnDML<
     { host: string; host_identity: unknown; mutation_count: number },
     TestContext,
     "publ_host",
@@ -41,7 +42,7 @@ export function testTableDefns(ctx: TestContext) {
     { isIdempotent: true },
   );
 
-  const publBuildEvent = mod.typicalTableDefn(ctx, "publ_build_event", [
+  const publBuildEvent = mod.typicalStaticTableDefn(ctx, "publ_build_event", [
     "publ_host_id",
     "iteration_index",
     "build_initiated_at",
@@ -65,7 +66,7 @@ export function testTableDefns(ctx: TestContext) {
     },
   );
 
-  const publServerService = mod.typicalTableDefn(
+  const publServerService = mod.typicalStaticTableDefn(
     ctx,
     "publ_server_service",
     [
@@ -89,7 +90,7 @@ export function testTableDefns(ctx: TestContext) {
   );
 
   // -- TODO: add indexes to improve query performance
-  const publServerStaticAccessLog = mod.typicalTableDefn(
+  const publServerStaticAccessLog = mod.typicalStaticTableDefn(
     ctx,
     "publ_server_static_access_log",
     [
@@ -115,7 +116,7 @@ export function testTableDefns(ctx: TestContext) {
   );
 
   // -- TODO: add indexes to improve query performance
-  const publServerErrorLog = mod.typicalTableDefn(
+  const publServerErrorLog = mod.typicalStaticTableDefn(
     ctx,
     "publ_server_error_log",
     [
