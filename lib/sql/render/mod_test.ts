@@ -2,7 +2,7 @@ import { path, testingAsserts as ta } from "./deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as mod from "./mod.ts";
 
-interface TestContext extends mod.StorageContext {
+interface TestContext {
   readonly tdfs: mod.TableDefnFactoriesSupplier<TestContext>;
 }
 

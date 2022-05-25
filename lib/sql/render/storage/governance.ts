@@ -1,12 +1,8 @@
 import * as safety from "../../../safety/mod.ts";
 import * as t from "../text.ts";
 
-// deno-lint-ignore no-empty-interface
-export interface StorageContext {
-}
-
 export interface TableDefinitionSupplier<
-  Context extends StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -31,7 +27,7 @@ export interface ForeignKeyTableColumnDefnFactory<
 }
 
 export interface TableColumnForeignKeySupplier<
-  Context extends StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -111,7 +107,7 @@ export interface TableColumnDefinitionSupplier<ColumnName extends string> {
 }
 
 export type TableDefinitionContext<
-  Context extends StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -119,7 +115,7 @@ export type TableDefinitionContext<
   & TableDefinitionSupplier<Context, TableName, ColumnName>;
 
 export type TableColumnDefinitionContext<
-  Context extends StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > =
@@ -128,7 +124,7 @@ export type TableColumnDefinitionContext<
   & TableColumnDefinitionSupplier<ColumnName>;
 
 export interface TableDefinition<
-  Context extends StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > extends t.SqlTextSupplier<Context> {

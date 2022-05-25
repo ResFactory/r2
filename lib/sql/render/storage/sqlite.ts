@@ -1,8 +1,7 @@
-import * as govn from "./governance.ts";
 import * as s from "./storage.ts";
 
 export function sqliteTableDefnFactories<
-  Context extends govn.StorageContext,
+  Context,
 >(): s.TableDefnFactoriesSupplier<Context> {
   const tdfs: s.TableDefnFactoriesSupplier<Context> = {
     tableColumnsFactory: (tableDefn) =>

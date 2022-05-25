@@ -6,7 +6,7 @@ import * as tr from "../../../tabular/mod.ts";
 import * as v from "../view.ts";
 
 export interface TableColumnsFactory<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -42,7 +42,7 @@ export interface TableColumnsFactory<
 }
 
 export interface TableDefnDecoratorsFactory<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -50,7 +50,7 @@ export interface TableDefnDecoratorsFactory<
 }
 
 export interface TableDefnFactoriesSupplier<
-  Context extends govn.StorageContext,
+  Context,
 > {
   readonly tableColumnsFactory: <
     TableName extends string,
@@ -74,7 +74,7 @@ export interface TableDefnFactoriesSupplier<
 }
 
 export function typicalTableColumnsFactory<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -178,7 +178,7 @@ export function typicalTableColumnsFactory<
 }
 
 export function typicalTableColumnDefnSqlTextSupplier<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(): (
@@ -209,7 +209,7 @@ export function typicalTableColumnDefnSqlTextSupplier<
 }
 
 export function typicalTableDefnDecoratorsFactory<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -253,7 +253,7 @@ export function isForeignKeyTableColumnDefnFactory<
 }
 
 export function isTableColumnForeignKeySupplier<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -288,7 +288,7 @@ export function isTableColumnDefinition<ColumnName extends string>(
 }
 
 export function isTableDefinition<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -312,7 +312,7 @@ export interface DefineTableOptions {
 }
 
 export interface DefineTableInit<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 > {
@@ -344,7 +344,7 @@ export interface TableLintIssue<TableName extends string>
 }
 
 export function defineTable<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -471,7 +471,7 @@ export function defineTable<
 }
 
 export function typicalTableDefn<
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends string,
 >(
@@ -525,7 +525,7 @@ export function typicalTableDefn<
 
 export function typicalTabledDefnDML<
   InsertableRecord extends tr.UntypedTabularRecordObject,
-  Context extends govn.StorageContext,
+  Context,
   TableName extends string,
   ColumnName extends keyof InsertableRecord & string =
     & keyof InsertableRecord
@@ -659,7 +659,7 @@ export function typicalTabledDefnDML<
 }
 
 export function tableDefnViewWrapper<
-  Context extends govn.StorageContext,
+  Context,
   ViewName extends string,
   TableName extends string,
   ColumnName extends string,
