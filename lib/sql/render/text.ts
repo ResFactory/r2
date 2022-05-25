@@ -1,6 +1,6 @@
+import { fs } from "./deps.ts";
 import * as safety from "../../safety/mod.ts";
 import * as c from "../../text/contributions.ts";
-import * as t from "./text.ts";
 import * as l from "./lint.ts";
 import * as ws from "../../text/whitespace.ts";
 
@@ -54,6 +54,16 @@ export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   };
 }
 
+export interface SqlTextPersistOptions {
+  readonly ensureDirSync?: (destFileName: string) => void;
+}
+
+export function typicalSqlTextPersistOptions(): SqlTextPersistOptions {
+  return {
+    ensureDirSync: fs.ensureDirSync,
+  };
+}
+
 export interface SqlTextSupplier<Context> {
   readonly SQL: (ctx: Context, options?: SqlTextEmitOptions) => string;
 }
@@ -65,10 +75,39 @@ export function isSqlTextSupplier<Context>(
   return isSTS(o);
 }
 
+export interface PersistableSqlText<Context> {
+  readonly sqlTextSupplier: SqlTextSupplier<Context>;
+  readonly persistDest: (
+    ctx: Context,
+    index: number,
+    options?: SqlTextPersistOptions,
+  ) => string;
+}
+
+export function isPersistableSqlText<Context>(
+  o: unknown,
+): o is PersistableSqlText<Context> {
+  const isPSTS = safety.typeGuard<PersistableSqlText<Context>>(
+    "sqlTextSupplier",
+    "persistDest",
+  );
+  return isPSTS(o);
+}
+
+export interface PersistableSqlTextIndexSupplier {
+  readonly persistableSqlTextIndex: number;
+}
+
+export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
+  PersistableSqlTextIndexSupplier
+>("persistableSqlTextIndex");
+
 export type SqlPartialExpression<Context> =
   | ((ctx: Context) => c.TextContributionsPlaceholder)
-  | ((ctx: Context) => t.SqlTextSupplier<Context>)
-  | t.SqlTextSupplier<Context>
+  | ((ctx: Context) => SqlTextSupplier<Context>)
+  | ((ctx: Context) => PersistableSqlText<Context>)
+  | SqlTextSupplier<Context>
+  | PersistableSqlText<Context>
   | string;
 
 export interface SqlPartialOptions<Context> {
@@ -77,15 +116,23 @@ export interface SqlPartialOptions<Context> {
     literals: TemplateStringsArray,
     suppliedExprs: unknown[],
   ) => ws.TemplateLiteralIndexedTextSupplier;
+  readonly persistIndexer?: { activeIndex: number };
+  readonly persist?: (
+    ctx: Context,
+    psts: PersistableSqlText<Context>,
+    indexer: { activeIndex: number },
+    steOptions?: SqlTextEmitOptions,
+  ) => SqlTextSupplier<Context> | undefined;
 }
 
 export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
   literals: TemplateStringsArray,
   ...expressions: SqlPartialExpression<Context>[]
-) => t.SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
+) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
   const lintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
-    const { sqlSuppliersDelimText } = options ?? {};
+    const { sqlSuppliersDelimText, persistIndexer = { activeIndex: 0 } } =
+      options ?? {};
     // by default no pre-processing of text literals are done; if auto-unindent is desired pass in
     //   options.literalSupplier = (literals, suppliedExprs) => ws.whitespaceSensitiveTemplateLiteralSupplier(literals, suppliedExprs)
     const literalSupplier = options?.literalSupplier
@@ -93,7 +140,7 @@ export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
       : (index: number) => literals[index];
     const interpolate: (
       ctx: Context,
-      steOptions?: t.SqlTextEmitOptions,
+      steOptions?: SqlTextEmitOptions,
     ) => string = (
       ctx,
       steOptions,
@@ -137,7 +184,28 @@ export function sqlPartial<Context>(options?: SqlPartialOptions<Context>): (
         interpolated += literalSupplier(i);
         const expr = expressions[i];
 
-        if (t.isSqlTextSupplier<Context>(expr)) {
+        if (isPersistableSqlText<Context>(expr)) {
+          persistIndexer.activeIndex++;
+          if (options?.persist) {
+            const persistenceSqlText = options.persist(
+              ctx,
+              expr,
+              persistIndexer,
+              steOptions,
+            );
+            if (persistenceSqlText) {
+              // after persistence, if we want to store a remark or other SQL
+              interpolated += persistenceSqlText.SQL(ctx, steOptions);
+            }
+          } else {
+            lintIssues.push({
+              lintIssue:
+                `persistable SQL encountered but no persistence handler available: '${
+                  Deno.inspect(expr)
+                }'`,
+            });
+          }
+        } else if (isSqlTextSupplier<Context>(expr)) {
           interpolated += expr.SQL(ctx, steOptions);
           if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
         } else if (typeof expr === "string") {
