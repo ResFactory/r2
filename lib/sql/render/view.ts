@@ -1,7 +1,6 @@
 import * as safety from "../../safety/mod.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as t from "./text.ts";
-import * as l from "./lint.ts";
 import * as ss from "./select-stmt.ts";
 
 export interface ViewDefinition<
@@ -67,7 +66,7 @@ export interface ViewDefnFactory<
     ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
   ) =>
     & ViewDefinition<Context, ViewName, ColumnName, EmitOptions>
-    & Partial<l.SqlLintIssuesSupplier>;
+    & t.SqlTextLintIssuesSupplier<Context, EmitOptions>;
 }
 
 export function typicalSqlViewDefnFactory<
@@ -90,6 +89,8 @@ export function typicalSqlViewDefnFactory<
           isTemp,
           isIdempotent,
           selectStmt,
+          populateSqlTextLintIssues: (lintIssues, steOptions) =>
+            selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
           SQL: (ctx, steOptions) => {
             const rawSelectStmtSqlText = selectStmt.SQL(ctx, steOptions);
             const viewSelectStmtSqlText = steOptions?.indentation?.(
@@ -111,7 +112,6 @@ export function typicalSqlViewDefnFactory<
                 : ""
             } AS\n${viewSelectStmtSqlText}`;
           },
-          lintIssues: selectStmt.lintIssues,
         };
       };
     },

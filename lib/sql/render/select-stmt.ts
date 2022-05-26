@@ -3,10 +3,7 @@ import * as ws from "../../text/whitespace.ts";
 import * as t from "./text.ts";
 import * as l from "./lint.ts";
 
-export interface SelectNotFirstWordLintIssue extends l.SqlLintIssueSupplier {
-  readonly templateLiterals: TemplateStringsArray;
-  readonly templateExprs: unknown[];
-}
+export type SelectNotFirstWordLintIssue = l.TemplateStringLintIssue;
 
 export interface SelectStatement<
   Context,
@@ -53,7 +50,7 @@ export function selectStmt<
   ssOptions?: t.SqlPartialOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
       & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
-      & Partial<l.SqlLintIssuesSupplier>
+      & t.SqlTextLintIssuesSupplier<Context, EmitOptions>
     );
     readonly selectStmtName?: SelectStmtName;
     readonly selectColumns?: ColumnName[];
@@ -64,16 +61,16 @@ export function selectStmt<
     ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
   ):
     & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
-    & Partial<l.SqlLintIssuesSupplier> => {
+    & t.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
     let invalid: SelectNotFirstWordLintIssue | undefined;
     const candidateSQL = literals[0];
     const command = firstWord(candidateSQL);
     if (!(command && command == "SELECT")) {
-      invalid = {
-        lintIssue: "SQL statement does not start with SELECT",
-        templateExprs: expressions,
-        templateLiterals: literals,
-      };
+      invalid = l.templateStringLintIssue(
+        "SQL statement does not start with SELECT",
+        literals,
+        expressions,
+      );
       if (ssOptions?.onSelectNotFirstWord) {
         return ssOptions?.onSelectNotFirstWord(invalid);
       }
@@ -93,11 +90,10 @@ export function selectStmt<
           steOptions?.comments?.(invalid!.lintIssue) ??
             `-- ${invalid!.lintIssue}`)
         : selectStmt.SQL,
-      lintIssues: invalid
-        ? (selectStmt.lintIssues
-          ? [...selectStmt.lintIssues, invalid]
-          : [invalid])
-        : selectStmt.lintIssues,
+      populateSqlTextLintIssues: (lintIssues) => {
+        if (invalid) lintIssues.push(invalid);
+        if (selectStmt.lintIssues) lintIssues.push(...selectStmt.lintIssues);
+      },
     };
   };
 }

@@ -26,7 +26,7 @@ export interface SqlTextEmitOptions {
 
 export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   return {
-    comments: (text, indent = "") => `${indent}-- ${text}`,
+    comments: (text, indent = "") => text.replaceAll(/^/gm, `${indent}-- `),
     indentation: (nature, content) => {
       let indent = "";
       switch (nature) {
@@ -170,9 +170,11 @@ export function sqlTextLintSummary<
       const result: SqlTextSupplier<Context, EmitOptions> = {
         SQL: (_, steOptions) => {
           return lintIssues.length > 0
-            ? lintIssues.map((li) =>
-              steOptions?.comments?.(li.lintIssue) ?? `-- ${li.lintIssue}`
-            ).join("\n")
+            ? lintIssues.map((li) => {
+              // deno-fmt-ignore
+              const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
+              return steOptions?.comments?.(message) ?? `-- ${message}`;
+            }).join("\n")
             : steOptions?.comments?.(noIssuesText) ?? `-- ${noIssuesText}`;
         },
       };
