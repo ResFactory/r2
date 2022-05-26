@@ -1,9 +1,18 @@
+import { events } from "../deps.ts";
 import * as safety from "../../../safety/mod.ts";
 import * as govn from "./governance.ts";
-import * as l from "../lint.ts";
 import * as t from "../text.ts";
 import * as tr from "../../../tabular/mod.ts";
 import * as v from "../view.ts";
+
+export class TableColumnsFactoryEventEmitter<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+> extends events.EventEmitter<{
+  construct(column: govn.TableColumnDefinition<ColumnName>): void;
+}> {}
 
 export interface TableColumnsFactory<
   Context,
@@ -372,29 +381,121 @@ export function isTableDefinition<
   return isCTR(o);
 }
 
-export interface DefineTableOptions {
-  readonly isTemp?: boolean;
-  readonly isIdempotent: boolean;
-  readonly enforceForeignKeyRefs:
-    | false
-    | "table-decorator"; /* TODO: | "alter-table" */
-}
+export class TableDefnEventEmitter<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+> extends events.EventEmitter<{
+  preparedColumn(
+    column: govn.TableColumnDefinition<ColumnName>,
+    tableDefn: govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+  ): void;
+  registeredColumn(
+    column: govn.TableColumnDefinition<ColumnName>,
+    tableDefn: govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+  ): void;
+  populatedDefn(
+    tableDefn: govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+    validColumnNames: ColumnName[],
+  ): void;
+}> {}
 
-export interface DefineTableInit<
+export interface DefineTableOptions<
   Context,
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
 > {
-  readonly tableDefn:
-    & govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
-    & l.SqlLintIssuesSupplier
-    & {
-      readonly finalizeDefn: () => void;
-      readonly registerLintIssues: (
-        ...slis: l.SqlLintIssueSupplier[]
-      ) => void;
-    };
+  readonly isTemp?: boolean;
+  readonly isIdempotent: boolean;
+  readonly prepareEvents?: (
+    tdEE: TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>,
+  ) => TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>;
+}
+
+export function typicalDefineTableOptions<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+>(
+  options?:
+    & Partial<DefineTableOptions<Context, TableName, ColumnName, EmitOptions>>
+    & { readonly enforceForeignKeys?: boolean },
+): DefineTableOptions<Context, TableName, ColumnName, EmitOptions> {
+  return {
+    isTemp: options?.isTemp,
+    isIdempotent: options?.isIdempotent ?? true,
+    prepareEvents: (tdEE) => {
+      const { enforceForeignKeys = true } = options ?? {};
+      if (enforceForeignKeys) {
+        tdEE.on("registeredColumn", (c, tableDefn) => {
+          if (isTableColumnForeignKeySupplier(c)) {
+            tableDefn.decorators.push({
+              SQL: (_ctx, steOptions) => {
+                const tn = steOptions?.tableName;
+                const cn = steOptions?.tableColumnName;
+                return `FOREIGN KEY(${
+                  cn?.({
+                    tableName: tableDefn.tableName,
+                    columnName: c.columnName,
+                  }) ??
+                    c.columnName
+                }) REFERENCES ${
+                  tn?.(c.foreignKey.tableDefn.tableName) ??
+                    c.foreignKey.tableDefn.tableName
+                }(${
+                  cn?.({
+                    tableName: c.foreignKey.tableDefn.tableName,
+                    columnName: c.foreignKey.tableColumnDefn.columnName,
+                  }) ?? c.foreignKey.tableColumnDefn.columnName
+                })`;
+              },
+            });
+          }
+        });
+      }
+
+      options?.prepareEvents?.(tdEE);
+      return tdEE;
+    },
+  };
+}
+
+export interface PopulateTableDefnContext<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+> {
+  readonly tdEE: TableDefnEventEmitter<
+    Context,
+    TableName,
+    ColumnName,
+    EmitOptions
+  >;
+  readonly tableDefn: govn.TableDefinition<
+    Context,
+    TableName,
+    ColumnName,
+    EmitOptions
+  >;
   readonly columnsFactory: TableColumnsFactory<
     Context,
     TableName,
@@ -408,9 +509,18 @@ export interface DefineTableInit<
   readonly ctx: Context;
 }
 
-export interface TableLintIssue<TableName extends string>
-  extends l.SqlLintIssueSupplier {
-  readonly tableName: TableName;
+export interface TableDefnPopulator<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+> {
+  (
+    defineColumns: (
+      ...column: govn.TableColumnDefinition<ColumnName>[]
+    ) => void,
+    init: PopulateTableDefnContext<Context, TableName, ColumnName, EmitOptions>,
+  ): void;
 }
 
 export function staticTableDefn<
@@ -423,36 +533,53 @@ export function staticTableDefn<
   tableName: TableName,
   validColumnNames: ColumnName[],
   tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  defineTable?: (
-    init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
-  ) => void,
-  options?: DefineTableOptions,
+  populateTableDefn?: TableDefnPopulator<
+    Context,
+    TableName,
+    ColumnName,
+    EmitOptions
+  >,
+  options?: DefineTableOptions<Context, TableName, ColumnName, EmitOptions>,
 ): govn.TableDefinition<Context, TableName, ColumnName, EmitOptions> {
-  const { isTemp, isIdempotent } = options ?? { isIdempotent: true };
+  const {
+    isTemp,
+    isIdempotent,
+    prepareEvents = (
+      tdEE: TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>,
+    ) => tdEE,
+  } = options ?? { isIdempotent: true };
+  const tdEE = prepareEvents(
+    new TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>(),
+  );
   const columns: govn.TableColumnDefinition<ColumnName>[] = [];
   const decorators: t.SqlTextSupplier<
     govn.TableDefinitionContext<Context, TableName, ColumnName, EmitOptions>,
     EmitOptions
   >[] = [];
-  const lintIssues: l.SqlLintIssueSupplier[] = [];
   const tableDefn:
-    & govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
-    & l.SqlLintIssuesSupplier
-    & {
-      finalizeDefn: () => void;
-      registerLintIssues: (...slis: l.SqlLintIssueSupplier[]) => void;
-    } = {
+    & govn.TableDefinition<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >
+    & t.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
       tableName,
       isIdempotent,
       columns,
-      lintIssues,
-      registerLintIssues: (...slis) => {
-        for (const li of slis) {
-          const tli: TableLintIssue<TableName> = { tableName, ...li };
-          lintIssues.push(tli);
+      decorators,
+      populateSqlTextLintIssues: (lintIssues) => {
+        for (const vcn of validColumnNames) {
+          if (!columns.find((c) => c.columnName == vcn)) {
+            const lintIssue: govn.TableLintIssue<TableName> = {
+              tableName,
+              lintIssue:
+                `column '${vcn}' declared but not defined in createTable(${tableName})`,
+            };
+            lintIssues.push(lintIssue);
+          }
         }
       },
-      decorators,
       SQL: (sqlCtx, steOptions) => {
         const columnDefns: string[] = [];
         const tableCtx:
@@ -498,54 +625,23 @@ export function staticTableDefn<
         "\n)";
         return result;
       },
-      finalizeDefn: () => {
-        for (const vcn of validColumnNames) {
-          if (!columns.find((c) => c.columnName == vcn)) {
-            const lintIssue: TableLintIssue<TableName> = {
-              tableName,
-              lintIssue:
-                `column '${vcn}' declared but not defined in createTable(${tableName})`,
-            };
-            lintIssues.push(lintIssue);
-          }
-        }
-        if (
-          options?.enforceForeignKeyRefs &&
-          options?.enforceForeignKeyRefs == "table-decorator"
-        ) {
-          for (const c of tableDefn.columns) {
-            if (isTableColumnForeignKeySupplier(c)) {
-              tableDefn.decorators.push({
-                SQL: (_ctx, steOptions) => {
-                  const tn = steOptions?.tableName;
-                  const cn = steOptions?.tableColumnName;
-                  return `FOREIGN KEY(${
-                    cn?.({ tableName, columnName: c.columnName }) ??
-                      c.columnName
-                  }) REFERENCES ${
-                    tn?.(c.foreignKey.tableDefn.tableName) ??
-                      c.foreignKey.tableDefn.tableName
-                  }(${
-                    cn?.({
-                      tableName: c.foreignKey.tableDefn.tableName,
-                      columnName: c.foreignKey.tableColumnDefn.columnName,
-                    }) ?? c.foreignKey.tableColumnDefn.columnName
-                  })`;
-                },
-              });
-            }
-          }
-        }
-      },
     };
-  defineTable?.({
+  populateTableDefn?.((...columns) => {
+    for (const column of columns) {
+      tdEE.emitSync("preparedColumn", column, tableDefn);
+      tableDefn.columns.push(column);
+      tdEE.emitSync("registeredColumn", column, tableDefn);
+    }
+  }, {
     tableDefn,
     columnsFactory: tdfs.tableColumnsFactory(tableDefn),
     decoratorsFactory: tdfs.tableDefnDecoratorsFactory(
       tableDefn,
     ),
     ctx,
+    tdEE,
   });
+  tdEE.emitSync("populatedDefn", tableDefn, validColumnNames);
   return tableDefn;
 }
 
@@ -559,18 +655,16 @@ export function typicalStaticTableDefn<
   tableName: TableName,
   validColumnNames: ColumnName[],
   tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  options: DefineTableOptions = {
-    isIdempotent: true,
-    enforceForeignKeyRefs: "table-decorator",
-  },
+  options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
+    typicalDefineTableOptions(),
 ) {
   return (
-    customDefineTable?: (
-      defineColumns: (
-        ...column: govn.TableColumnDefinition<ColumnName>[]
-      ) => void,
-      init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
-    ) => void,
+    populateTableDefn: TableDefnPopulator<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
       `${TableName}_id`
@@ -580,21 +674,18 @@ export function typicalStaticTableDefn<
       tableName,
       [`${tableName}_id`, ...validColumnNames, `created_at`],
       tdfs,
-      (init) => {
-        const { tableDefn, columnsFactory: cf } = init;
+      (defineColumns, init) => {
+        const { columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
           `${tableName}_id`,
         ) as govn.TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
-        tableDefn.columns.push(primaryKeyColDefn);
-        customDefineTable?.(
-          (...columns) => {
-            tableDefn.columns.push(...columns);
-          },
+        defineColumns(primaryKeyColDefn);
+        populateTableDefn(
+          defineColumns,
           // deno-lint-ignore no-explicit-any
           init as any, // TODO: figure out why cast to any is required
         );
-        tableDefn.columns.push(cf.creationTimestamp(`created_at`));
-        tableDefn.finalizeDefn();
+        defineColumns(cf.creationTimestamp(`created_at`));
       },
       options,
     );
@@ -621,18 +712,16 @@ export function typicalTableDefnDML<
   tableName: TableName,
   validColumnNames: ColumnName[],
   tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  options: DefineTableOptions = {
-    isIdempotent: true,
-    enforceForeignKeyRefs: "table-decorator",
-  },
+  options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
+    typicalDefineTableOptions(),
 ) {
   return (
-    customDefineTable?: (
-      defineColumns: (
-        ...column: govn.TableColumnDefinition<ColumnName>[]
-      ) => void,
-      init: DefineTableInit<Context, TableName, ColumnName, EmitOptions>,
-    ) => void,
+    populateTableDefn: TableDefnPopulator<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
       `${TableName}_id`
@@ -643,21 +732,18 @@ export function typicalTableDefnDML<
       tableName,
       [`${tableName}_id`, ...validColumnNames, createdAtColName],
       tdfs,
-      (init) => {
-        const { tableDefn, columnsFactory: cf } = init;
+      (defineColumns, init) => {
+        const { columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
           `${tableName}_id`,
         ) as govn.TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
-        tableDefn.columns.push(primaryKeyColDefn);
-        customDefineTable?.(
-          (...columns) => {
-            tableDefn.columns.push(...columns);
-          },
+        defineColumns(primaryKeyColDefn);
+        populateTableDefn(
+          defineColumns,
           // deno-lint-ignore no-explicit-any
           init as any, // TODO: figure out why cast to any is required
         );
-        tableDefn.columns.push(cf.creationTimestamp(createdAtColName));
-        tableDefn.finalizeDefn();
+        defineColumns(cf.creationTimestamp(createdAtColName));
       },
       options,
     );

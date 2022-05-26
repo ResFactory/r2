@@ -1,5 +1,11 @@
 import * as safety from "../../../safety/mod.ts";
 import * as t from "../text.ts";
+import * as l from "../lint.ts";
+
+export interface TableLintIssue<TableName extends string>
+  extends l.SqlLintIssueSupplier {
+  readonly tableName: TableName;
+}
 
 export interface TableDefinitionSupplier<
   Context,

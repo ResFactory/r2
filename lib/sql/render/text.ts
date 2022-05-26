@@ -81,6 +81,29 @@ export function isSqlTextSupplier<
   return isSTS(o);
 }
 
+export interface SqlTextLintIssuesSupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> {
+  readonly populateSqlTextLintIssues: (
+    lintIssues: l.SqlLintIssueSupplier[],
+    ctx: Context,
+    options?: EmitOptions,
+  ) => void;
+}
+
+export function isSqlTextLintIssuesSupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
+  o: unknown,
+): o is SqlTextLintIssuesSupplier<Context, EmitOptions> {
+  const isSTLIS = safety.typeGuard<
+    SqlTextLintIssuesSupplier<Context, EmitOptions>
+  >("populateSqlTextLintIssues");
+  return isSTLIS(o);
+}
+
 export interface PersistableSqlText<
   Context,
   EmitOptions extends SqlTextEmitOptions,
@@ -106,6 +129,58 @@ export function isPersistableSqlText<
   return isPSTS(o);
 }
 
+export interface SqlTextLintSummarySupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> {
+  readonly sqlTextLintSummary: (
+    lintIssues: l.SqlLintIssueSupplier[],
+  ) => SqlTextSupplier<Context, EmitOptions>;
+}
+
+export function isSqlTextLintSummarySupplier<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
+  o: unknown,
+): o is SqlTextLintSummarySupplier<Context, EmitOptions> {
+  const isSLSTS = safety.typeGuard<
+    SqlTextLintSummarySupplier<Context, EmitOptions>
+  >(
+    "sqlTextLintSummary",
+  );
+  return isSLSTS(o);
+}
+
+export function sqlTextLintSummary<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
+  options?: {
+    noIssuesText?: string;
+    transform?: (
+      suggested: SqlTextSupplier<Context, EmitOptions>,
+      lintIssues: l.SqlLintIssueSupplier[],
+    ) => SqlTextSupplier<Context, EmitOptions>;
+  },
+): SqlTextLintSummarySupplier<Context, EmitOptions> {
+  const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
+  return {
+    sqlTextLintSummary: (lintIssues) => {
+      const result: SqlTextSupplier<Context, EmitOptions> = {
+        SQL: (_, steOptions) => {
+          return lintIssues.length > 0
+            ? lintIssues.map((li) =>
+              steOptions?.comments?.(li.lintIssue) ?? `-- ${li.lintIssue}`
+            ).join("\n")
+            : steOptions?.comments?.(noIssuesText) ?? `-- ${noIssuesText}`;
+        },
+      };
+      return transform ? transform(result, lintIssues) : result;
+    },
+  };
+}
+
 export interface PersistableSqlTextIndexSupplier {
   readonly persistableSqlTextIndex: number;
 }
@@ -121,8 +196,10 @@ export type SqlPartialExpression<
   | ((ctx: Context) => c.TextContributionsPlaceholder)
   | ((ctx: Context) => SqlTextSupplier<Context, EmitOptions>)
   | ((ctx: Context) => PersistableSqlText<Context, EmitOptions>)
+  | ((ctx: Context) => SqlTextLintSummarySupplier<Context, EmitOptions>)
   | SqlTextSupplier<Context, EmitOptions>
   | PersistableSqlText<Context, EmitOptions>
+  | SqlTextLintSummarySupplier<Context, EmitOptions>
   | string;
 
 export interface SqlPartialOptions<
@@ -149,7 +226,8 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
   literals: TemplateStringsArray,
   ...expressions: SqlPartialExpression<Context, EmitOptions>[]
 ) => SqlTextSupplier<Context, EmitOptions> & Partial<l.SqlLintIssuesSupplier> {
-  const lintIssues: l.SqlLintIssueSupplier[] = [];
+  const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
+  const tmplLiteralLintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
     const { sqlSuppliersDelimText, persistIndexer = { activeIndex: 0 } } =
       options ?? {};
@@ -199,6 +277,12 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
         }
       }
 
+      for (const expr of expressions) {
+        if (isSqlTextLintIssuesSupplier(expr)) {
+          expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx, steOptions);
+        }
+      }
+
       let interpolated = "";
       for (let i = 0; i < expressions.length; i++) {
         interpolated += literalSupplier(i);
@@ -218,7 +302,7 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
               interpolated += persistenceSqlText.SQL(ctx, steOptions);
             }
           } else {
-            lintIssues.push({
+            tmplLiteralLintIssues.push({
               lintIssue:
                 `persistable SQL encountered but no persistence handler available: '${
                   Deno.inspect(expr)
@@ -230,12 +314,13 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
           if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
         } else if (typeof expr === "string") {
           interpolated += expr;
+        } else if (isSqlTextLintSummarySupplier(expr)) {
+          interpolated += expr.sqlTextLintSummary(sqlTextLintIssues).SQL(
+            ctx,
+            steOptions,
+          );
         } else {
           interpolated += Deno.inspect(expr);
-        }
-
-        if (l.isSqlLintIssuesSupplier(expr)) {
-          lintIssues.push(...expr.lintIssues);
         }
       }
       interpolated += literalSupplier(literals.length - 1);
@@ -245,7 +330,7 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
       SQL: (ctx, steOptions) => {
         return interpolate(ctx, steOptions);
       },
-      lintIssues,
+      lintIssues: tmplLiteralLintIssues,
     };
   };
 }

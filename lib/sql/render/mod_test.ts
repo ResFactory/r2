@@ -190,6 +190,8 @@ Deno.test("SQLa (assembler)", () => {
     --       govn_entity_relationship would be a table that stores entity/property relationships (1:N, 1:M, etc.) for literate programming documentation, etc.
     --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
 
+    ${mod.sqlTextLintSummary()}
+
     ${schema.publHost.tableDefn}
     ${persist(schema.publHost.tableDefn, "publ-host.sql")}
 
@@ -231,6 +233,8 @@ const fixturePrime = ws.unindentWhitespace(`
   --       govn_entity_property would be a table that stores table column meta data (descriptions, immutability, presentation, migration instructions, etc.)
   --       govn_entity_relationship would be a table that stores entity/property relationships (1:N, 1:M, etc.) for literate programming documentation, etc.
   --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
+
+  -- no SQL lint issues
 
   CREATE TABLE IF NOT EXISTS publ_host (
       publ_host_id INTEGER PRIMARY KEY AUTOINCREMENT,
