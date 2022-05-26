@@ -47,7 +47,7 @@ export function selectStmt<
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
 >(
-  ssOptions?: t.SqlPartialOptions<Context, EmitOptions> & {
+  ssOptions?: t.SqlTextSupplierOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
       & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
       & t.SqlTextLintIssuesSupplier<Context, EmitOptions>
@@ -76,7 +76,7 @@ export function selectStmt<
       }
     }
 
-    const partial = t.sqlPartial<Context, EmitOptions>({
+    const partial = t.SQL<Context, EmitOptions>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const selectStmt = partial(literals, ...expressions);

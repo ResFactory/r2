@@ -152,37 +152,6 @@ export function isSqlTextLintSummarySupplier<
   return isSLSTS(o);
 }
 
-export function sqlTextLintSummary<
-  Context,
-  EmitOptions extends SqlTextEmitOptions,
->(
-  options?: {
-    noIssuesText?: string;
-    transform?: (
-      suggested: SqlTextSupplier<Context, EmitOptions>,
-      lintIssues: l.SqlLintIssueSupplier[],
-    ) => SqlTextSupplier<Context, EmitOptions>;
-  },
-): SqlTextLintSummarySupplier<Context, EmitOptions> {
-  const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
-  return {
-    sqlTextLintSummary: (lintIssues) => {
-      const result: SqlTextSupplier<Context, EmitOptions> = {
-        SQL: (_, steOptions) => {
-          return lintIssues.length > 0
-            ? lintIssues.map((li) => {
-              // deno-fmt-ignore
-              const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-              return steOptions?.comments?.(message) ?? `-- ${message}`;
-            }).join("\n")
-            : steOptions?.comments?.(noIssuesText) ?? `-- ${noIssuesText}`;
-        },
-      };
-      return transform ? transform(result, lintIssues) : result;
-    },
-  };
-}
-
 export interface PersistableSqlTextIndexSupplier {
   readonly persistableSqlTextIndex: number;
 }
@@ -191,20 +160,7 @@ export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
   PersistableSqlTextIndexSupplier
 >("persistableSqlTextIndex");
 
-export type SqlPartialExpression<
-  Context,
-  EmitOptions extends SqlTextEmitOptions,
-> =
-  | ((ctx: Context) => c.TextContributionsPlaceholder)
-  | ((ctx: Context) => SqlTextSupplier<Context, EmitOptions>)
-  | ((ctx: Context) => PersistableSqlText<Context, EmitOptions>)
-  | ((ctx: Context) => SqlTextLintSummarySupplier<Context, EmitOptions>)
-  | SqlTextSupplier<Context, EmitOptions>
-  | PersistableSqlText<Context, EmitOptions>
-  | SqlTextLintSummarySupplier<Context, EmitOptions>
-  | string;
-
-export interface SqlPartialOptions<
+export interface SqlTextSupplierOptions<
   Context,
   EmitOptions extends SqlTextEmitOptions,
 > {
@@ -220,10 +176,103 @@ export interface SqlPartialOptions<
     indexer: { activeIndex: number },
     steOptions?: EmitOptions,
   ) => SqlTextSupplier<Context, EmitOptions> | undefined;
+  readonly sqlTextLintSummary?: (
+    options?: {
+      noIssuesText?: string;
+      transform?: (
+        suggested: SqlTextSupplier<Context, EmitOptions>,
+        lintIssues: l.SqlLintIssueSupplier[],
+      ) => SqlTextSupplier<Context, EmitOptions>;
+    },
+  ) => SqlTextLintSummarySupplier<Context, EmitOptions>;
 }
 
-export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
-  options?: SqlPartialOptions<Context, EmitOptions>,
+export function typicalSqlTextSupplierOptions<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(): SqlTextSupplierOptions<Context, EmitOptions> {
+  return {
+    sqlSuppliersDelimText: ";",
+    // we want to auto-unindent our string literals and remove initial newline
+    literalSupplier: (literals, expressions) =>
+      ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
+    persist: (ctx, psts, indexer) => {
+      return {
+        SQL: () =>
+          `-- encountered persistence request for ${
+            psts.persistDest(ctx, indexer.activeIndex)
+          }`,
+      };
+    },
+    sqlTextLintSummary: (options) => {
+      const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
+      return {
+        sqlTextLintSummary: (lintIssues) => {
+          const result: SqlTextSupplier<Context, EmitOptions> = {
+            SQL: (_, steOptions) => {
+              return lintIssues.length > 0
+                ? lintIssues.map((li) => {
+                  // deno-fmt-ignore
+                  const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
+                  return steOptions?.comments?.(message) ?? `-- ${message}`;
+                }).join("\n")
+                : steOptions?.comments?.(noIssuesText) ?? `-- ${noIssuesText}`;
+            },
+          };
+          return transform ? transform(result, lintIssues) : result;
+        },
+      };
+    },
+  };
+}
+
+export function typicalSqlTextLintSummary<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+>(
+  _: Context,
+  options: SqlTextSupplierOptions<Context, EmitOptions>,
+): SqlTextLintSummarySupplier<Context, EmitOptions> {
+  return options?.sqlTextLintSummary?.() ?? {
+    sqlTextLintSummary: () => {
+      return {
+        SQL: () => `-- no SQL lint summary supplier`,
+      };
+    },
+  };
+}
+
+export type SqlPartialExpression<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> =
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context, EmitOptions>,
+  ) => c.TextContributionsPlaceholder)
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context, EmitOptions>,
+  ) => SqlTextSupplier<Context, EmitOptions>)
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context, EmitOptions>,
+  ) => PersistableSqlText<Context, EmitOptions>)
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context, EmitOptions>,
+  ) => SqlTextLintSummarySupplier<Context, EmitOptions>)
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context, EmitOptions>,
+  ) => string)
+  | SqlTextSupplier<Context, EmitOptions>
+  | PersistableSqlText<Context, EmitOptions>
+  | SqlTextLintSummarySupplier<Context, EmitOptions>
+  | string;
+
+export function SQL<Context, EmitOptions extends SqlTextEmitOptions>(
+  options = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
 ): (
   literals: TemplateStringsArray,
   ...expressions: SqlPartialExpression<Context, EmitOptions>[]
@@ -254,7 +303,7 @@ export function sqlPartial<Context, EmitOptions extends SqlTextEmitOptions>(
       for (let i = 0; i < suppliedExprs.length; i++) {
         const expr = suppliedExprs[i];
         if (typeof expr === "function") {
-          const exprValue = expr(ctx);
+          const exprValue = expr(ctx, options);
           if (c.isTextContributionsPlaceholder(exprValue)) {
             placeholders.push(exprIndex);
             expressions[exprIndex] = expr; // we're going to run the function later

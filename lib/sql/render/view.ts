@@ -40,7 +40,7 @@ export interface ViewDefnOptions<
   ViewName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
-> extends t.SqlPartialOptions<Context, EmitOptions> {
+> extends t.SqlTextSupplierOptions<Context, EmitOptions> {
   readonly viewColumns?: ColumnName[];
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
