@@ -9,7 +9,7 @@ export interface SelectStatement<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 > extends t.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly selectStmt: t.SqlTextSupplier<Context, EmitOptions>;
@@ -31,7 +31,7 @@ export function isSelectStatement<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
 ): o is SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions> {
@@ -45,7 +45,7 @@ export function selectStmt<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 >(
   ssOptions?: t.SqlTextSupplierOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (

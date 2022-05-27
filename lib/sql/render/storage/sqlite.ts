@@ -3,7 +3,9 @@ import * as t from "../text.ts";
 
 export function sqliteTableDefnFactories<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
+    Context
+  >,
 >(): s.TableDefnFactoriesSupplier<Context, EmitOptions> {
   const tdfs: s.TableDefnFactoriesSupplier<Context, EmitOptions> = {
     tableColumnsFactory: (tableDefn) => s.typicalTableColumnsFactory(tableDefn),

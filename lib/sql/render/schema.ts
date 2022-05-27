@@ -4,7 +4,7 @@ import * as t from "./text.ts";
 export interface SchemaDefinition<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 > extends t.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly schemaName: SchemaName;
@@ -14,7 +14,7 @@ export interface SchemaDefinition<
 export function isSchemaDefinition<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
 ): o is SchemaDefinition<Context, SchemaName, EmitOptions> {
@@ -30,14 +30,16 @@ export function isSchemaDefinition<
 export interface SchemaDefnOptions<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 > extends t.SqlTextSupplierOptions<Context, EmitOptions> {
   readonly isIdempotent?: boolean;
 }
 
 export interface SchemaDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
+    Context
+  >,
 > {
   sqlSchemaDefn: <SchemaName extends string>(
     schemaName: SchemaName,
@@ -49,7 +51,9 @@ export interface SchemaDefnFactory<
 
 export function typicalSqlSchemaDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
+    Context
+  >,
 >(): SchemaDefnFactory<Context, EmitOptions> {
   return {
     sqlSchemaDefn: (schemaName, sdOptions) => {
@@ -59,10 +63,10 @@ export function typicalSqlSchemaDefnFactory<
         schemaName,
         isIdempotent,
         populateSqlTextLintIssues: () => {},
-        SQL: (_, steOptions) => {
+        SQL: (ctx, steOptions) => {
           return `CREATE SCHEMA ${
             isIdempotent ? "IF NOT EXISTS " : ""
-          }${steOptions.schemaName?.(schemaName)}`;
+          }${steOptions.namingStrategy(ctx).schemaName?.(schemaName)}`;
         },
       };
     },

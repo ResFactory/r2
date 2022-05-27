@@ -7,7 +7,7 @@ export interface ViewDefinition<
   Context,
   ViewName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 > extends t.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly viewName: ViewName;
@@ -22,7 +22,7 @@ export function isViewDefinition<
   Context,
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
 ): o is ViewDefinition<Context, TableName, ColumnName, EmitOptions> {
@@ -40,7 +40,7 @@ export interface ViewDefnOptions<
   Context,
   ViewName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
 > extends t.SqlTextSupplierOptions<Context, EmitOptions> {
   readonly viewColumns?: ColumnName[];
   readonly isTemp?: boolean;
@@ -49,7 +49,9 @@ export interface ViewDefnOptions<
 
 export interface ViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
+    Context
+  >,
 > {
   sqlViewStrTmplLiteral: <
     ViewName extends string,
@@ -72,7 +74,9 @@ export interface ViewDefnFactory<
 
 export function typicalSqlViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
+    Context
+  >,
 >(): ViewDefnFactory<Context, EmitOptions> {
   return {
     sqlViewStrTmplLiteral: (viewName, viewOptions) => {
@@ -98,13 +102,14 @@ export function typicalSqlViewDefnFactory<
               "create view select statement",
               rawSelectStmtSqlText,
             );
+            const ns = steOptions.namingStrategy(ctx);
             return `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
               isIdempotent ? "IF NOT EXISTS " : ""
-            }${steOptions.viewName(viewName)}${
+            }${ns.viewName(viewName)}${
               viewColumns
                 ? `(${
                   viewColumns.map((cn) =>
-                    steOptions.viewColumnName({
+                    ns.viewColumnName({
                       viewName,
                       columnName: cn,
                     })
