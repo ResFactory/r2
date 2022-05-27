@@ -69,7 +69,7 @@ export function typicalSqlTextPersistOptions(): SqlTextPersistOptions {
 
 export interface SqlTextSupplier<
   Context,
-  EmitOptions extends SqlTextEmitOptions,
+  EmitOptions extends SqlTextEmitOptions = SqlTextEmitOptions,
 > {
   readonly SQL: (ctx: Context, options?: EmitOptions) => string;
 }
@@ -109,7 +109,7 @@ export function isSqlTextLintIssuesSupplier<
 
 export interface PersistableSqlText<
   Context,
-  EmitOptions extends SqlTextEmitOptions,
+  EmitOptions extends SqlTextEmitOptions = SqlTextEmitOptions,
 > {
   readonly sqlTextSupplier: SqlTextSupplier<Context, EmitOptions>;
   readonly persistDest: (
@@ -295,7 +295,10 @@ export type SqlPartialExpression<
   | SqlTextLintSummarySupplier<Context, EmitOptions>
   | string;
 
-export function SQL<Context, EmitOptions extends SqlTextEmitOptions>(
+export function SQL<
+  Context,
+  EmitOptions extends SqlTextEmitOptions = SqlTextEmitOptions,
+>(
   options = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
 ): (
   literals: TemplateStringsArray,

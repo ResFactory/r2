@@ -48,7 +48,7 @@ export interface ViewDefnOptions<
 
 export interface ViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 > {
   sqlViewStrTmplLiteral: <
     ViewName extends string,
@@ -71,7 +71,7 @@ export interface ViewDefnFactory<
 
 export function typicalSqlViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 >(): ViewDefnFactory<Context, EmitOptions> {
   return {
     sqlViewStrTmplLiteral: (viewName, viewOptions) => {

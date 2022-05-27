@@ -60,7 +60,7 @@ export interface TableDefnDecoratorsFactory<
 
 export interface TableDefnFactoriesSupplier<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 > {
   readonly tableColumnsFactory: <
     TableName extends string,
@@ -649,7 +649,7 @@ export function typicalStaticTableDefn<
   Context,
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 >(
   ctx: Context,
   tableName: TableName,
@@ -698,7 +698,7 @@ export function typicalTableDefnDML<
   InsertableRecord extends tr.UntypedTabularRecordObject,
   Context,
   TableName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
   ColumnName extends keyof InsertableRecord & string =
     & keyof InsertableRecord
     & string,
@@ -843,7 +843,7 @@ export function tableDefnViewWrapper<
   ViewName extends string,
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 >(
   _ctx: Context,
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
