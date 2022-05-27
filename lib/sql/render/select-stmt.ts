@@ -37,7 +37,7 @@ export function isSelectStatement<
 ): o is SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions> {
   const isSS = safety.typeGuard<
     SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
-  >("selectStmt");
+  >("selectStmt", "SQL");
   return isSS(o);
 }
 
