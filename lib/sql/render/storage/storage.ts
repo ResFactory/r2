@@ -35,43 +35,44 @@ export class TableColumnsFactoryEventEmitter<
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
 > extends events.EventEmitter<{
-  construct(column: govn.TableColumnDefinition<ColumnName>): void;
+  construct(column: govn.TableColumnDefinition<ColumnName, EmitOptions>): void;
 }> {}
 
 export interface TableColumnsFactory<
   Context,
   TableName extends string,
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly autoIncPrimaryKey: (
     columnName: ColumnName,
     options?: Partial<govn.TableColumnNullabilitySupplier>,
-  ) => govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName>;
+  ) => govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName, EmitOptions>;
   readonly text: (
     columnName: ColumnName,
     options?:
       & Partial<govn.TableColumnNullabilitySupplier>
       & Partial<govn.TableColumnPrimaryKeySupplier>,
-  ) => govn.TableTextColumnDefinition<ColumnName>;
+  ) => govn.TableTextColumnDefinition<ColumnName, EmitOptions>;
   readonly integer: (
     columnName: ColumnName,
     options?:
       & Partial<govn.TableColumnNullabilitySupplier>
       & Partial<govn.TableColumnPrimaryKeySupplier>,
-  ) => govn.TableIntegerColumnDefinition<ColumnName>;
+  ) => govn.TableIntegerColumnDefinition<ColumnName, EmitOptions>;
   readonly dateTime: (
     columnName: ColumnName,
     options?:
       & Partial<govn.TableColumnNullabilitySupplier>
       & Partial<govn.TableColumnPrimaryKeySupplier>,
-  ) => govn.TableDateTimeColumnDefinition<ColumnName>;
+  ) => govn.TableDateTimeColumnDefinition<ColumnName, EmitOptions>;
   readonly creationTimestamp: (
     columnName: ColumnName,
-  ) => govn.TableCreationStampColumnDefinition<ColumnName>;
+  ) => govn.TableCreationStampColumnDefinition<ColumnName, EmitOptions>;
   readonly JSON: (
     columnName: ColumnName,
     options?: Partial<govn.TableColumnNullabilitySupplier>,
-  ) => govn.TableJsonColumnDefinition<ColumnName>;
+  ) => govn.TableJsonColumnDefinition<ColumnName, EmitOptions>;
 }
 
 export interface TableDefnDecoratorsFactory<
@@ -96,7 +97,7 @@ export interface TableDefnFactoriesSupplier<
       ColumnName,
       EmitOptions
     >,
-  ) => TableColumnsFactory<Context, TableName, ColumnName>;
+  ) => TableColumnsFactory<Context, TableName, ColumnName, EmitOptions>;
   readonly tableDefnDecoratorsFactory: <
     TableName extends string,
     ColumnName extends string,
@@ -154,7 +155,7 @@ export function typicalTableColumnsFactory<
   EmitOptions extends t.SqlTextEmitOptions,
 >(
   tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
-): TableColumnsFactory<Context, TableName, ColumnName> {
+): TableColumnsFactory<Context, TableName, ColumnName, EmitOptions> {
   const ttcdSTS = typicalTableColumnDefnSqlTextSupplier<
     Context,
     TableName,
@@ -164,7 +165,7 @@ export function typicalTableColumnsFactory<
   return {
     autoIncPrimaryKey: (columnName) => {
       const result:
-        & govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName>
+        & govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName, EmitOptions>
         & govn.TableColumnNullabilitySupplier
         & govn.TableColumnPrimaryKeySupplier = {
           columnName: columnName,
@@ -178,7 +179,7 @@ export function typicalTableColumnsFactory<
           },
           foreignKeyTableColDefn: (foreignColumnName, options) => {
             const fkeyTableColDefnResult:
-              & govn.TableIntegerColumnDefinition<ColumnName>
+              & govn.TableIntegerColumnDefinition<ColumnName, EmitOptions>
               & govn.TableColumnForeignKeySupplier<
                 Context,
                 // deno-lint-ignore no-explicit-any
@@ -218,7 +219,10 @@ export function typicalTableColumnsFactory<
       };
     },
     dateTime: (columnName, options) => {
-      const result: govn.TableDateTimeColumnDefinition<ColumnName> = {
+      const result: govn.TableDateTimeColumnDefinition<
+        ColumnName,
+        EmitOptions
+      > = {
         columnName: columnName,
         sqlDataType: "DATETIME",
         tsDataType: safety.typeGuard<Date>(),
@@ -231,7 +235,7 @@ export function typicalTableColumnsFactory<
     },
     creationTimestamp: (columnName) => {
       const result:
-        & govn.TableCreationStampColumnDefinition<ColumnName>
+        & govn.TableCreationStampColumnDefinition<ColumnName, EmitOptions>
         & govn.TableColumnDeclareWeightSupplier = {
           columnName: columnName,
           sqlDataType: "DATETIME",
@@ -308,11 +312,12 @@ export const isTableColumnPrimaryKeySupplier = safety.typeGuard<
 
 export function isForeignKeyTableColumnDefnFactory<
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 >(
   o: unknown,
-): o is govn.ForeignKeyTableColumnDefnFactory<ColumnName> {
+): o is govn.ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions> {
   const isTCFKF = safety.typeGuard<
-    govn.ForeignKeyTableColumnDefnFactory<ColumnName>
+    govn.ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions>
   >("foreignKeyTableColDefn");
   return isTCFKF(o);
 }
@@ -354,10 +359,15 @@ export const isTableColumnDataTypeSupplier = safety.typeGuard<
   govn.TableColumnDataTypeSupplier<any, any>
 >("sqlDataType", "tsDataType");
 
-export function isTableColumnDefinition<ColumnName extends string>(
+export function isTableColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
+>(
   o: unknown,
-): o is govn.TableColumnDefinition<ColumnName> {
-  const isCD = safety.typeGuard<govn.TableColumnDefinition<ColumnName>>(
+): o is govn.TableColumnDefinition<ColumnName, EmitOptions> {
+  const isCD = safety.typeGuard<
+    govn.TableColumnDefinition<ColumnName, EmitOptions>
+  >(
     "columnName",
   );
   return isCD(o);
@@ -395,7 +405,7 @@ export class TableDefnEventEmitter<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends events.EventEmitter<{
   preparedTableColumn(
-    column: govn.TableColumnDefinition<ColumnName>,
+    column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
     tableDefn: govn.TableDefinition<
       Context,
       TableName,
@@ -404,7 +414,7 @@ export class TableDefnEventEmitter<
     >,
   ): void;
   registeredTableColumn(
-    column: govn.TableColumnDefinition<ColumnName>,
+    column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
     tableDefn: govn.TableDefinition<
       Context,
       TableName,
@@ -506,7 +516,8 @@ export interface PopulateTableDefnContext<
   readonly columnsFactory: TableColumnsFactory<
     Context,
     TableName,
-    ColumnName
+    ColumnName,
+    EmitOptions
   >;
   readonly decoratorsFactory: TableDefnDecoratorsFactory<
     Context,
@@ -524,7 +535,7 @@ export interface TableDefnPopulator<
 > {
   (
     defineColumns: (
-      ...column: govn.TableColumnDefinition<ColumnName>[]
+      ...column: govn.TableColumnDefinition<ColumnName, EmitOptions>[]
     ) => void,
     init: PopulateTableDefnContext<Context, TableName, ColumnName, EmitOptions>,
   ): void;
@@ -558,7 +569,7 @@ export function staticTableDefn<
   const tdEE = prepareEvents(
     new TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>(),
   );
-  const columns: govn.TableColumnDefinition<ColumnName>[] = [];
+  const columns: govn.TableColumnDefinition<ColumnName, EmitOptions>[] = [];
   const decorators: t.SqlTextSupplier<
     govn.TableDefinitionContext<Context, TableName, ColumnName, EmitOptions>,
     EmitOptions
@@ -696,7 +707,8 @@ export function typicalStaticTableDefn<
     >,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
-      `${TableName}_id`
+      `${TableName}_id`,
+      EmitOptions
     >;
     const tableDefn = staticTableDefn(
       ctx,
@@ -707,7 +719,10 @@ export function typicalStaticTableDefn<
         const { columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
           `${tableName}_id`,
-        ) as govn.TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
+        ) as govn.TableAutoIncPrimaryKeyColumnDefinition<
+          `${TableName}_id`,
+          EmitOptions
+        >;
         defineColumns(primaryKeyColDefn);
         populateTableDefn(
           defineColumns,
@@ -753,7 +768,8 @@ export function typicalTableDefnDML<
     >,
   ) => {
     let primaryKeyColDefn: govn.TableAutoIncPrimaryKeyColumnDefinition<
-      `${TableName}_id`
+      `${TableName}_id`,
+      EmitOptions
     >;
     const createdAtColName = `created_at`;
     const tableDefn = staticTableDefn(
@@ -765,7 +781,10 @@ export function typicalTableDefnDML<
         const { columnsFactory: cf } = init;
         primaryKeyColDefn = cf.autoIncPrimaryKey(
           `${tableName}_id`,
-        ) as govn.TableAutoIncPrimaryKeyColumnDefinition<`${TableName}_id`>;
+        ) as govn.TableAutoIncPrimaryKeyColumnDefinition<
+          `${TableName}_id`,
+          EmitOptions
+        >;
         defineColumns(primaryKeyColDefn);
         populateTableDefn(
           defineColumns,

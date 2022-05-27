@@ -6,7 +6,7 @@ export interface TableColumnCreateSqlTextSupplier<
   Context,
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   t.SqlTextSupplier<
     TableColumnDefinitionContext<
@@ -49,11 +49,12 @@ export interface TableColumnPrimaryKeySupplier {
 
 export interface ForeignKeyTableColumnDefnFactory<
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly foreignKeyTableColDefn: (
     columnName?: ColumnName,
     options?: Partial<TableColumnNullabilitySupplier>,
-  ) => TableColumnDefinition<ColumnName>;
+  ) => TableColumnDefinition<ColumnName, EmitOptions>;
 }
 
 export interface TableColumnForeignKeySupplier<
@@ -96,19 +97,19 @@ export interface TableColumnDmlContributionsSupplier {
 
 export interface TableAutoIncPrimaryKeyColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"INTEGER", number>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
-  ForeignKeyTableColumnDefnFactory<ColumnName>,
+  ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions>,
   TableColumnDmlContributionsSupplier {
 }
 
 export interface TableIntegerColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"INTEGER", number>,
@@ -120,7 +121,7 @@ export interface TableIntegerColumnDefinition<
 
 export interface TableDateTimeColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"DATETIME", Date>,
@@ -132,7 +133,7 @@ export interface TableDateTimeColumnDefinition<
 
 export interface TableCreationStampColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"DATETIME", Date>,
@@ -143,7 +144,7 @@ export interface TableCreationStampColumnDefinition<
 
 export interface TableTextColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"TEXT", string>,
@@ -155,7 +156,7 @@ export interface TableTextColumnDefinition<
 
 export interface TableJsonColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
@@ -166,7 +167,7 @@ export interface TableJsonColumnDefinition<
 
 export type TableColumnDefinition<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > =
   & TableColumnNameSupplier<ColumnName>
   // deno-lint-ignore no-explicit-any
@@ -174,7 +175,7 @@ export type TableColumnDefinition<
 
 export interface TableColumnDefinitionSupplier<
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+  EmitOptions extends t.SqlTextEmitOptions,
 > {
   readonly tableColumnDefn: TableColumnDefinition<ColumnName, EmitOptions>;
 }
@@ -196,7 +197,7 @@ export type TableColumnDefinitionContext<
 > =
   & Context
   & TableDefinitionSupplier<Context, TableName, ColumnName, EmitOptions>
-  & TableColumnDefinitionSupplier<ColumnName>;
+  & TableColumnDefinitionSupplier<ColumnName, EmitOptions>;
 
 export interface TableDefinition<
   Context,
@@ -207,7 +208,7 @@ export interface TableDefinition<
   readonly tableName: TableName;
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
-  readonly columns: TableColumnDefinition<ColumnName>[];
+  readonly columns: TableColumnDefinition<ColumnName, EmitOptions>[];
   readonly decorators: t.SqlTextSupplier<
     TableDefinitionContext<Context, TableName, ColumnName, EmitOptions>,
     EmitOptions
