@@ -69,7 +69,7 @@ export interface TableColumnForeignKeySupplier<
       tableColumnDefn:
         & TableColumnNameSupplier<ColumnName>
         // deno-lint-ignore no-explicit-any
-        & TableColumnDataTypeSupplier<any, any>;
+        & TableColumnDataTypeSupplier<any, EmitOptions>;
     };
 }
 
@@ -77,8 +77,12 @@ export interface TableColumnNullabilitySupplier {
   readonly isNullable: boolean;
 }
 
-export interface TableColumnDataTypeSupplier<SqlType, TsType> {
-  readonly sqlDataType: SqlType;
+export interface TableColumnDataTypeSupplier<
+  TsType,
+  EmitOptions extends t.SqlTextEmitOptions,
+> {
+  // deno-lint-ignore no-explicit-any
+  readonly sqlDataType: t.SqlTextSupplier<any, EmitOptions>;
   readonly tsDataType: safety.TypeGuard<TsType>;
 }
 
@@ -107,7 +111,7 @@ export interface TableAutoIncPrimaryKeyColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"INTEGER", number>,
+  TableColumnDataTypeSupplier<number, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions>,
@@ -119,7 +123,7 @@ export interface TableIntegerColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"INTEGER", number>,
+  TableColumnDataTypeSupplier<number, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   Partial<TableColumnNullabilitySupplier>,
@@ -131,7 +135,7 @@ export interface TableDateTimeColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"DATETIME", Date>,
+  TableColumnDataTypeSupplier<Date, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   Partial<TableColumnNullabilitySupplier>,
@@ -143,7 +147,7 @@ export interface TableCreationStampColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"DATETIME", Date>,
+  TableColumnDataTypeSupplier<Date, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   TableColumnDmlContributionsSupplier {
@@ -154,7 +158,7 @@ export interface TableTextColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"TEXT", string>,
+  TableColumnDataTypeSupplier<string, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   Partial<TableColumnNullabilitySupplier>,
@@ -166,7 +170,7 @@ export interface TableJsonColumnDefinition<
   EmitOptions extends t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
-  TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
+  TableColumnDataTypeSupplier<Record<string, unknown>, EmitOptions>,
   // deno-lint-ignore no-explicit-any
   TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   Partial<TableColumnNullabilitySupplier> {

@@ -86,9 +86,7 @@ export function selectStmt<
       columns: selectColumns,
       selectStmt,
       SQL: invalid
-        ? ((_, steOptions) =>
-          steOptions?.comments?.(invalid!.lintIssue) ??
-            `-- ${invalid!.lintIssue}`)
+        ? ((_, steOptions) => steOptions.comments(invalid!.lintIssue))
         : selectStmt.SQL,
       populateSqlTextLintIssues: (lintIssues) => {
         if (invalid) lintIssues.push(invalid);

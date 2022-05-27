@@ -5,19 +5,21 @@ import * as l from "./lint.ts";
 import * as ws from "../../text/whitespace.ts";
 
 export interface SqlObjectNamingStrategy {
-  readonly tableName?: (tableName: string) => string;
-  readonly tableColumnName?: (
-    column: { tableName: string; columnName: string },
+  readonly schemaName: (schemaName: string) => string;
+  readonly tableName: (tableName: string) => string;
+  readonly tableColumnName: (
+    tc: { tableName: string; columnName: string },
   ) => string;
-  readonly viewName?: (viewName: string) => string;
-  readonly viewColumnName?: (
-    column: { viewName: string; columnName: string },
+  readonly viewName: (viewName: string) => string;
+  readonly viewColumnName: (
+    vc: { viewName: string; columnName: string },
   ) => string;
 }
 
 export interface SqlTextEmitOptions extends SqlObjectNamingStrategy {
-  readonly comments?: (text: string, indent?: string) => string;
-  readonly indentation?: (
+  readonly quotedLiteral: (value: unknown) => [value: unknown, quoted: string];
+  readonly comments: (text: string, indent?: string) => string;
+  readonly indentation: (
     nature:
       | "create table"
       | "define table column"
@@ -27,8 +29,24 @@ export interface SqlTextEmitOptions extends SqlObjectNamingStrategy {
   ) => string;
 }
 
+export function typicalQuotedSqlLiteral(
+  value: unknown,
+): [value: unknown, quoted: string] {
+  if (typeof value === "undefined") return [value, "NULL"];
+  if (typeof value === "string") {
+    return [value, `'${value.replaceAll("'", "''")}'`];
+  }
+  return [value, String(value)];
+}
+
 export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   return {
+    schemaName: (name) => name,
+    tableName: (name) => name,
+    tableColumnName: (tc) => tc.columnName,
+    viewName: (name) => name,
+    viewColumnName: (vc) => vc.columnName,
+    quotedLiteral: typicalQuotedSqlLiteral,
     comments: (text, indent = "") => text.replaceAll(/^/gm, `${indent}-- `),
     indentation: (nature, content) => {
       let indent = "";
@@ -71,7 +89,7 @@ export interface SqlTextSupplier<
   Context,
   EmitOptions extends SqlTextEmitOptions = SqlTextEmitOptions,
 > {
-  readonly SQL: (ctx: Context, options?: EmitOptions) => string;
+  readonly SQL: (ctx: Context, options: EmitOptions) => string;
 }
 
 export function isSqlTextSupplier<
@@ -167,6 +185,14 @@ export class SqlPartialExprEventEmitter<
   Context,
   EmitOptions extends SqlTextEmitOptions,
 > extends events.EventEmitter<{
+  sqlEncountered(
+    ctx: Context,
+    sts: SqlTextSupplier<Context, EmitOptions>,
+  ): void;
+  persistableSqlEncountered(
+    ctx: Context,
+    sts: SqlTextSupplier<Context, EmitOptions>,
+  ): void;
   sqlEmitted(
     ctx: Context,
     sts: SqlTextSupplier<Context, EmitOptions>,
@@ -238,9 +264,9 @@ export function typicalSqlTextSupplierOptions<
                 ? lintIssues.map((li) => {
                   // deno-fmt-ignore
                   const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-                  return steOptions?.comments?.(message) ?? `-- ${message}`;
+                  return steOptions.comments(message);
                 }).join("\n")
-                : steOptions?.comments?.(noIssuesText) ?? `-- ${noIssuesText}`;
+                : steOptions.comments(noIssuesText);
             },
           };
           return transform ? transform(result, lintIssues) : result;
@@ -299,7 +325,7 @@ export function SQL<
   Context,
   EmitOptions extends SqlTextEmitOptions = SqlTextEmitOptions,
 >(
-  options = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
+  stsOptions = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
 ): (
   literals: TemplateStringsArray,
   ...expressions: SqlPartialExpression<Context, EmitOptions>[]
@@ -311,18 +337,18 @@ export function SQL<
       sqlSuppliersDelimText,
       persistIndexer = { activeIndex: 0 },
       prepareEvents,
-    } = options ?? {};
+    } = stsOptions ?? {};
     const speEE = prepareEvents
       ? prepareEvents(new SqlPartialExprEventEmitter<Context, EmitOptions>())
       : undefined;
     // by default no pre-processing of text literals are done; if auto-unindent is desired pass in
     //   options.literalSupplier = (literals, suppliedExprs) => ws.whitespaceSensitiveTemplateLiteralSupplier(literals, suppliedExprs)
-    const literalSupplier = options?.literalSupplier
-      ? options?.literalSupplier(literals, suppliedExprs)
+    const literalSupplier = stsOptions?.literalSupplier
+      ? stsOptions?.literalSupplier(literals, suppliedExprs)
       : (index: number) => literals[index];
     const interpolate: (
       ctx: Context,
-      steOptions?: EmitOptions,
+      steOptions: EmitOptions,
     ) => string = (
       ctx,
       steOptions,
@@ -336,7 +362,7 @@ export function SQL<
       for (let i = 0; i < suppliedExprs.length; i++) {
         const expr = suppliedExprs[i];
         if (typeof expr === "function") {
-          const exprValue = expr(ctx, options);
+          const exprValue = expr(ctx, stsOptions);
           if (c.isTextContributionsPlaceholder(exprValue)) {
             placeholders.push(exprIndex);
             expressions[exprIndex] = expr; // we're going to run the function later
@@ -365,6 +391,15 @@ export function SQL<
         if (isSqlTextLintIssuesSupplier(expr)) {
           expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx, steOptions);
         }
+        if (isPersistableSqlText<Context, EmitOptions>(expr)) {
+          speEE?.emitSync(
+            "persistableSqlEncountered",
+            ctx,
+            expr.sqlTextSupplier,
+          );
+        } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
+          speEE?.emitSync("sqlEncountered", ctx, expr);
+        }
       }
 
       let interpolated = "";
@@ -377,8 +412,8 @@ export function SQL<
         // content should be emitted as part of this template string
         if (isPersistableSqlText<Context, EmitOptions>(expr)) {
           persistIndexer.activeIndex++;
-          if (options?.persist) {
-            const persistenceSqlText = options.persist(
+          if (stsOptions?.persist) {
+            const persistenceSqlText = stsOptions.persist(
               ctx,
               expr,
               persistIndexer,

@@ -31,6 +31,7 @@ export function isViewDefinition<
   >(
     "viewName",
     "selectStmt",
+    "SQL",
   );
   return isViewDefn(o);
 }
@@ -93,20 +94,20 @@ export function typicalSqlViewDefnFactory<
             selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
           SQL: (ctx, steOptions) => {
             const rawSelectStmtSqlText = selectStmt.SQL(ctx, steOptions);
-            const viewSelectStmtSqlText = steOptions?.indentation?.(
+            const viewSelectStmtSqlText = steOptions.indentation(
               "create view select statement",
               rawSelectStmtSqlText,
-            ) ?? rawSelectStmtSqlText;
+            );
             return `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
               isIdempotent ? "IF NOT EXISTS " : ""
-            }${steOptions?.viewName?.(viewName) ?? viewName}${
+            }${steOptions.viewName(viewName)}${
               viewColumns
                 ? `(${
                   viewColumns.map((cn) =>
-                    steOptions?.viewColumnName?.({
+                    steOptions.viewColumnName({
                       viewName,
                       columnName: cn,
-                    }) ?? cn
+                    })
                   ).join(", ")
                 })`
                 : ""
