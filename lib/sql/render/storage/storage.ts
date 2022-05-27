@@ -387,7 +387,7 @@ export class TableDefnEventEmitter<
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions,
 > extends events.EventEmitter<{
-  preparedColumn(
+  preparedTableColumn(
     column: govn.TableColumnDefinition<ColumnName>,
     tableDefn: govn.TableDefinition<
       Context,
@@ -396,7 +396,7 @@ export class TableDefnEventEmitter<
       EmitOptions
     >,
   ): void;
-  registeredColumn(
+  registeredTableColumn(
     column: govn.TableColumnDefinition<ColumnName>,
     tableDefn: govn.TableDefinition<
       Context,
@@ -405,7 +405,7 @@ export class TableDefnEventEmitter<
       EmitOptions
     >,
   ): void;
-  populatedDefn(
+  populatedTableDefn(
     tableDefn: govn.TableDefinition<
       Context,
       TableName,
@@ -445,7 +445,7 @@ export function typicalDefineTableOptions<
     prepareEvents: (tdEE) => {
       const { enforceForeignKeys = true } = options ?? {};
       if (enforceForeignKeys) {
-        tdEE.on("registeredColumn", (c, tableDefn) => {
+        tdEE.on("registeredTableColumn", (c, tableDefn) => {
           if (isTableColumnForeignKeySupplier(c)) {
             tableDefn.decorators.push({
               SQL: (_ctx, steOptions) => {
@@ -628,9 +628,9 @@ export function staticTableDefn<
     };
   populateTableDefn?.((...columns) => {
     for (const column of columns) {
-      tdEE.emitSync("preparedColumn", column, tableDefn);
+      tdEE.emitSync("preparedTableColumn", column, tableDefn);
       tableDefn.columns.push(column);
-      tdEE.emitSync("registeredColumn", column, tableDefn);
+      tdEE.emitSync("registeredTableColumn", column, tableDefn);
     }
   }, {
     tableDefn,
@@ -641,7 +641,7 @@ export function staticTableDefn<
     ctx,
     tdEE,
   });
-  tdEE.emitSync("populatedDefn", tableDefn, validColumnNames);
+  tdEE.emitSync("populatedTableDefn", tableDefn, validColumnNames);
   return tableDefn;
 }
 

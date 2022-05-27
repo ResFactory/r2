@@ -1,19 +1,22 @@
-import { fs } from "./deps.ts";
+import { events, fs } from "./deps.ts";
 import * as safety from "../../safety/mod.ts";
 import * as c from "../../text/contributions.ts";
 import * as l from "./lint.ts";
 import * as ws from "../../text/whitespace.ts";
 
-export interface SqlTextEmitOptions {
-  readonly comments?: (text: string, indent?: string) => string;
+export interface SqlObjectNamingStrategy {
   readonly tableName?: (tableName: string) => string;
   readonly tableColumnName?: (
     column: { tableName: string; columnName: string },
   ) => string;
   readonly viewName?: (viewName: string) => string;
-  readonly viewDefnColumnName?: (
+  readonly viewColumnName?: (
     column: { viewName: string; columnName: string },
   ) => string;
+}
+
+export interface SqlTextEmitOptions extends SqlObjectNamingStrategy {
+  readonly comments?: (text: string, indent?: string) => string;
   readonly indentation?: (
     nature:
       | "create table"
@@ -160,6 +163,23 @@ export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
   PersistableSqlTextIndexSupplier
 >("persistableSqlTextIndex");
 
+export class SqlPartialExprEventEmitter<
+  Context,
+  EmitOptions extends SqlTextEmitOptions,
+> extends events.EventEmitter<{
+  sqlEmitted(
+    ctx: Context,
+    sts: SqlTextSupplier<Context, EmitOptions>,
+    sql: string,
+  ): void;
+  sqlPersisted(
+    ctx: Context,
+    destPath: string,
+    pst: PersistableSqlText<Context, EmitOptions>,
+    persistResultEmitSTS: SqlTextSupplier<Context, EmitOptions>,
+  ): void;
+}> {}
+
 export interface SqlTextSupplierOptions<
   Context,
   EmitOptions extends SqlTextEmitOptions,
@@ -175,6 +195,7 @@ export interface SqlTextSupplierOptions<
     psts: PersistableSqlText<Context, EmitOptions>,
     indexer: { activeIndex: number },
     steOptions?: EmitOptions,
+    speEE?: SqlPartialExprEventEmitter<Context, EmitOptions>,
   ) => SqlTextSupplier<Context, EmitOptions> | undefined;
   readonly sqlTextLintSummary?: (
     options?: {
@@ -185,6 +206,9 @@ export interface SqlTextSupplierOptions<
       ) => SqlTextSupplier<Context, EmitOptions>;
     },
   ) => SqlTextLintSummarySupplier<Context, EmitOptions>;
+  readonly prepareEvents?: (
+    speEE: SqlPartialExprEventEmitter<Context, EmitOptions>,
+  ) => SqlPartialExprEventEmitter<Context, EmitOptions>;
 }
 
 export function typicalSqlTextSupplierOptions<
@@ -196,13 +220,13 @@ export function typicalSqlTextSupplierOptions<
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
-    persist: (ctx, psts, indexer) => {
-      return {
-        SQL: () =>
-          `-- encountered persistence request for ${
-            psts.persistDest(ctx, indexer.activeIndex)
-          }`,
+    persist: (ctx, psts, indexer, _steOptions, steEE) => {
+      const destPath = psts.persistDest(ctx, indexer.activeIndex);
+      const emit = {
+        SQL: () => `-- encountered persistence request for ${destPath}`,
       };
+      steEE?.emit("sqlPersisted", ctx, destPath, psts, emit);
+      return emit;
     },
     sqlTextLintSummary: (options) => {
       const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
@@ -280,8 +304,14 @@ export function SQL<Context, EmitOptions extends SqlTextEmitOptions>(
   const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
   const tmplLiteralLintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
-    const { sqlSuppliersDelimText, persistIndexer = { activeIndex: 0 } } =
-      options ?? {};
+    const {
+      sqlSuppliersDelimText,
+      persistIndexer = { activeIndex: 0 },
+      prepareEvents,
+    } = options ?? {};
+    const speEE = prepareEvents
+      ? prepareEvents(new SqlPartialExprEventEmitter<Context, EmitOptions>())
+      : undefined;
     // by default no pre-processing of text literals are done; if auto-unindent is desired pass in
     //   options.literalSupplier = (literals, suppliedExprs) => ws.whitespaceSensitiveTemplateLiteralSupplier(literals, suppliedExprs)
     const literalSupplier = options?.literalSupplier
@@ -339,6 +369,9 @@ export function SQL<Context, EmitOptions extends SqlTextEmitOptions>(
         interpolated += literalSupplier(i);
         const expr = expressions[i];
 
+        // if SQL is wrapped in a persistence handler it means that the content
+        // should be written to a file and, optionally, the same or alternate
+        // content should be emitted as part of this template string
         if (isPersistableSqlText<Context, EmitOptions>(expr)) {
           persistIndexer.activeIndex++;
           if (options?.persist) {
@@ -361,8 +394,10 @@ export function SQL<Context, EmitOptions extends SqlTextEmitOptions>(
             });
           }
         } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
-          interpolated += expr.SQL(ctx, steOptions);
+          const SQL = expr.SQL(ctx, steOptions);
+          interpolated += SQL;
           if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
+          speEE?.emitSync("sqlEmitted", ctx, expr, SQL);
         } else if (typeof expr === "string") {
           interpolated += expr;
         } else if (isSqlTextLintSummarySupplier(expr)) {

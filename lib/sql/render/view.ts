@@ -103,7 +103,7 @@ export function typicalSqlViewDefnFactory<
               viewColumns
                 ? `(${
                   viewColumns.map((cn) =>
-                    steOptions?.viewDefnColumnName?.({
+                    steOptions?.viewColumnName?.({
                       viewName,
                       columnName: cn,
                     }) ?? cn
