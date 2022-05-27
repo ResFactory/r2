@@ -82,6 +82,13 @@ export interface TableColumnDataTypeSupplier<SqlType, TsType> {
   readonly tsDataType: safety.TypeGuard<TsType>;
 }
 
+export interface TableColumnValueSupplier<
+  Context,
+  EmitOptions extends t.SqlTextEmitOptions,
+> {
+  readonly columnDdlDefault: t.SqlTextSupplier<Context, EmitOptions>;
+}
+
 export interface TableColumnDeclareWeightSupplier {
   readonly declarationWeight: number;
 }

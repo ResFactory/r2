@@ -143,8 +143,11 @@ export function typicalTableColumnDefnSqlTextSupplier<
         ? tCD.isNullable ? "" : " NOT NULL"
         : ""
       : "";
+    const defaultValue = isTableColumnDefaultValueSupplier(tCD)
+      ? ` DEFAULT ${tCD.columnDdlDefault?.SQL(ctx, steOptions)}`
+      : "";
     // deno-fmt-ignore
-    return `${steOptions?.indentation?.("define table column") ?? ""}${columnName}${sqlDataType}${primaryKey}${notNull}`;
+    return `${steOptions?.indentation?.("define table column") ?? ""}${columnName}${sqlDataType}${primaryKey}${notNull}${defaultValue}`;
   };
 }
 
@@ -236,15 +239,15 @@ export function typicalTableColumnsFactory<
     creationTimestamp: (columnName) => {
       const result:
         & govn.TableCreationStampColumnDefinition<ColumnName, EmitOptions>
-        & govn.TableColumnDeclareWeightSupplier = {
+        & govn.TableColumnDeclareWeightSupplier
+        & govn.TableColumnValueSupplier<Context, EmitOptions> = {
           columnName: columnName,
           sqlDataType: "DATETIME",
           tsDataType: safety.typeGuard<Date>(),
           declarationWeight: 99,
           isTableColumnCreateSqlTextSupplier: true,
-          SQL: (ctx, steOptions) => {
-            return `${ttcdSTS(ctx, steOptions)} DEFAULT CURRENT_TIMESTAMP`;
-          },
+          SQL: ttcdSTS,
+          columnDdlDefault: { SQL: () => `CURRENT_TIMESTAMP` },
           sqlDmlContributions: {
             isInInsertColumnsList: () => false,
             isInUpdateColumnsList: () => false,
@@ -353,6 +356,11 @@ export const isTableColumnDeclareWeightSupplier = safety.typeGuard<
 export const isTableColumnNullabilitySupplier = safety.typeGuard<
   govn.TableColumnNullabilitySupplier
 >("isNullable");
+
+export const isTableColumnDefaultValueSupplier = safety.typeGuard<
+  // deno-lint-ignore no-explicit-any
+  govn.TableColumnValueSupplier<any, any>
+>("columnDdlDefault");
 
 export const isTableColumnDataTypeSupplier = safety.typeGuard<
   // deno-lint-ignore no-explicit-any
