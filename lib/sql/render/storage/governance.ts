@@ -2,6 +2,24 @@ import * as safety from "../../../safety/mod.ts";
 import * as t from "../text.ts";
 import * as l from "../lint.ts";
 
+export interface TableColumnCreateSqlTextSupplier<
+  Context,
+  TableName extends string,
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  t.SqlTextSupplier<
+    TableColumnDefinitionContext<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+    EmitOptions
+  > {
+  readonly isTableColumnCreateSqlTextSupplier: true;
+}
+
 export interface TableLintIssue<TableName extends string>
   extends l.SqlLintIssueSupplier {
   readonly tableName: TableName;
@@ -78,56 +96,87 @@ export interface TableColumnDmlContributionsSupplier {
 
 export interface TableAutoIncPrimaryKeyColumnDefinition<
   ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 > extends
   TableColumnNameSupplier<ColumnName>,
   TableColumnDataTypeSupplier<"INTEGER", number>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
   ForeignKeyTableColumnDefnFactory<ColumnName>,
   TableColumnDmlContributionsSupplier {
 }
 
-export interface TableIntegerColumnDefinition<ColumnName extends string>
-  extends
-    TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"INTEGER", number>,
-    Partial<TableColumnNullabilitySupplier>,
-    Partial<TableColumnPrimaryKeySupplier> {
+export interface TableIntegerColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"INTEGER", number>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
+  Partial<TableColumnNullabilitySupplier>,
+  Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableDateTimeColumnDefinition<ColumnName extends string>
-  extends
-    TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"DATETIME", Date>,
-    Partial<TableColumnNullabilitySupplier>,
-    Partial<TableColumnPrimaryKeySupplier> {
+export interface TableDateTimeColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"DATETIME", Date>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
+  Partial<TableColumnNullabilitySupplier>,
+  Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableCreationStampColumnDefinition<ColumnName extends string>
-  extends
-    TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"DATETIME", Date>,
-    TableColumnDmlContributionsSupplier {
+export interface TableCreationStampColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"DATETIME", Date>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
+  TableColumnDmlContributionsSupplier {
 }
 
-export interface TableTextColumnDefinition<ColumnName extends string>
-  extends
-    TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"TEXT", string>,
-    Partial<TableColumnNullabilitySupplier>,
-    Partial<TableColumnPrimaryKeySupplier> {
+export interface TableTextColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"TEXT", string>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
+  Partial<TableColumnNullabilitySupplier>,
+  Partial<TableColumnPrimaryKeySupplier> {
 }
 
-export interface TableJsonColumnDefinition<ColumnName extends string>
-  extends
-    TableColumnNameSupplier<ColumnName>,
-    TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
-    Partial<TableColumnNullabilitySupplier> {
+export interface TableJsonColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> extends
+  TableColumnNameSupplier<ColumnName>,
+  TableColumnDataTypeSupplier<"JSON", Record<string, unknown>>,
+  // deno-lint-ignore no-explicit-any
+  TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>,
+  Partial<TableColumnNullabilitySupplier> {
 }
 
-export type TableColumnDefinition<ColumnName extends string> =
-  TableColumnNameSupplier<ColumnName>;
+export type TableColumnDefinition<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> =
+  & TableColumnNameSupplier<ColumnName>
+  // deno-lint-ignore no-explicit-any
+  & TableColumnCreateSqlTextSupplier<any, any, ColumnName, EmitOptions>;
 
-export interface TableColumnDefinitionSupplier<ColumnName extends string> {
-  readonly tableColumnDefn: TableColumnDefinition<ColumnName>;
+export interface TableColumnDefinitionSupplier<
+  ColumnName extends string,
+  EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
+> {
+  readonly tableColumnDefn: TableColumnDefinition<ColumnName, EmitOptions>;
 }
 
 export type TableDefinitionContext<

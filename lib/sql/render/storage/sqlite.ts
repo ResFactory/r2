@@ -6,16 +6,7 @@ export function sqliteTableDefnFactories<
   EmitOptions extends t.SqlTextEmitOptions = t.SqlTextEmitOptions,
 >(): s.TableDefnFactoriesSupplier<Context, EmitOptions> {
   const tdfs: s.TableDefnFactoriesSupplier<Context, EmitOptions> = {
-    tableColumnsFactory: (tableDefn) =>
-      s.typicalTableColumnsFactory(tableDefn, tdfs),
-    tableColumnDefnSqlTextSupplier: s.typicalTableColumnDefnSqlTextSupplier<
-      Context,
-      // deno-lint-ignore no-explicit-any
-      any,
-      // deno-lint-ignore no-explicit-any
-      any,
-      EmitOptions
-    >(),
+    tableColumnsFactory: (tableDefn) => s.typicalTableColumnsFactory(tableDefn),
     tableDefnDecoratorsFactory: s.typicalTableDefnDecoratorsFactory,
   };
   return tdfs;
