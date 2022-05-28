@@ -31,7 +31,7 @@ export interface SchemaDefnOptions<
   Context,
   SchemaName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends t.SqlTextSupplierOptions<Context, EmitOptions> {
+> {
   readonly isIdempotent?: boolean;
 }
 

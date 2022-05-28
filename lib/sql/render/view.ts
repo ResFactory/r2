@@ -86,7 +86,7 @@ export function typicalSqlViewDefnFactory<
           literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
         });
         const selectStmt = partial(literals, ...expressions);
-        const { isTemp, isIdempotent, viewColumns } = viewOptions ?? {};
+        const { isTemp, isIdempotent = true, viewColumns } = viewOptions ?? {};
         return {
           isValid: selectStmt.isValid,
           viewName,
