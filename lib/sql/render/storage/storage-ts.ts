@@ -3,6 +3,13 @@ import * as govn from "./governance.ts";
 import * as t from "../template/mod.ts";
 import * as s from "./storage.ts";
 
+// TODO:
+// * [ ] in interface decls:
+//   * [ ] PK like `publ_host_id: number;` should be `publ_host_id: PublHostIdentity;`
+//   * [ ] FK references to PK's should use PublHostIdentity
+// * [ ] add `updatable` method (like `insertable`) to transform${tableTsToken} objects
+// * [ ] add data validators to transform${tableTsToken} objects
+
 export interface TypescriptCodeSupplier<Context> {
   readonly typescriptCode: (ctx: Context) => string;
 }
