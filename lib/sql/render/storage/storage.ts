@@ -1,7 +1,7 @@
 import { events } from "../deps.ts";
 import * as safety from "../../../safety/mod.ts";
 import * as govn from "./governance.ts";
-import * as t from "../text.ts";
+import * as t from "../template.ts";
 import * as tr from "../../../tabular/mod.ts";
 import * as v from "../view.ts";
 

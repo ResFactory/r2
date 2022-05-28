@@ -1,5 +1,5 @@
 import * as safety from "../../safety/mod.ts";
-import * as t from "./text.ts";
+import * as t from "./template.ts";
 
 export interface SchemaDefinition<
   Context,

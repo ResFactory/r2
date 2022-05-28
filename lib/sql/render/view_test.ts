@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { unindentWhitespace as uws } from "../../text/whitespace.ts";
 import * as mod from "./view.ts";
-import * as t from "./text.ts";
+import * as t from "./template.ts";
 
 Deno.test("SQL assembler (SQLa) views", async (tc) => {
   const vdf = mod.typicalSqlViewDefnFactory();
