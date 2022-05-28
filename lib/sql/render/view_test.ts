@@ -40,4 +40,36 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
               WHERE something = 'true'`),
     );
   });
+
+  await tc.step("drop first then create", () => {
+    const view = vdf.sqlViewStrTmplLiteral("synthetic_view", {
+      isIdempotent: false,
+      before: (viewName) => vdf.dropView(viewName),
+    })`
+      SELECT this, that, the_other
+        FROM table
+       WHERE something = 'true'`;
+    ta.assertEquals(
+      view.SQL(ctx, emitOptions),
+      uws(`
+         DROP VIEW IF EXISTS synthetic_view;
+         CREATE VIEW synthetic_view AS
+             SELECT this, that, the_other
+               FROM table
+              WHERE something = 'true'`),
+    );
+  });
+
+  await tc.step("drop view", () => {
+    const dv = vdf.dropView("synthetic_view");
+    const dvIE = vdf.dropView("synthetic_view", { ifExists: false });
+    ta.assertEquals(
+      dv.SQL(ctx, emitOptions),
+      `DROP VIEW IF EXISTS synthetic_view`,
+    );
+    ta.assertEquals(
+      dvIE.SQL(ctx, emitOptions),
+      `DROP VIEW synthetic_view`,
+    );
+  });
 });

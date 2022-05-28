@@ -45,6 +45,10 @@ export interface ViewDefnOptions<
   readonly viewColumns?: ColumnName[];
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
+  readonly before?: (
+    viewName: ViewName,
+    vdOptions: ViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
+  ) => t.SqlTextSupplier<Context, EmitOptions>;
 }
 
 export interface ViewDefnFactory<
@@ -70,6 +74,10 @@ export interface ViewDefnFactory<
   ) =>
     & ViewDefinition<Context, ViewName, ColumnName, EmitOptions>
     & t.SqlTextLintIssuesSupplier<Context, EmitOptions>;
+  dropView: <ViewName extends string>(
+    viewName: ViewName,
+    options?: { ifExists?: boolean },
+  ) => t.SqlTextSupplier<Context, EmitOptions>;
 }
 
 export function typicalSqlViewDefnFactory<
@@ -103,7 +111,7 @@ export function typicalSqlViewDefnFactory<
               rawSelectStmtSqlText,
             );
             const ns = steOptions.namingStrategy(ctx);
-            return `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
+            const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
               isIdempotent ? "IF NOT EXISTS " : ""
             }${ns.viewName(viewName)}${
               viewColumns
@@ -117,8 +125,25 @@ export function typicalSqlViewDefnFactory<
                 })`
                 : ""
             } AS\n${viewSelectStmtSqlText}`;
+            return viewOptions?.before
+              ? t.SQL<Context, EmitOptions>(ctx)`${
+                viewOptions.before(viewName, viewOptions)
+              }\n${create}`
+                .SQL(ctx, steOptions)
+              : create;
           },
         };
+      };
+    },
+    dropView: (viewName, dvOptions) => {
+      const { ifExists = true } = dvOptions ?? {};
+      return {
+        SQL: (ctx, steOptions) => {
+          const ns = steOptions.namingStrategy(ctx);
+          return `DROP VIEW ${ifExists ? "IF EXISTS " : ""}${
+            ns.viewName(viewName)
+          }`;
+        },
       };
     },
   };
