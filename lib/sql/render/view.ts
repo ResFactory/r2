@@ -126,9 +126,10 @@ export function typicalSqlViewDefnFactory<
                 : ""
             } AS\n${viewSelectStmtSqlText}`;
             return viewOptions?.before
-              ? t.SQL<Context, EmitOptions>(ctx)`${
-                viewOptions.before(viewName, viewOptions)
-              }\n${create}`
+              ? t.SQL<Context, EmitOptions>(ctx)`${[
+                viewOptions.before(viewName, viewOptions),
+                create,
+              ]}`
                 .SQL(ctx, steOptions)
               : create;
           },

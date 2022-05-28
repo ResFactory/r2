@@ -233,6 +233,7 @@ export interface SqlTextSupplierOptions<
   EmitOptions extends SqlTextEmitOptions<Context>,
 > {
   readonly sqlSuppliersDelimText?: string;
+  readonly sqlSuppliersArrayEntryDelimText?: string;
   readonly literalSupplier?: (
     literals: TemplateStringsArray,
     suppliedExprs: unknown[],
@@ -265,6 +266,7 @@ export function typicalSqlTextSupplierOptions<
 >(): SqlTextSupplierOptions<Context, EmitOptions> {
   return {
     sqlSuppliersDelimText: ";",
+    sqlSuppliersArrayEntryDelimText: "\n",
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
@@ -325,11 +327,17 @@ export type SqlPartialExpression<
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context, EmitOptions>,
-  ) => SqlTextSupplier<Context, EmitOptions>)
+  ) => SqlTextSupplier<Context, EmitOptions> | SqlTextSupplier<
+    Context,
+    EmitOptions
+  >[])
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context, EmitOptions>,
-  ) => PersistableSqlText<Context, EmitOptions>)
+  ) => PersistableSqlText<Context, EmitOptions> | PersistableSqlText<
+    Context,
+    EmitOptions
+  >[])
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context, EmitOptions>,
@@ -340,6 +348,11 @@ export type SqlPartialExpression<
   ) => string)
   | SqlTextSupplier<Context, EmitOptions>
   | PersistableSqlText<Context, EmitOptions>
+  | (
+    | SqlTextSupplier<Context, EmitOptions>
+    | PersistableSqlText<Context, EmitOptions>
+    | string
+  )[]
   | SqlTextLintSummarySupplier<Context, EmitOptions>
   | string;
 
@@ -359,6 +372,7 @@ export function SQL<
   return (literals, ...suppliedExprs) => {
     const {
       sqlSuppliersDelimText,
+      sqlSuppliersArrayEntryDelimText,
       persistIndexer = { activeIndex: 0 },
       prepareEvents,
     } = stsOptions ?? {};
@@ -411,7 +425,7 @@ export function SQL<
         }
       }
 
-      for (const expr of expressions) {
+      const preprocessSingleExpr = (expr: unknown) => {
         if (isSqlTextLintIssuesSupplier<Context, EmitOptions>(expr)) {
           expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx, steOptions);
         }
@@ -424,13 +438,22 @@ export function SQL<
         } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
           speEE?.emitSync("sqlEncountered", ctx, expr);
         }
+      };
+
+      for (const expr of expressions) {
+        if (Array.isArray(expr)) {
+          for (const e of expr) preprocessSingleExpr(e);
+        } else {
+          preprocessSingleExpr(expr);
+        }
       }
 
       let interpolated = "";
-      for (let i = 0; i < expressions.length; i++) {
-        interpolated += literalSupplier(i);
-        const expr = expressions[i];
-
+      const processSingleExpr = (
+        expr: unknown,
+        inArray?: boolean,
+        isLastArrayEntry?: boolean,
+      ) => {
         // if SQL is wrapped in a persistence handler it means that the content
         // should be written to a file and, optionally, the same or alternate
         // content should be emitted as part of this template string
@@ -469,6 +492,22 @@ export function SQL<
           );
         } else {
           interpolated += Deno.inspect(expr);
+        }
+        if (inArray && !isLastArrayEntry) {
+          interpolated += sqlSuppliersArrayEntryDelimText;
+        }
+      };
+
+      for (let i = 0; i < expressions.length; i++) {
+        interpolated += literalSupplier(i);
+        const expr = expressions[i];
+        if (Array.isArray(expr)) {
+          const lastIndex = expr.length - 1;
+          for (let eIndex = 0; eIndex < expr.length; eIndex++) {
+            processSingleExpr(expr[eIndex], true, eIndex == lastIndex);
+          }
+        } else {
+          processSingleExpr(expr);
         }
       }
       interpolated += literalSupplier(literals.length - 1);
