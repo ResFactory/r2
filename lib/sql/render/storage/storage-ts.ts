@@ -110,7 +110,7 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
       const omitUpdatables = omitInsertables;
       tsBody.push(`}\n`);
       tsBody.push(
-        `export const ${tableTsToken}TableName = "${tableSqlName}";`,
+        `export const ${tableTsToken}TableName = "${tableSqlName}" as const;`,
         `export type ${tableSqlName} = Readonly<mutable_${tableSqlName}>;`,
         `export type Mutable${tableTsToken} = TableToObject<mutable_${tableSqlName}>;`,
         `export type ${tableTsToken} = Readonly<Mutable${tableTsToken}>;`,
@@ -128,7 +128,7 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
       // deno-fmt-ignore
       tsBody.push(uws(`
         export const transform${tableTsToken} = {
-          tableName: "${tableSqlName}",
+          tableName: ${tableTsToken}TableName,
           fromTable: (t: ${tableSqlName}): ${tableTsToken} => ({
             ${columns.map(c => `${columnTsToken(c)}: t.${c.columnName}`).join(",\n            ")}
           }),

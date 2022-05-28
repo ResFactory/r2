@@ -109,7 +109,7 @@ Deno.test("Typescript generator", async (tc) => {
           created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
         }
 
-        export const PublHostTableName = "publ_host";
+        export const PublHostTableName = "publ_host" as const;
         export type publ_host = Readonly<mutable_publ_host>;
         export type MutablePublHost = TableToObject<mutable_publ_host>;
         export type PublHost = Readonly<MutablePublHost>;
@@ -120,7 +120,7 @@ Deno.test("Typescript generator", async (tc) => {
         export type PublHostUpdatable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
 
         export const transformPublHost = {
-          tableName: "publ_host",
+          tableName: PublHostTableName,
           fromTable: (t: publ_host): PublHost => ({
             publHostId: t.publ_host_id,
             host: t.host,
@@ -168,7 +168,7 @@ Deno.test("Typescript generator", async (tc) => {
           created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
         }
 
-        export const PublBuildEventTableName = "publ_build_event";
+        export const PublBuildEventTableName = "publ_build_event" as const;
         export type publ_build_event = Readonly<mutable_publ_build_event>;
         export type MutablePublBuildEvent = TableToObject<mutable_publ_build_event>;
         export type PublBuildEvent = Readonly<MutablePublBuildEvent>;
@@ -179,7 +179,7 @@ Deno.test("Typescript generator", async (tc) => {
         export type PublBuildEventUpdatable = Omit<PublBuildEvent, "publBuildEventId" | "createdAt"> & Partial<Pick<PublBuildEvent, "createdAt">>;
 
         export const transformPublBuildEvent = {
-          tableName: "publ_build_event",
+          tableName: PublBuildEventTableName,
           fromTable: (t: publ_build_event): PublBuildEvent => ({
             publBuildEventId: t.publ_build_event_id,
             publHostId: t.publ_host_id,
