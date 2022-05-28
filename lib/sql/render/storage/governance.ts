@@ -1,5 +1,5 @@
 import * as safety from "../../../safety/mod.ts";
-import * as t from "../template.ts";
+import * as t from "../template/mod.ts";
 import * as l from "../lint.ts";
 
 // deno-lint-ignore no-explicit-any

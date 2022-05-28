@@ -1,6 +1,6 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./schema.ts";
-import * as t from "./template.ts";
+import * as t from "./template/mod.ts";
 
 Deno.test("SQL assembler (SQLa) schema", async (tc) => {
   const sdf = mod.typicalSqlSchemaDefnFactory();

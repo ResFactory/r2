@@ -1,6 +1,6 @@
 import * as safety from "../../safety/mod.ts";
 import * as ws from "../../text/whitespace.ts";
-import * as t from "./template.ts";
+import * as t from "./template/mod.ts";
 import * as l from "./lint.ts";
 
 export type SelectNotFirstWordLintIssue = l.TemplateStringLintIssue;

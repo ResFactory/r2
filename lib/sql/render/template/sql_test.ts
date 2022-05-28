@@ -1,16 +1,18 @@
-import { path, testingAsserts as ta } from "./deps-test.ts";
-import * as ws from "../../text/whitespace.ts";
-import * as stf from "./storage/test-fixtures.ts";
-import * as mod from "./mod.ts";
+import { path, testingAsserts as ta } from "../deps-test.ts";
+import * as ws from "../../../text/whitespace.ts";
+import * as stf from "../storage/test-fixtures.ts";
+import * as mod from "./sql.ts";
+import * as v from "../view.ts";
+import * as sqlite from "../storage/sqlite.ts";
 
 interface SyntheticTmplContext extends stf.SyntheticStorageContext {
-  readonly vdf: mod.ViewDefnFactory<SyntheticTmplContext>;
+  readonly vdf: v.ViewDefnFactory<SyntheticTmplContext>;
 }
 
 Deno.test("SQL assembler (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {
-    tdfs: mod.sqliteTableDefnFactories<SyntheticTmplContext>(),
-    vdf: mod.typicalSqlViewDefnFactory<SyntheticTmplContext>(),
+    tdfs: sqlite.sqliteTableDefnFactories<SyntheticTmplContext>(),
+    vdf: v.typicalSqlViewDefnFactory<SyntheticTmplContext>(),
   };
   const schema = stf.syntheticTableDefns(ctx);
   const persist = (

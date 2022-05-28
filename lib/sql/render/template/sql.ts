@@ -1,8 +1,8 @@
-import { events, fs } from "./deps.ts";
-import * as safety from "../../safety/mod.ts";
-import * as c from "../../text/contributions.ts";
-import * as l from "./lint.ts";
-import * as ws from "../../text/whitespace.ts";
+import { events, fs } from "../deps.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as c from "../../../text/contributions.ts";
+import * as l from "../lint.ts";
+import * as ws from "../../../text/whitespace.ts";
 
 export interface SqlObjectNamingStrategy {
   readonly schemaName: (schemaName: string) => string;

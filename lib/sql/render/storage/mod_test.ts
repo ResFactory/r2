@@ -3,7 +3,7 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./mod.ts";
 import * as tf from "./test-fixtures.ts";
 import * as v from "../view.ts";
-import * as t from "../template.ts";
+import * as t from "../template/mod.ts";
 
 Deno.test("SQL assember (SQLa) storage", async (tc) => {
   const ctx: tf.SyntheticStorageContext = {

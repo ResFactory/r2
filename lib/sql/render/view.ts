@@ -1,6 +1,6 @@
 import * as safety from "../../safety/mod.ts";
 import * as ws from "../../text/whitespace.ts";
-import * as t from "./template.ts";
+import * as t from "./template/mod.ts";
 import * as ss from "./select-stmt.ts";
 
 export interface ViewDefinition<
