@@ -2,10 +2,6 @@
 
 Instead of NodeJS-style "projects" we want all our packaging to be path-based. Meaning any or every _path_ ("route") is a _micro_ project. This allows us to mix and match HTML, Javascript, CSS, and web-based assets across properties and user agents with ease.
 
-## TODO
-
-* SNS 05-27-2022: Add `terser.ts` minification back; it was was removed from lib/package/bundle-js.ts because dependency "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.12.1/deno/mod.js" depends on [source_map](https://deno.land/x/source_map@0.7.4/mod.js) which does not pin repos so it's broken after Deno 1.22.
-
 ## How micro-packaging and bundling works
 
 1. Decide what you'd like the _target_ to be (the _intention_). For example, Javascript, CSS and even HTML may be _targets_. Once you decide the target you *must create an empty file* for that target with `.auto.` modifier convention (`*.auto.js`, `*.auto.mjs`, `.auto.css`, etc.). 

@@ -1,9 +1,5 @@
 import { events } from "./deps.ts";
-// SNS 05-27-2022: Add `terser.ts` minification back; it was was removed from lib/package/bundle-js.ts
-// because dependency "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.12.1/deno/mod.js" depends on
-// [source_map](https://deno.land/x/source_map@0.7.4/mod.js) which does not pin repos so it's broken
-// after Deno 1.22.
-// import * as terser from "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.12.1/deno/mod.js";
+import * as terser from "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.12.2/deno/mod.js";
 import * as fsi from "../fs/inspect.ts";
 import * as graph from "../module/graph.ts";
 
@@ -213,18 +209,15 @@ export async function transformTypescriptToJS(
         er,
         // deno-lint-ignore require-await
         bundledJS: async () => er.files["deno:///bundle.js"],
-        // deno-lint-ignore require-await
         minifiedJS: async () => {
-          // SNS 05-27-2022: terser depends on source_map which does not pin repos so it's broken after Deno 1.22
-          // const minified = await terser.minify({
-          //   ["jsCode"]: er.files["deno:///bundle.js"],
-          // }, {
-          //   module: bundle == "module" ? true : false,
-          //   compress: true,
-          //   mangle: false,
-          // });
-          // return minified.code;
-          return er.files["deno:///bundle.js"];
+          const minified = await terser.minify({
+            ["jsCode"]: er.files["deno:///bundle.js"],
+          }, {
+            module: bundle == "module" ? true : false,
+            compress: true,
+            mangle: false,
+          });
+          return minified.code;
         },
       };
       options?.onBundledToJS?.(event);
