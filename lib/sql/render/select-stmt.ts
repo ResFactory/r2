@@ -3,7 +3,7 @@ import * as ws from "../../text/whitespace.ts";
 import * as t from "./template/mod.ts";
 import * as l from "./lint.ts";
 
-export type SelectNotFirstWordLintIssue = l.TemplateStringLintIssue;
+export type SelectNotFirstWordLintIssue = l.TemplateStringSqlLintIssue;
 
 export interface SelectStatement<
   Context,

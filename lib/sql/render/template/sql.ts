@@ -263,7 +263,9 @@ export interface SqlTextSupplierOptions<
 export function typicalSqlTextSupplierOptions<
   Context,
   EmitOptions extends SqlTextEmitOptions<Context>,
->(): SqlTextSupplierOptions<Context, EmitOptions> {
+>(
+  inherit?: Partial<SqlTextSupplierOptions<Context, EmitOptions>>,
+): SqlTextSupplierOptions<Context, EmitOptions> {
   return {
     sqlSuppliersDelimText: ";",
     exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
@@ -275,7 +277,7 @@ export function typicalSqlTextSupplierOptions<
       const emit = {
         SQL: () => `-- encountered persistence request for ${destPath}`,
       };
-      steEE?.emit("sqlPersisted", ctx, destPath, psts, emit);
+      steEE?.emitSync("sqlPersisted", ctx, destPath, psts, emit);
       return emit;
     },
     sqlTextLintSummary: (options) => {
@@ -297,6 +299,7 @@ export function typicalSqlTextSupplierOptions<
         },
       };
     },
+    ...inherit,
   };
 }
 
@@ -466,6 +469,7 @@ export function SQL<
               expr,
               persistIndexer,
               steOptions,
+              speEE,
             );
             if (persistenceSqlText) {
               // after persistence, if we want to store a remark or other SQL

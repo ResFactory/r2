@@ -5,7 +5,7 @@ export interface SqlLintIssueSupplier {
   readonly location?: (options?: { maxLength?: number }) => string;
 }
 
-export interface TemplateStringLintIssue extends SqlLintIssueSupplier {
+export interface TemplateStringSqlLintIssue extends SqlLintIssueSupplier {
   readonly templateLiterals: TemplateStringsArray;
   readonly templateExprs: unknown[];
 }
@@ -14,7 +14,7 @@ export function templateStringLintIssue(
   lintIssue: string,
   templateLiterals: TemplateStringsArray,
   templateExprs: unknown[],
-): TemplateStringLintIssue {
+): TemplateStringSqlLintIssue {
   return {
     lintIssue,
     templateLiterals,
@@ -30,7 +30,7 @@ export function templateStringLintIssue(
 }
 
 export const isTemplateStringLintIssue = safety.typeGuard<
-  TemplateStringLintIssue
+  TemplateStringSqlLintIssue
 >("templateLiterals", "templateExprs");
 
 export interface SqlLintIssuesSupplier {

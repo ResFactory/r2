@@ -12,8 +12,8 @@ export function isTableColumnCreateSqlTextSupplier<
   EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
     Context
   >,
->(
-  o: unknown,
+  >(
+    o: unknown,
 ): o is govn.TableColumnCreateSqlTextSupplier<
   Context,
   TableName,
@@ -36,16 +36,16 @@ export class TableColumnsFactoryEventEmitter<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends events.EventEmitter<{
-  construct(column: govn.TableColumnDefinition<ColumnName, EmitOptions>): void;
-}> {}
+  > extends events.EventEmitter<{
+    construct(column: govn.TableColumnDefinition<ColumnName, EmitOptions>): void;
+  }> { }
 
 export interface TableColumnsFactory<
   Context,
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> {
+  > {
   readonly autoIncPrimaryKey: (
     columnName: ColumnName,
     options?: Partial<govn.TableColumnNullabilitySupplier>,
@@ -81,7 +81,7 @@ export interface TableDefnDecoratorsFactory<
   Context,
   TableName extends string,
   ColumnName extends string,
-> {
+  > {
   readonly unique: (...columnNames: ColumnName[]) => void;
 }
 
@@ -90,11 +90,11 @@ export interface TableDefnFactoriesSupplier<
   EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
     Context
   >,
-> {
+  > {
   readonly tableColumnsFactory: <
     TableName extends string,
     ColumnName extends string,
-  >(
+    >(
     tableDefn: govn.TableDefinition<
       Context,
       TableName,
@@ -105,7 +105,7 @@ export interface TableDefnFactoriesSupplier<
   readonly tableDefnDecoratorsFactory: <
     TableName extends string,
     ColumnName extends string,
-  >(
+    >(
     tableDefn: govn.TableDefinition<
       Context,
       TableName,
@@ -120,15 +120,15 @@ export function typicalTableColumnDefnSqlTextSupplier<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(): (
-  ctx: govn.TableColumnDefinitionContext<
-    Context,
-    TableName,
-    ColumnName,
-    EmitOptions
-  >,
-  options: t.SqlTextEmitOptions<Context>,
-) => string {
+  >(): (
+    ctx: govn.TableColumnDefinitionContext<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+    options: t.SqlTextEmitOptions<Context>,
+  ) => string {
   return (ctx, steOptions) => {
     const tCD = ctx.tableColumnDefn;
     const ns = steOptions.namingStrategy(ctx);
@@ -160,8 +160,8 @@ export function typicalTableColumnsFactory<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
+  >(
+    tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
 ): TableColumnsFactory<Context, TableName, ColumnName, EmitOptions> {
   const SQL = typicalTableColumnDefnSqlTextSupplier<
     Context,
@@ -175,50 +175,50 @@ export function typicalTableColumnsFactory<
         & govn.TableAutoIncPrimaryKeyColumnDefinition<ColumnName, EmitOptions>
         & govn.TableColumnNullabilitySupplier
         & govn.TableColumnPrimaryKeySupplier = {
-          columnName: columnName,
-          sqlDataType: { SQL: () => `INTEGER` },
-          tsDataType: safety.typeGuard<number>(),
-          isPrimaryKey: true,
-          isNullable: false,
-          isTableColumnCreateSqlTextSupplier: true,
-          SQL: (ctx, steOptions) => {
-            return `${SQL(ctx, steOptions)} AUTOINCREMENT`;
-          },
-          foreignKeyTableColDefn: (foreignColumnName, options) => {
-            const fkeyTableColDefnResult:
-              & govn.TableIntegerColumnDefinition<ColumnName, EmitOptions>
-              & govn.TableColumnForeignKeySupplier<
-                Context,
-                // deno-lint-ignore no-explicit-any
-                any,
-                ColumnName,
-                EmitOptions
-              > = {
-                columnName: foreignColumnName ?? columnName,
-                sqlDataType: { SQL: () => `INTEGER` },
-                tsDataType: safety.typeGuard<number>(),
-                isNullable: options?.isNullable ?? false,
-                foreignKey: {
-                  tableDefn,
-                  tableColumnDefn: result,
-                },
-                isTableColumnCreateSqlTextSupplier: true,
-                SQL,
-              };
-            return fkeyTableColDefnResult;
-          },
-          sqlDmlContributions: {
-            isInInsertColumnsList: () => false,
-            isInUpdateColumnsList: () => false,
-          },
-        };
+        columnName: columnName,
+        sqlDataType: { SQL: () => `INTEGER` },
+        tsType: { tsCodeGenEmit: "number", typeGuard: safety.typeGuard<number>() },
+        isPrimaryKey: true,
+        isNullable: false,
+        isTableColumnCreateSqlTextSupplier: true,
+        SQL: (ctx, steOptions) => {
+          return `${SQL(ctx, steOptions)} AUTOINCREMENT`;
+        },
+        foreignKeyTableColDefn: (foreignColumnName, options) => {
+          const fkeyTableColDefnResult:
+            & govn.TableIntegerColumnDefinition<ColumnName, EmitOptions>
+            & govn.TableColumnForeignKeySupplier<
+              Context,
+              // deno-lint-ignore no-explicit-any
+              any,
+              ColumnName,
+              EmitOptions
+            > = {
+            columnName: foreignColumnName ?? columnName,
+            sqlDataType: { SQL: () => `INTEGER` },
+            tsType: { tsCodeGenEmit: "number", typeGuard: safety.typeGuard<number>() },
+            isNullable: options?.isNullable ?? false,
+            foreignKey: {
+              tableDefn,
+              tableColumnDefn: result,
+            },
+            isTableColumnCreateSqlTextSupplier: true,
+            SQL,
+          };
+          return fkeyTableColDefnResult;
+        },
+        sqlDmlContributions: {
+          isInInsertColumnsList: () => false,
+          isInUpdateColumnsList: () => false,
+        },
+      };
       return result;
     },
     integer: (columnName, options) => {
       return {
         columnName: columnName,
         sqlDataType: { SQL: () => `INTEGER` },
-        tsDataType: safety.typeGuard<number>(),
+        tsType: { tsCodeGenEmit: "number", typeGuard: safety.typeGuard<number>() },
         isPrimaryKey: options?.isPrimaryKey ?? false,
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,
@@ -232,7 +232,7 @@ export function typicalTableColumnsFactory<
       > = {
         columnName: columnName,
         sqlDataType: { SQL: () => `DATETIME` },
-        tsDataType: safety.typeGuard<Date>(),
+        tsType: { tsCodeGenEmit: "Date", typeGuard: safety.typeGuard<Date>() },
         isPrimaryKey: options?.isPrimaryKey ?? false,
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,
@@ -245,25 +245,25 @@ export function typicalTableColumnsFactory<
         & govn.TableCreationStampColumnDefinition<ColumnName, EmitOptions>
         & govn.TableColumnDeclareWeightSupplier
         & govn.TableColumnValueSupplier<Context, EmitOptions> = {
-          columnName: columnName,
-          sqlDataType: { SQL: () => `DATETIME` },
-          tsDataType: safety.typeGuard<Date>(),
-          declarationWeight: 99,
-          isTableColumnCreateSqlTextSupplier: true,
-          SQL,
-          columnDdlDefault: { SQL: () => `CURRENT_TIMESTAMP` },
-          sqlDmlContributions: {
-            isInInsertColumnsList: () => false,
-            isInUpdateColumnsList: () => false,
-          },
-        };
+        columnName: columnName,
+        sqlDataType: { SQL: () => `DATETIME` },
+        tsType: { tsCodeGenEmit: "Date", typeGuard: safety.typeGuard<Date>() },
+        declarationWeight: 99,
+        isTableColumnCreateSqlTextSupplier: true,
+        SQL,
+        columnDdlDefault: { SQL: () => `CURRENT_TIMESTAMP` },
+        sqlDmlContributions: {
+          isInInsertColumnsList: () => false,
+          isInUpdateColumnsList: () => false,
+        },
+      };
       return result;
     },
     text: (columnName, options) => {
       return {
         columnName: columnName,
         sqlDataType: { SQL: () => `TEXT` },
-        tsDataType: safety.typeGuard<string>(),
+        tsType: { tsCodeGenEmit: "string", typeGuard: safety.typeGuard<string>() },
         isPrimaryKey: options?.isPrimaryKey ?? false,
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,
@@ -274,7 +274,11 @@ export function typicalTableColumnsFactory<
       return {
         columnName: columnName,
         sqlDataType: { SQL: () => `JSON` },
-        tsDataType: safety.typeGuard<Record<string, unknown>>(),
+        tsType: {
+          tsCodeGenEmit: "UnknownJSON",
+          tsCodeGenDeclare: [`export type UnknownJSON = string;`],
+          typeGuard: safety.typeGuard<Record<string, unknown>>()
+        },
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,
         SQL,
@@ -288,20 +292,19 @@ export function typicalTableDefnDecoratorsFactory<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
+  >(
+    tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
 ): TableDefnDecoratorsFactory<Context, TableName, ColumnName> {
   return {
     unique: (...columnNames) => {
       tableDefn.decorators.push({
         SQL: (ctx, steOptions) =>
-          `UNIQUE(${
-            columnNames.map((cn) =>
-              steOptions.namingStrategy(ctx).tableColumnName?.({
-                tableName: tableDefn.tableName,
-                columnName: cn,
-              }) ?? cn
-            ).join(", ")
+          `UNIQUE(${columnNames.map((cn) =>
+            steOptions.namingStrategy(ctx).tableColumnName?.({
+              tableName: tableDefn.tableName,
+              columnName: cn,
+            }) ?? cn
+          ).join(", ")
           })`,
       });
     },
@@ -320,8 +323,8 @@ export const isTableColumnPrimaryKeySupplier = safety.typeGuard<
 export function isForeignKeyTableColumnDefnFactory<
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<govn.Any>,
->(
-  o: unknown,
+  >(
+    o: unknown,
 ): o is govn.ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions> {
   const isTCFKF = safety.typeGuard<
     govn.ForeignKeyTableColumnDefnFactory<ColumnName, EmitOptions>
@@ -334,8 +337,8 @@ export function isTableColumnForeignKeySupplier<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  o: unknown,
+  >(
+    o: unknown,
 ): o is govn.TableColumnForeignKeySupplier<
   Context,
   TableName,
@@ -369,13 +372,13 @@ export const isTableColumnDefaultValueSupplier = safety.typeGuard<
 export const isTableColumnDataTypeSupplier = safety.typeGuard<
   // deno-lint-ignore no-explicit-any
   govn.TableColumnDataTypeSupplier<any, any>
->("sqlDataType", "tsDataType");
+>("sqlDataType", "tsType");
 
 export function isTableColumnDefinition<
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<govn.Any>,
->(
-  o: unknown,
+  >(
+    o: unknown,
 ): o is govn.TableColumnDefinition<ColumnName, EmitOptions> {
   const isCD = safety.typeGuard<
     govn.TableColumnDefinition<ColumnName, EmitOptions>
@@ -398,8 +401,8 @@ export function isTableDefinition<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  o: unknown,
+  >(
+    o: unknown,
 ): o is govn.TableDefinition<Context, TableName, ColumnName, EmitOptions> {
   const isCTR = safety.typeGuard<
     govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>
@@ -415,42 +418,42 @@ export class TableDefnEventEmitter<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends events.EventEmitter<{
-  preparedTableColumn(
-    column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
-    tableDefn: govn.TableDefinition<
-      Context,
-      TableName,
-      ColumnName,
-      EmitOptions
-    >,
-  ): void;
-  registeredTableColumn(
-    column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
-    tableDefn: govn.TableDefinition<
-      Context,
-      TableName,
-      ColumnName,
-      EmitOptions
-    >,
-  ): void;
-  populatedTableDefn(
-    tableDefn: govn.TableDefinition<
-      Context,
-      TableName,
-      ColumnName,
-      EmitOptions
-    >,
-    validColumnNames: ColumnName[],
-  ): void;
-}> {}
+  > extends events.EventEmitter<{
+    preparedTableColumn(
+      column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
+      tableDefn: govn.TableDefinition<
+        Context,
+        TableName,
+        ColumnName,
+        EmitOptions
+      >,
+    ): void;
+    registeredTableColumn(
+      column: govn.TableColumnDefinition<ColumnName, EmitOptions>,
+      tableDefn: govn.TableDefinition<
+        Context,
+        TableName,
+        ColumnName,
+        EmitOptions
+      >,
+    ): void;
+    populatedTableDefn(
+      tableDefn: govn.TableDefinition<
+        Context,
+        TableName,
+        ColumnName,
+        EmitOptions
+      >,
+      validColumnNames: ColumnName[],
+    ): void;
+  }> { }
 
 export interface DefineTableOptions<
   Context,
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> {
+  > {
   readonly isTemp?: boolean;
   readonly isIdempotent: boolean;
   readonly prepareEvents?: (
@@ -463,10 +466,10 @@ export function typicalDefineTableOptions<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  options?:
-    & Partial<DefineTableOptions<Context, TableName, ColumnName, EmitOptions>>
-    & { readonly enforceForeignKeys?: boolean },
+  >(
+    options?:
+      & Partial<DefineTableOptions<Context, TableName, ColumnName, EmitOptions>>
+      & { readonly enforceForeignKeys?: boolean },
 ): DefineTableOptions<Context, TableName, ColumnName, EmitOptions> {
   return {
     isTemp: options?.isTemp,
@@ -481,17 +484,15 @@ export function typicalDefineTableOptions<
                 const ns = steOptions.namingStrategy(ctx);
                 const tn = ns.tableName;
                 const cn = ns.tableColumnName;
-                return `FOREIGN KEY(${
-                  cn({
-                    tableName: tableDefn.tableName,
-                    columnName: c.columnName,
-                  })
-                }) REFERENCES ${tn(c.foreignKey.tableDefn.tableName)}(${
-                  cn({
+                return `FOREIGN KEY(${cn({
+                  tableName: tableDefn.tableName,
+                  columnName: c.columnName,
+                })
+                  }) REFERENCES ${tn(c.foreignKey.tableDefn.tableName)}(${cn({
                     tableName: c.foreignKey.tableDefn.tableName,
                     columnName: c.foreignKey.tableColumnDefn.columnName,
                   })
-                })`;
+                  })`;
               },
             });
           }
@@ -509,7 +510,7 @@ export interface PopulateTableDefnContext<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> {
+  > {
   readonly tdEE: TableDefnEventEmitter<
     Context,
     TableName,
@@ -541,7 +542,7 @@ export interface TableDefnPopulator<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> {
+  > {
   (
     defineColumns: (
       ...column: govn.TableColumnDefinition<ColumnName, EmitOptions>[]
@@ -555,18 +556,18 @@ export function staticTableDefn<
   TableName extends string,
   ColumnName extends string,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  ctx: Context,
-  tableName: TableName,
-  validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  populateTableDefn?: TableDefnPopulator<
-    Context,
-    TableName,
-    ColumnName,
-    EmitOptions
-  >,
-  options?: DefineTableOptions<Context, TableName, ColumnName, EmitOptions>,
+  >(
+    ctx: Context,
+    tableName: TableName,
+    validColumnNames: ColumnName[],
+    tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
+    populateTableDefn?: TableDefnPopulator<
+      Context,
+      TableName,
+      ColumnName,
+      EmitOptions
+    >,
+    options?: DefineTableOptions<Context, TableName, ColumnName, EmitOptions>,
 ): govn.TableDefinition<Context, TableName, ColumnName, EmitOptions> {
   const {
     isTemp,
@@ -591,91 +592,91 @@ export function staticTableDefn<
       EmitOptions
     >
     & t.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
-      tableName,
-      isIdempotent,
-      columns,
-      decorators,
-      populateSqlTextLintIssues: (lintIssues) => {
-        for (const vcn of validColumnNames) {
-          const columnDefn = columns.find((c) => c.columnName == vcn);
-          if (columnDefn) {
-            if (
-              !isTableColumnCreateSqlTextSupplier<
-                Context,
-                TableName,
-                ColumnName,
-                EmitOptions
-              >(columnDefn)
-            ) {
-              const lintIssue: govn.TableLintIssue<TableName> = {
-                tableName,
-                lintIssue:
-                  `column '${vcn}' has a defn but is not a TableColumnCreateSqlTextSupplier`,
-              };
-              lintIssues.push(lintIssue);
-            }
-          } else {
-            const lintIssue: govn.TableLintIssue<TableName> = {
-              tableName,
-              lintIssue:
-                `column '${vcn}' declared but not defined in createTable(${tableName})`,
-            };
-            lintIssues.push(lintIssue);
-          }
-        }
-      },
-      SQL: (sqlCtx, steOptions) => {
-        const ns = steOptions.namingStrategy(ctx);
-        const columnDefns: string[] = [];
-        const tableCtx:
-          & Context
-          & govn.TableDefinitionSupplier<
-            Context,
-            TableName,
-            ColumnName,
-            EmitOptions
-          > = {
-            ...sqlCtx,
-            tableDefn: tableDefn,
-          };
-        for (
-          const c of columns.sort((a, b) =>
-            isTableColumnDeclareWeightSupplier(a) &&
-              isTableColumnDeclareWeightSupplier(b)
-              ? a.declarationWeight - b.declarationWeight
-              : (isTableColumnDeclareWeightSupplier(a)
-                ? a.declarationWeight - 0
-                : (isTableColumnDeclareWeightSupplier(b)
-                  ? 0 - b.declarationWeight
-                  : 0))
-          )
-        ) {
+    tableName,
+    isIdempotent,
+    columns,
+    decorators,
+    populateSqlTextLintIssues: (lintIssues) => {
+      for (const vcn of validColumnNames) {
+        const columnDefn = columns.find((c) => c.columnName == vcn);
+        if (columnDefn) {
           if (
-            isTableColumnCreateSqlTextSupplier<
+            !isTableColumnCreateSqlTextSupplier<
               Context,
               TableName,
               ColumnName,
               EmitOptions
-            >(c)
+            >(columnDefn)
           ) {
-            columnDefns.push(
-              c.SQL({ ...tableCtx, tableColumnDefn: c }, steOptions),
-            );
+            const lintIssue: govn.TableLintIssue<TableName> = {
+              tableName,
+              lintIssue:
+                `column '${vcn}' has a defn but is not a TableColumnCreateSqlTextSupplier`,
+            };
+            lintIssues.push(lintIssue);
           }
+        } else {
+          const lintIssue: govn.TableLintIssue<TableName> = {
+            tableName,
+            lintIssue:
+              `column '${vcn}' declared but not defined in createTable(${tableName})`,
+          };
+          lintIssues.push(lintIssue);
         }
-        const indent = steOptions.indentation("define table column");
-        const decoratorsSQL = tableCtx.tableDefn.decorators.map((sts) =>
-          sts.SQL(tableCtx, steOptions)
-        ).join(",\n");
+      }
+    },
+    SQL: (sqlCtx, steOptions) => {
+      const ns = steOptions.namingStrategy(ctx);
+      const columnDefns: string[] = [];
+      const tableCtx:
+        & Context
+        & govn.TableDefinitionSupplier<
+          Context,
+          TableName,
+          ColumnName,
+          EmitOptions
+        > = {
+        ...sqlCtx,
+        tableDefn: tableDefn,
+      };
+      for (
+        const c of columns.sort((a, b) =>
+          isTableColumnDeclareWeightSupplier(a) &&
+            isTableColumnDeclareWeightSupplier(b)
+            ? a.declarationWeight - b.declarationWeight
+            : (isTableColumnDeclareWeightSupplier(a)
+              ? a.declarationWeight - 0
+              : (isTableColumnDeclareWeightSupplier(b)
+                ? 0 - b.declarationWeight
+                : 0))
+        )
+      ) {
+        if (
+          isTableColumnCreateSqlTextSupplier<
+            Context,
+            TableName,
+            ColumnName,
+            EmitOptions
+          >(c)
+        ) {
+          columnDefns.push(
+            c.SQL({ ...tableCtx, tableColumnDefn: c }, steOptions),
+          );
+        }
+      }
+      const indent = steOptions.indentation("define table column");
+      const decoratorsSQL = tableCtx.tableDefn.decorators.map((sts) =>
+        sts.SQL(tableCtx, steOptions)
+      ).join(",\n");
 
-        // deno-fmt-ignore
-        const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
+      // deno-fmt-ignore
+      const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
         columnDefns.join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
         "\n)";
-        return result;
-      },
-    };
+      return result;
+    },
+  };
   populateTableDefn?.((...columns) => {
     for (const column of columns) {
       tdEE.emitSync("preparedTableColumn", column, tableDefn);
@@ -702,13 +703,13 @@ export function typicalStaticTableDefn<
   EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
     Context
   >,
->(
-  ctx: Context,
-  tableName: TableName,
-  validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
-    typicalDefineTableOptions(),
+  >(
+    ctx: Context,
+    tableName: TableName,
+    validColumnNames: ColumnName[],
+    tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
+    options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
+      typicalDefineTableOptions(),
 ) {
   return (
     populateTableDefn: TableDefnPopulator<
@@ -758,20 +759,20 @@ export function typicalTableDefnDML<
     Context
   >,
   ColumnName extends keyof InsertableRecord & string =
-    & keyof InsertableRecord
-    & string,
+  & keyof InsertableRecord
+  & string,
   InsertableObject extends tr.TabularRecordToObject<InsertableRecord> =
-    tr.TabularRecordToObject<InsertableRecord>,
+  tr.TabularRecordToObject<InsertableRecord>,
   UpdatableRecord extends Partial<InsertableRecord> = Partial<InsertableRecord>,
   UpdatableObject extends tr.TabularRecordToObject<UpdatableRecord> =
-    tr.TabularRecordToObject<UpdatableRecord>,
->(
-  ctx: Context,
-  tableName: TableName,
-  validColumnNames: ColumnName[],
-  tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
-    typicalDefineTableOptions(),
+  tr.TabularRecordToObject<UpdatableRecord>,
+  >(
+    ctx: Context,
+    tableName: TableName,
+    validColumnNames: ColumnName[],
+    tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
+    options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
+      typicalDefineTableOptions(),
 ) {
   return (
     populateTableDefn: TableDefnPopulator<
@@ -877,8 +878,7 @@ export function typicalTableDefnDML<
                 values: [value: unknown, sqlText: string][],
                 ns: t.SqlObjectNamingStrategy,
               ) =>
-                `INSERT INTO ${ns.tableName(tableName)} (${
-                  names.join(", ")
+                `INSERT INTO ${ns.tableName(tableName)} (${names.join(", ")
                 }) VALUES (${values.map((value) => value[1]).join(", ")})`,
             } = insertDmlOptions ?? {};
             const ns = steOptions.namingStrategy(ctx);
@@ -906,12 +906,12 @@ export function tableDefnViewWrapper<
   EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
     Context
   >,
->(
-  _ctx: Context,
-  tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
-  viewName: ViewName,
-  factory: v.ViewDefnFactory<Context, EmitOptions>,
-  options?: v.ViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
+  >(
+    _ctx: Context,
+    tableDefn: govn.TableDefinition<Context, TableName, ColumnName, EmitOptions>,
+    viewName: ViewName,
+    factory: v.ViewDefnFactory<Context, EmitOptions>,
+    options?: v.ViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
 ) {
   const selectColumnNames = options?.viewColumns
     ? options?.viewColumns
@@ -928,7 +928,7 @@ export function tableDefnViewWrapper<
   const tableNameSS: t.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
       steOptions.namingStrategy(ctx).tableName?.(tableDefn.tableName) ??
-        tableDefn.tableName,
+      tableDefn.tableName,
   };
   return factory.sqlViewStrTmplLiteral<ViewName, ColumnName>(
     viewName,
