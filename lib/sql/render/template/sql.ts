@@ -233,7 +233,7 @@ export interface SqlTextSupplierOptions<
   EmitOptions extends SqlTextEmitOptions<Context>,
 > {
   readonly sqlSuppliersDelimText?: string;
-  readonly sqlSuppliersArrayEntryDelimText?: string;
+  readonly exprInArrayDelim?: (entry: unknown, isLast: boolean) => string;
   readonly literalSupplier?: (
     literals: TemplateStringsArray,
     suppliedExprs: unknown[],
@@ -266,7 +266,7 @@ export function typicalSqlTextSupplierOptions<
 >(): SqlTextSupplierOptions<Context, EmitOptions> {
   return {
     sqlSuppliersDelimText: ";",
-    sqlSuppliersArrayEntryDelimText: "\n",
+    exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
@@ -372,7 +372,8 @@ export function SQL<
   return (literals, ...suppliedExprs) => {
     const {
       sqlSuppliersDelimText,
-      sqlSuppliersArrayEntryDelimText,
+      exprInArrayDelim = (_entry: unknown, isLast: boolean) =>
+        isLast ? "" : "\n",
       persistIndexer = { activeIndex: 0 },
       prepareEvents,
     } = stsOptions ?? {};
@@ -493,8 +494,9 @@ export function SQL<
         } else {
           interpolated += Deno.inspect(expr);
         }
-        if (inArray && !isLastArrayEntry) {
-          interpolated += sqlSuppliersArrayEntryDelimText;
+        if (inArray) {
+          const delim = exprInArrayDelim(expr, isLastArrayEntry ?? false);
+          if (delim && delim.length > 0) interpolated += delim;
         }
       };
 
