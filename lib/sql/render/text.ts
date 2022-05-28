@@ -346,11 +346,13 @@ export type SqlPartialExpression<
 export function SQL<
   Context,
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+  Expressions extends SqlPartialExpression<Context, EmitOptions> =
+    SqlPartialExpression<Context, EmitOptions>,
 >(
   stsOptions = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
 ): (
   literals: TemplateStringsArray,
-  ...expressions: SqlPartialExpression<Context, EmitOptions>[]
+  ...expressions: Expressions[]
 ) => SqlTextSupplier<Context, EmitOptions> & Partial<l.SqlLintIssuesSupplier> {
   const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
   const tmplLiteralLintIssues: l.SqlLintIssueSupplier[] = [];
