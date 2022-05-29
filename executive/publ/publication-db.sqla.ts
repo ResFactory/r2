@@ -9,18 +9,15 @@ export interface PubDbSqlAssemblerContext {
   readonly vdf: SQLa.ViewDefnFactory<PubDbSqlAssemblerContext>;
 }
 
-export function publDbSchema(ctx: PubDbSqlAssemblerContext) {
+export function publDbSchemaGovn(ctx: PubDbSqlAssemblerContext) {
   const { tdfs } = ctx;
 
-  const publHost = SQLa.typicalTableDefnDML<
-    { host: string; host_identity: unknown; mutation_count: number },
-    PubDbSqlAssemblerContext,
-    "publ_host"
-  >(ctx, "publ_host", ["host", "host_identity", "mutation_count"], tdfs)(
-    (
-      defineColumns,
-      { columnsFactory: cf, decoratorsFactory: df },
-    ) => {
+  const publHost = SQLa.typicalStaticTableDefn(ctx, "publ_host", [
+    "host",
+    "host_identity",
+    "mutation_count",
+  ], tdfs)(
+    (defineColumns, { columnsFactory: cf, decoratorsFactory: df }) => {
       defineColumns(
         cf.text("host"),
         cf.JSON("host_identity", { isNullable: true }),
@@ -28,13 +25,6 @@ export function publDbSchema(ctx: PubDbSqlAssemblerContext) {
       );
       df.unique("host");
     },
-  );
-  const publHostView = SQLa.tableDefnViewWrapper(
-    ctx,
-    publHost.tableDefn,
-    "publ_host_vw",
-    ctx.vdf,
-    { isIdempotent: true },
   );
 
   const publBuildEvent = SQLa.typicalStaticTableDefn(ctx, "publ_build_event", [
@@ -133,7 +123,7 @@ export function publDbSchema(ctx: PubDbSqlAssemblerContext) {
   );
 
   return {
-    publHost: { ...publHost, viewWrapper: publHostView },
+    publHost,
     publBuildEvent,
     publServerService,
     publServerStaticAccessLog,
@@ -146,7 +136,7 @@ export function publDbSQL() {
     tdfs: SQLa.sqliteTableDefnFactories(),
     vdf: SQLa.typicalSqlViewDefnFactory(),
   };
-  const schema = publDbSchema(ctx);
+  const schema = publDbSchemaGovn(ctx);
   const tablesDeclared = new Set<
     SQLa.TableDefinition<PubDbSqlAssemblerContext, Any, Any, Any>
   >();
@@ -198,11 +188,10 @@ export function publDbSQL() {
     PubDbSqlAssemblerContext
   >();
   const SQL = DDL.SQL(ctx, emitOptions);
-  const tsGovn = SQLa.tablesGovnTypescript(tablesDeclared, emitOptions)
-    .typescriptCode(
-      ctx,
-    );
-  return { SQL, tsGovn };
+  const tsGovn = SQLa.tablesGovnTypescript(tablesDeclared, ctx, emitOptions, {
+    origin: path.basename(path.fromFileUrl(import.meta.url)),
+  });
+  return { catalog, SQL, tsGovn };
 }
 
 export async function persistPublDbSqlAssets(

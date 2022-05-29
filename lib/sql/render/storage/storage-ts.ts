@@ -1,3 +1,4 @@
+import { path } from "../deps.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as govn from "./governance.ts";
 import * as t from "../template/mod.ts";
@@ -20,38 +21,25 @@ export interface TableTypeScriptDeps<Context>
 }
 
 export interface TableTypescriptDepsOptions<Context> {
-  readonly header?: string[];
   readonly tsSharedDeclarations?: Set<string>;
 }
 
 export function tableTypescriptDeps<Context>(
   tto?: TableTypescriptDepsOptions<Context>,
 ): TableTypeScriptDeps<Context> {
-  const typicalTypescriptHeader: string[] = [
-    "export type CamelCase<S extends string> = S extends",
-    "  `${infer P1}_${infer P2}${infer P3}`",
-    "  ? `${Lowercase<P1>}${Uppercase<P2>}${CamelCase<P3>}`",
-    "  : Lowercase<S>;",
-    "export type TableToObject<T> = {",
-    "  [K in keyof T as CamelCase<string & K>]: T[K] extends Date ? T[K]",
-    "    : // deno-lint-ignore ban-types",
-    "    (T[K] extends object ? TableToObject<T[K]> : T[K]);",
-    "};",
-  ];
-  if (tto?.header) typicalTypescriptHeader.unshift(...tto?.header.values());
+  const deps: string[] = [];
   if (tto?.tsSharedDeclarations) {
-    typicalTypescriptHeader.push(...tto?.tsSharedDeclarations.values());
+    deps.push("", ...tto?.tsSharedDeclarations.values());
   }
   return {
     typescriptCode: () => {
-      return typicalTypescriptHeader.join("\n");
+      return deps.join("\n");
     },
   };
 }
 
 // deno-lint-ignore no-empty-interface
-export interface TableTypescriptOptions<Context>
-  extends TypescriptCodeSupplier<Context> {
+export interface TableTypescriptOptions<Context> {
 }
 
 export interface TableTypescriptCodeSupplier<Context>
@@ -154,54 +142,93 @@ export function tableGovnTypescript<Context>(
       );
       // deno-fmt-ignore
       tsBody.push(uws(`
-        export const transform${tableTsToken} = {
+        export const transform${tableTsToken}: GovernedTable<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
           tableName: ${tableTsToken}TableName,
-          fromTable: (t: ${tableSqlName}): ${tableTsToken} => ({
-            ${columns.map(c => `${columnTsToken(c)}: t.${c.columnName}`).join(",\n            ")}
+          fromTable: (record) => ({
+            ${columns.map(c => `${columnTsToken(c)}: record.${c.columnName}`).join(",\n            ")}
           }),
-          toTable: (o: ${tableTsToken}): ${tableSqlName} => ({
+          toTable: (o) => ({
             ${columns.map(c => `${c.columnName}: o.${columnTsToken(c)}`).join(",\n            ")}
           }),
-          insertable: (o: ${tableTsToken}Insertable): ${tableSqlName}_insertable => {
+          insertable: (o) => {
             const insertable: mutable_${tableSqlName}_insertable = {
               ${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `${c.columnName}: o.${columnTsToken(c)}`).join(",\n              ")}
             };
             ${defaultedColumns.map(dc => `if(typeof insertable.${dc.columnName} === "undefined") delete insertable.${dc.columnName}; // allow RDBMS to supply the defaultValue ${s.isTableColumnDefaultValueSupplier(dc) ? dc.columnDdlDefault.SQL(ctx, steOptions) : ''}`).join("\n              ")}
             return insertable;
           },
+          prepareInsertStmt: () => typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}])
         };`));
       return tsBody.join("\n");
     },
   };
 }
 
-export function tablesGovnTypescript<Context>(
+export interface TablesTypescriptOptions<
+  Context,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
+> {
+  readonly tableTsOptions?: (
+    tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, EmitOptions>,
+  ) => TableTypescriptOptions<Context>;
+  readonly templateSrcPath?: (suggested: string) => string;
+  readonly origin?: string;
+}
+
+export function tablesGovnTypescript<
+  Context,
+  EmitOptions extends t.SqlTextEmitOptions<Context>,
+>(
   tableDefns: Iterable<
     govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
   >,
-  steOptions: t.SqlTextEmitOptions<Context>,
-  _tsOptions?: TableTypescriptOptions<Context>,
-): TypescriptCodeSupplier<Context> {
+  ctx: Context,
+  steOptions: EmitOptions,
+  tsOptions?: TablesTypescriptOptions<Context, EmitOptions>,
+): string {
+  const suggested = path.join(
+    path.dirname(path.fromFileUrl(import.meta.url)),
+    "storage-ts-template.ts",
+  );
+  let templateText = Deno.readTextFileSync(
+    tsOptions?.templateSrcPath?.(suggested) ?? suggested,
+  );
+
+  if (tsOptions?.origin) {
+    templateText = templateText.replaceAll(
+      "${TSTMPL_ORIGIN}",
+      tsOptions?.origin,
+    );
+  }
+
   const tsSharedDeclarations: string[] = [];
   const tsCode: TypescriptCodeSupplier<Context>[] = [];
 
   for (const tableDefn of tableDefns) {
-    const ts = tableGovnTypescript(tableDefn, steOptions, _tsOptions);
+    const ts = tableGovnTypescript(
+      tableDefn,
+      steOptions,
+      tsOptions?.tableTsOptions?.(tableDefn),
+    );
     if (ts.tsSharedDeclarations) {
       tsSharedDeclarations.push(...ts.tsSharedDeclarations);
     }
     tsCode.push(ts);
   }
   tsCode.unshift(tableTypescriptDeps({
-    header: [`// generated by storage-ts.ts. DO NOT EDIT.`, ""],
     tsSharedDeclarations: tsSharedDeclarations
       ? new Set<string>(tsSharedDeclarations.values())
       : undefined,
   }));
 
-  return {
-    typescriptCode: (ctx) => {
-      return tsCode.map((tsc) => tsc.typescriptCode(ctx)).join("\n\n");
-    },
-  };
+  /*
+   * Template should have this line in the text, which will get replaced with body:
+   *    // ${TSTMPL_BODY}
+   */
+  const body = tsCode.map((tsc) => tsc.typescriptCode(ctx)).join("\n\n");
+  if (tsOptions?.origin) {
+    templateText = templateText.replace(/\/\/ \${TSTMPL_BODY}.*$/m, body);
+  }
+
+  return templateText;
 }
