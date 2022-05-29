@@ -15,14 +15,18 @@ export interface TypescriptCodeSupplier<Context> {
 }
 
 // deno-lint-ignore no-empty-interface
-export interface TableTypeScriptDeps<Context> extends TypescriptCodeSupplier<Context> {
+export interface TableTypeScriptDeps<Context>
+  extends TypescriptCodeSupplier<Context> {
 }
 
 export interface TableTypescriptDepsOptions<Context> {
+  readonly header?: string[];
   readonly tsSharedDeclarations?: Set<string>;
 }
 
-export function tableTypescriptDeps<Context>(tto?: TableTypescriptDepsOptions<Context>): TableTypeScriptDeps<Context> {
+export function tableTypescriptDeps<Context>(
+  tto?: TableTypescriptDepsOptions<Context>,
+): TableTypeScriptDeps<Context> {
   const typicalTypescriptHeader: string[] = [
     "export type CamelCase<S extends string> = S extends",
     "  `${infer P1}_${infer P2}${infer P3}`",
@@ -34,23 +38,32 @@ export function tableTypescriptDeps<Context>(tto?: TableTypescriptDepsOptions<Co
     "    (T[K] extends object ? TableToObject<T[K]> : T[K]);",
     "};",
   ];
-  if (tto?.tsSharedDeclarations) typicalTypescriptHeader.push(...tto?.tsSharedDeclarations.values())
+  if (tto?.header) typicalTypescriptHeader.unshift(...tto?.header.values());
+  if (tto?.tsSharedDeclarations) {
+    typicalTypescriptHeader.push(...tto?.tsSharedDeclarations.values());
+  }
   return {
     typescriptCode: () => {
       return typicalTypescriptHeader.join("\n");
     },
-  }
+  };
 }
 
 // deno-lint-ignore no-empty-interface
-export interface TableTypescriptOptions<Context> extends TypescriptCodeSupplier<Context> {
+export interface TableTypescriptOptions<Context>
+  extends TypescriptCodeSupplier<Context> {
 }
 
-export interface TableTypescriptCodeSupplier<Context> extends TypescriptCodeSupplier<Context> {
+export interface TableTypescriptCodeSupplier<Context>
+  extends TypescriptCodeSupplier<Context> {
   readonly tsSharedDeclarations?: string[];
 }
 
-export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>, steOptions: t.SqlTextEmitOptions<Context>, _tsOptions?: TableTypescriptOptions<Context>): TableTypescriptCodeSupplier<Context> {
+export function tableTypescript<Context>(
+  tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>,
+  steOptions: t.SqlTextEmitOptions<Context>,
+  _tsOptions?: TableTypescriptOptions<Context>,
+): TableTypescriptCodeSupplier<Context> {
   const snakeToCamelCase = (str: string) =>
     str.replace(/([-_]\w)/g, (g) => g[1].toUpperCase());
 
@@ -62,7 +75,9 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
   let tsColumnDeclarations: string[] | undefined = undefined;
   for (const tCD of tableDefn.columns) {
     if (s.isTableColumnDataTypeSupplier(tCD) && tCD.tsType.tsCodeGenDeclare) {
-      tsColumnDeclarations = tsColumnDeclarations ? [...tsColumnDeclarations, ...tCD.tsType.tsCodeGenDeclare] : tCD.tsType.tsCodeGenDeclare
+      tsColumnDeclarations = tsColumnDeclarations
+        ? [...tsColumnDeclarations, ...tCD.tsType.tsCodeGenDeclare]
+        : tCD.tsType.tsCodeGenDeclare;
     }
   }
 
@@ -76,7 +91,8 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
       const tsBody: string[] = [];
       const tableSqlName = ns.tableName(tableDefn.tableName);
       const tableTsToken = snakeToPascalCase(tableDefn.tableName);
-      const columnTsToken = (cd: govn.TableColumnNameSupplier<govn.Any>) => snakeToCamelCase(cd.columnName)
+      const columnTsToken = (cd: govn.TableColumnNameSupplier<govn.Any>) =>
+        snakeToCamelCase(cd.columnName);
       tsBody.push(`export interface mutable_${tableSqlName} {`);
       for (const tCD of tableDefn.columns) {
         if (s.isTableColumnDataTypeSupplier(tCD)) {
@@ -85,7 +101,9 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
             columnName: tCD.columnName,
           });
           const sqlDataType = tCD.sqlDataType.SQL(ctx, steOptions);
-          const isPrimaryKey = s.isTableColumnPrimaryKeySupplier(tCD) ? tCD.isPrimaryKey : false;
+          const isPrimaryKey = s.isTableColumnPrimaryKeySupplier(tCD)
+            ? tCD.isPrimaryKey
+            : false;
           const isColValueRequired = s.isTableColumnNullabilitySupplier(tCD)
             ? tCD.isNullable ? false : true
             : false;
@@ -96,7 +114,9 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
           const remarks = [sqlDataType];
           if (isColValueRequired) remarks.push("NOT NULL");
           if (s.isTableColumnForeignKeySupplier(tCD)) {
-            remarks.push(`FK: ${tCD.foreignKey.tableDefn.tableName}.${tCD.foreignKey.tableColumnDefn.columnName}`)
+            remarks.push(
+              `FK: ${tCD.foreignKey.tableDefn.tableName}.${tCD.foreignKey.tableColumnDefn.columnName}`,
+            );
           }
           if (isPrimaryKey) {
             remarks.push("primary key");
@@ -152,5 +172,36 @@ export function tableTypescript<Context>(tableDefn: govn.TableDefinition<Context
         };`));
       return tsBody.join("\n");
     },
+  };
+}
+
+export function tablesTypescript<Context>(
+  tableDefns: Iterable<
+    govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
+  >,
+  steOptions: t.SqlTextEmitOptions<Context>,
+  _tsOptions?: TableTypescriptOptions<Context>,
+): TypescriptCodeSupplier<Context> {
+  const tsSharedDeclarations: string[] = [];
+  const tsCode: TypescriptCodeSupplier<Context>[] = [];
+
+  for (const tableDefn of tableDefns) {
+    const ts = tableTypescript(tableDefn, steOptions, _tsOptions);
+    if (ts.tsSharedDeclarations) {
+      tsSharedDeclarations.push(...ts.tsSharedDeclarations);
+    }
+    tsCode.push(ts);
   }
+  tsCode.unshift(tableTypescriptDeps({
+    header: [`// generated by storage-ts.ts. DO NOT EDIT.`, ""],
+    tsSharedDeclarations: tsSharedDeclarations
+      ? new Set<string>(tsSharedDeclarations.values())
+      : undefined,
+  }));
+
+  return {
+    typescriptCode: (ctx) => {
+      return tsCode.map((tsc) => tsc.typescriptCode(ctx)).join("\n\n");
+    },
+  };
 }

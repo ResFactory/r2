@@ -82,7 +82,9 @@ Deno.test("Typescript generator", async (tc) => {
 
   await tc.step("dependencies", () => {
     ta.assertEquals(
-      mod.tableTypescriptDeps({ tsSharedDeclarations: new Set([`export type UnknownJSON = string;`]) }).typescriptCode(ctx),
+      mod.tableTypescriptDeps({
+        tsSharedDeclarations: new Set([`export type UnknownJSON = string;`]),
+      }).typescriptCode(ctx),
       uws(`
         export type CamelCase<S extends string> = S extends
           \`\${infer P1}_\${infer P2}\${infer P3}\`
@@ -99,7 +101,8 @@ Deno.test("Typescript generator", async (tc) => {
 
   await tc.step("table.ts", () => {
     ta.assertEquals(
-      mod.tableTypescript(syntheticTD.publHost.tableDefn, emitOptions).typescriptCode(ctx),
+      mod.tableTypescript(syntheticTD.publHost.tableDefn, emitOptions)
+        .typescriptCode(ctx),
       uws(`
         export interface mutable_publ_host {
           publ_host_id: number; // INTEGER, NOT NULL, primary key
@@ -153,7 +156,8 @@ Deno.test("Typescript generator", async (tc) => {
     // const tts = mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions);
     // Deno.writeTextFileSync("test.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions).typescriptCode(ctx))
     ta.assertEquals(
-      mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions).typescriptCode(ctx),
+      mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions)
+        .typescriptCode(ctx),
       uws(`
         export interface mutable_publ_build_event {
           publ_build_event_id: number; // INTEGER, NOT NULL, primary key
