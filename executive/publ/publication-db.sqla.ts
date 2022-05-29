@@ -198,10 +198,11 @@ export function publDbSQL() {
     PubDbSqlAssemblerContext
   >();
   const SQL = DDL.SQL(ctx, emitOptions);
-  const TS = SQLa.tablesTypescript(tablesDeclared, emitOptions).typescriptCode(
-    ctx,
-  );
-  return { SQL, TS };
+  const tsGovn = SQLa.tablesGovnTypescript(tablesDeclared, emitOptions)
+    .typescriptCode(
+      ctx,
+    );
+  return { SQL, tsGovn };
 }
 
 export async function persistPublDbSqlAssets(
@@ -213,24 +214,18 @@ export async function persistPublDbSqlAssets(
     baseNamePrefix = thisFile.name.replace(/\.[^/.]+$/, ""),
   } = options ??
     {};
-  const { SQL, TS } = publDbSQL();
+  const { SQL, tsGovn } = publDbSQL();
   const sqlDestPath = path.join(destPath, `${baseNamePrefix}.auto.sql`);
-  const tsDestPath = path.join(destPath, `${baseNamePrefix}.auto.ts`);
-  await Deno.writeTextFile(
-    path.join(destPath, `${baseNamePrefix}.auto.sql`),
-    SQL,
-  );
-  await Deno.writeTextFile(
-    path.join(destPath, `${baseNamePrefix}.auto.ts`),
-    TS,
-  );
-  await Deno.run({ cmd: [Deno.execPath(), "fmt", tsDestPath] })
+  const tsGovnDestPath = path.join(destPath, `${baseNamePrefix}.auto.govn.ts`);
+  await Deno.writeTextFile(sqlDestPath, SQL);
+  await Deno.writeTextFile(tsGovnDestPath, tsGovn);
+  await Deno.run({ cmd: [Deno.execPath(), "fmt", tsGovnDestPath] })
     .status();
   return {
     sqlDestPath,
-    tsDestPath,
+    tsGovnDestPath,
     SQL,
-    TS,
+    tsGovn,
   };
 }
 

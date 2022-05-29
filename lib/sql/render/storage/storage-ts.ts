@@ -59,7 +59,7 @@ export interface TableTypescriptCodeSupplier<Context>
   readonly tsSharedDeclarations?: string[];
 }
 
-export function tableTypescript<Context>(
+export function tableGovnTypescript<Context>(
   tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>,
   steOptions: t.SqlTextEmitOptions<Context>,
   _tsOptions?: TableTypescriptOptions<Context>,
@@ -175,7 +175,7 @@ export function tableTypescript<Context>(
   };
 }
 
-export function tablesTypescript<Context>(
+export function tablesGovnTypescript<Context>(
   tableDefns: Iterable<
     govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
   >,
@@ -186,7 +186,7 @@ export function tablesTypescript<Context>(
   const tsCode: TypescriptCodeSupplier<Context>[] = [];
 
   for (const tableDefn of tableDefns) {
-    const ts = tableTypescript(tableDefn, steOptions, _tsOptions);
+    const ts = tableGovnTypescript(tableDefn, steOptions, _tsOptions);
     if (ts.tsSharedDeclarations) {
       tsSharedDeclarations.push(...ts.tsSharedDeclarations);
     }
