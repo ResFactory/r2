@@ -1,30 +1,16 @@
 import * as t from "../../lib/task/core.ts";
-import * as ssts from "../../lib/sqlite/schema-ts.ts";
+import * as pdb from "./publication-db.sqla.ts";
 
 export class Tasks extends t.EventEmitter<{
   help(): void;
-  generateDbSchemaTs(): void;
+  generateDbSchemaAssets(): void;
 }> {
   constructor() {
     super();
     // this is ugly but necessary due to events.EventEmitter making _events_ private :-(
     this.on("help", t.eeHelpTask(this));
-    this.on("generateDbSchemaTs", () => {
-      const tmpDB = "Taskfile.sqlite.db";
-      ssts.sqliteSchemaTypescript(
-        tmpDB,
-        async (db) => {
-          db.execute(await Deno.readTextFile(`publication-db-schema.sql`));
-        },
-        async (db, tsSourceCode) => {
-          db.close();
-          const generatedCodeFile = "publication-db-schema.auto.ts";
-          await Deno.writeTextFile(generatedCodeFile, tsSourceCode);
-          await Deno.run({ cmd: [Deno.execPath(), "fmt", generatedCodeFile] })
-            .status();
-          Deno.remove(tmpDB);
-        },
-      );
+    this.on("generateDbSchemaAssets", async () => {
+      await pdb.persistPublDbSqlAssets();
     });
   }
 }

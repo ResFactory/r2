@@ -7,7 +7,7 @@ import * as sql from "../../lib/sql/mod.ts";
 import * as server from "./server/server.ts";
 import * as publ from "./publication.ts";
 import * as psDB from "./publication-db.ts";
-import * as psds from "./publication-db-schema.auto.ts";
+import * as psds from "./publication-db.auto.ts";
 
 declare global {
   function touchWatchedSemaphoreFile(): Promise<void>;
@@ -20,16 +20,16 @@ export type ExecutiveControllerCleanupNature =
 
 export interface ExecutiveControllerCleanupContext<
   OperationalCtx extends publ.PublicationOperationalContext,
-> {
+  > {
   readonly nature: ExecutiveControllerCleanupNature;
   readonly controller: ExecutiveController<OperationalCtx>;
 }
 
 export class ExecutiveControllerEventsEmitter<
   OperationalCtx extends publ.PublicationOperationalContext,
-> extends events.EventEmitter<{
-  cleanup(ec: ExecutiveControllerCleanupContext<OperationalCtx>): Promise<void>;
-}> {}
+  > extends events.EventEmitter<{
+    cleanup(ec: ExecutiveControllerCleanupContext<OperationalCtx>): Promise<void>;
+  }> { }
 
 export interface ExecutiveControllerHomePathSupplier {
   (relative: string, abs?: boolean): string;
@@ -37,7 +37,7 @@ export interface ExecutiveControllerHomePathSupplier {
 
 export interface ExecutiveController<
   OperationalCtx extends publ.PublicationOperationalContext,
-> {
+  > {
   readonly events: ExecutiveControllerEventsEmitter<OperationalCtx>;
   readonly operationalCtx: OperationalCtx;
   readonly serverOptions: server.PublicationServerOptions;
@@ -47,13 +47,13 @@ export interface ExecutiveController<
 
 export interface ExecutiveControllerSupplier<
   OperationalCtx extends publ.PublicationOperationalContext,
-> {
+  > {
   (): Promise<ExecutiveController<OperationalCtx>>;
 }
 
 export class Executive<
   OperationalCtx extends publ.PublicationOperationalContext,
-> {
+  > {
   constructor(
     readonly controller: ExecutiveController<OperationalCtx>,
     readonly publications: publ.Publication<OperationalCtx>[],
@@ -118,7 +118,7 @@ export class Executive<
               this.publication.state.persistedIndex.persistedDestFiles.size,
             resourcesMemoizedCount: this.publication.config.memoizeProducers
               ? publication.state.resourcesIndex.memoizedProducers.size
-              : undefined,
+              : 0,
           };
           await db.persistBuildEvent(be);
           // deno-fmt-ignore
@@ -129,25 +129,20 @@ export class Executive<
           console.info(`Publication: ${colors.green(be.resourcesOriginatedCount.toString())} resources, ${colors.green(be.resourcesPersistedCount.toString())} persisted${be.resourcesMemoizedCount ? `, ${colors.green(be.resourcesMemoizedCount.toString())} memoized` : ''}`);
           const mem = Deno.memoryUsage();
           console.info(
-            `     Memory: ${colors.gray("rss")} ${
-              human.humanFriendlyBytes(mem.rss)
-            } ${colors.gray("heapTotal")} ${
-              human.humanFriendlyBytes(mem.heapTotal)
-            } ${colors.gray("heapUsed")}: ${
-              human.humanFriendlyBytes(mem.heapUsed)
-            } ${colors.gray("external")}: ${
-              human.humanFriendlyBytes(mem.external)
+            `     Memory: ${colors.gray("rss")} ${human.humanFriendlyBytes(mem.rss)
+            } ${colors.gray("heapTotal")} ${human.humanFriendlyBytes(mem.heapTotal)
+            } ${colors.gray("heapUsed")}: ${human.humanFriendlyBytes(mem.heapUsed)
+            } ${colors.gray("external")}: ${human.humanFriendlyBytes(mem.external)
             }`,
           );
           // deno-fmt-ignore
           console.info(`   Database: ${colors.yellow(this.publication.config.operationalCtx.publStateDbLocation?.(true) || "none")}`);
           console.info(
-            ` resFactory: ${
-              colors.blue(
-                this.publication.config.operationalCtx.resFactoryRootPath?.(
-                  "",
-                ) || "unable to determine, use RF_HOME env var",
-              )
+            ` resFactory: ${colors.blue(
+              this.publication.config.operationalCtx.resFactoryRootPath?.(
+                "",
+              ) || "unable to determine, use RF_HOME env var",
+            )
             }`,
           );
           const serviceStartedAt = new Date();
@@ -216,26 +211,26 @@ export class Executive<
 
 export function typicalPublicationCtlSupplier<
   OperationalCtx extends publ.PublicationOperationalContext,
->(
-  modulePath: ExecutiveControllerHomePathSupplier,
-  enhanceOC: (
-    supplied: publ.PublicationOperationalContext,
+  >(
     modulePath: ExecutiveControllerHomePathSupplier,
-  ) => OperationalCtx,
-  options?: {
-    resFactoryPath?: ExecutiveControllerHomePathSupplier;
-    readonly events?: ExecutiveControllerEventsEmitter<
-      OperationalCtx
-    >;
-    readonly pubCtlEnvVarsPrefix?: string;
-    readonly isExperimentalOperationalCtx?: (guess: boolean) => boolean;
-    readonly isLiveReloadRequest?: (
-      guess: boolean,
-      isExperimentalOperationalCtx: boolean,
-    ) => boolean;
-    readonly autoCleanupOnUnload?: boolean;
-    readonly exitOnCtrlC?: boolean;
-  },
+    enhanceOC: (
+      supplied: publ.PublicationOperationalContext,
+      modulePath: ExecutiveControllerHomePathSupplier,
+    ) => OperationalCtx,
+    options?: {
+      resFactoryPath?: ExecutiveControllerHomePathSupplier;
+      readonly events?: ExecutiveControllerEventsEmitter<
+        OperationalCtx
+      >;
+      readonly pubCtlEnvVarsPrefix?: string;
+      readonly isExperimentalOperationalCtx?: (guess: boolean) => boolean;
+      readonly isLiveReloadRequest?: (
+        guess: boolean,
+        isExperimentalOperationalCtx: boolean,
+      ) => boolean;
+      readonly autoCleanupOnUnload?: boolean;
+      readonly exitOnCtrlC?: boolean;
+    },
 ): ExecutiveControllerSupplier<OperationalCtx> {
   const events = options?.events || new ExecutiveControllerEventsEmitter();
   const pubCtlEnvVarsPrefix = options?.pubCtlEnvVarsPrefix || "PUBCTL_";
@@ -289,10 +284,10 @@ export function typicalPublicationCtlSupplier<
     );
     const listenHostname =
       Deno.env.get(`${serverListenEnvVarsPrefix}LISTEN_HOSTNAME`) ??
-        "0.0.0.0";
+      "0.0.0.0";
     const publicUrlLocation =
       Deno.env.get(`${serverListenEnvVarsPrefix}PUBLIC_URL_LOCATION`) ??
-        `http://${listenHostname}:${listenPort}`;
+      `http://${listenHostname}:${listenPort}`;
 
     const badgenRemoteBaseURL = Deno.env.get(
       "RF_UNIVERSAL_BADGEN_REMOTE_BASE_URL",

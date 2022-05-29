@@ -2,7 +2,7 @@ import { path } from "../../core/deps.ts";
 import * as sql from "../../lib/sql/mod.ts";
 import * as sqlite from "../../lib/sqlite/mod.ts";
 import * as s from "./server/middleware/static.ts";
-import * as pdbs from "./publication-db-schema.auto.ts";
+import * as pdbs from "./publication-db.auto.ts";
 
 const moduleHome = path.dirname(path.fromFileUrl(import.meta.url));
 
@@ -17,7 +17,7 @@ export class PublicationDatabase
     this.dbee.on("constructStorage", async () => {
       this.dbStore.execute(
         Deno.readTextFileSync(
-          path.join(moduleHome, "publication-db-schema.sql"),
+          path.join(moduleHome, "publication-db.auto.sql"),
         ),
       );
     });
@@ -31,9 +31,8 @@ export class PublicationDatabase
         "publ_host",
         {
           insertSQL: (suggestedSQL, values, names) => {
-            return `${
-              suggestedSQL(names, values)
-            } ON CONFLICT(host) DO UPDATE SET mutation_count=mutation_count+1`;
+            return `${suggestedSQL(names, values)
+              } ON CONFLICT(host) DO UPDATE SET mutation_count=mutation_count+1`;
           },
           // we supply our own SQL; in case of ON CONFLICT the insert won't occur
           // so the normal last_insert_rowid() won't work
