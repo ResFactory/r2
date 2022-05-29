@@ -22,7 +22,7 @@ export interface SqlTextSupplier<
   Context,
   EmitOptions extends SqlTextEmitOptions<Context>,
 > {
-  readonly SQL: (ctx: Context, options: EmitOptions) => string;
+  readonly SQL: (ctx?: Context, options?: EmitOptions) => string;
 }
 
 export interface InsertStmtPreparer<
@@ -34,10 +34,10 @@ export interface InsertStmtPreparer<
   (ir: InsertableRecord, options?: {
     readonly emitColumn?: (
       columnName: keyof InsertableRecord,
-      eo: EmitOptions,
       record: InsertableRecord,
       tableName: TableName,
-      ctx: Context,
+      eo?: EmitOptions,
+      ctx?: Context,
     ) =>
       | [columNameSqlText: string, value: unknown, valueSqlText: string]
       | undefined;
@@ -47,7 +47,8 @@ export interface InsertStmtPreparer<
       record: InsertableRecord,
       names: (keyof InsertableRecord)[],
       values: [value: unknown, sqlText: string][],
-      ctx: Context,
+      eo?: EmitOptions,
+      ctx?: Context,
     ) => string;
   }): SqlTextSupplier<Context, EmitOptions>;
 }
@@ -75,9 +76,10 @@ export function typicalInsertStmtPreparer<
             valueSqlText: string,
           ] | undefined;
           if (emitColumn) {
-            ec = emitColumn(c, eo, ir, tableName, ctx);
+            ec = emitColumn(c, ir, tableName, eo, ctx);
           } else {
-            const qValue = eo.quotedLiteral((ir as Any)[c]);
+            const { quotedLiteral = typicalQuotedLiteral } = eo ?? {};
+            const qValue = quotedLiteral((ir as Any)[c]);
             ec = [c as string, ...qValue];
           }
           if (ec) {
@@ -96,6 +98,7 @@ export function typicalInsertStmtPreparer<
             ir,
             names,
             values,
+            eo,
             ctx,
           )
           : SQL;
@@ -637,17 +640,21 @@ export function publServerErrorLogDML<
   };
 }
 
+export const typicalQuotedLiteral = (
+  value: unknown,
+): [value: unknown, quoted: string] => {
+  if (typeof value === "undefined") return [value, "NULL"];
+  if (typeof value === "string") {
+    return [value, `'${value.replaceAll("'", "''")}'`];
+  }
+  return [value, String(value)];
+};
+
 export function typicalSqlEmitOptions<Context>(
   inherit?: SqlTextEmitOptions<Context>,
 ): SqlTextEmitOptions<Context> {
   return {
-    quotedLiteral: (value: unknown): [value: unknown, quoted: string] => {
-      if (typeof value === "undefined") return [value, "NULL"];
-      if (typeof value === "string") {
-        return [value, `'${value.replaceAll("'", "''")}'`];
-      }
-      return [value, String(value)];
-    },
+    quotedLiteral: typicalQuotedLiteral,
     ...inherit,
   };
 }
