@@ -123,6 +123,8 @@ export function tableGovnTypescript<Context>(
       }
       const omitInsertables = [...pkColumns, ...defaultedColumns];
       const omitUpdatables = omitInsertables;
+      const tableTsTokenCC = tableTsToken.charAt(0).toLowerCase() +
+        tableTsToken.slice(1);
       tsBody.push(`}\n`);
       tsBody.push(
         `export const ${tableTsToken}TableName = "${tableSqlName}" as const;`,
@@ -142,7 +144,7 @@ export function tableGovnTypescript<Context>(
       );
       // deno-fmt-ignore
       tsBody.push(uws(`
-        export const transform${tableTsToken}: GovernedTable<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
+        export const transform${tableTsToken}: TableDataTransferSuppliers<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
           tableName: ${tableTsToken}TableName,
           fromTable: (record) => ({
             ${columns.map(c => `${columnTsToken(c)}: record.${c.columnName}`).join(",\n            ")}
@@ -157,7 +159,13 @@ export function tableGovnTypescript<Context>(
             ${defaultedColumns.map(dc => `if(typeof insertable.${dc.columnName} === "undefined") delete insertable.${dc.columnName}; // allow RDBMS to supply the defaultValue ${s.isTableColumnDefaultValueSupplier(dc) ? dc.columnDdlDefault.SQL(ctx, steOptions) : ''}`).join("\n              ")}
             return insertable;
           },
-          prepareInsertStmt: () => typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}])
+        };
+
+        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${tableSqlName}_insertable, EmitOptions> {
+          return {
+            tableName: ${tableTsToken}TableName,
+            prepareInsertStmt: typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}])
+          }
         };`));
       return tsBody.join("\n");
     },

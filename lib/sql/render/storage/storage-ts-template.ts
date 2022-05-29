@@ -104,22 +104,33 @@ export function typicalInsertStmtPreparer<
   };
 }
 
-export interface GovernedTable<
+export interface GovernedTable<TableName> {
+  readonly tableName: TableName;
+}
+
+export interface TableDataTransferSuppliers<
   TableName,
   TableRecord,
   TsObject,
   InsertableRecord,
   InsertableObject,
-> {
-  readonly tableName: TableName;
+> extends GovernedTable<TableName> {
   readonly fromTable: (t: TableRecord) => TsObject;
   readonly toTable: (o: TsObject) => TableRecord;
   readonly insertable: (o: InsertableObject) => InsertableRecord;
-  readonly prepareInsertStmt: <Context>() => InsertStmtPreparer<
+}
+
+export interface TableDmlSuppliers<
+  Context,
+  TableName,
+  InsertableRecord,
+  EmitOptions extends SqlTextEmitOptions<Context>,
+> extends GovernedTable<TableName> {
+  readonly prepareInsertStmt: InsertStmtPreparer<
     Context,
     TableName,
     InsertableRecord,
-    SqlTextEmitOptions<Context>
+    EmitOptions
   >;
 }
 

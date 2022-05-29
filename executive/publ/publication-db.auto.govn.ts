@@ -104,22 +104,33 @@ export function typicalInsertStmtPreparer<
   };
 }
 
-export interface GovernedTable<
+export interface GovernedTable<TableName> {
+  readonly tableName: TableName;
+}
+
+export interface TableDataTransferSuppliers<
   TableName,
   TableRecord,
   TsObject,
   InsertableRecord,
   InsertableObject,
-> {
-  readonly tableName: TableName;
+> extends GovernedTable<TableName> {
   readonly fromTable: (t: TableRecord) => TsObject;
   readonly toTable: (o: TsObject) => TableRecord;
   readonly insertable: (o: InsertableObject) => InsertableRecord;
-  readonly prepareInsertStmt: <Context>() => InsertStmtPreparer<
+}
+
+export interface TableDmlSuppliers<
+  Context,
+  TableName,
+  InsertableRecord,
+  EmitOptions extends SqlTextEmitOptions<Context>,
+> extends GovernedTable<TableName> {
+  readonly prepareInsertStmt: InsertStmtPreparer<
     Context,
     TableName,
     InsertableRecord,
-    SqlTextEmitOptions<Context>
+    EmitOptions
   >;
 }
 
@@ -153,7 +164,7 @@ export type PublHostUpdatable =
   & Omit<PublHost, "publHostId" | "createdAt">
   & Partial<Pick<PublHost, "createdAt">>;
 
-export const transformPublHost: GovernedTable<
+export const transformPublHost: TableDataTransferSuppliers<
   typeof PublHostTableName,
   publ_host,
   PublHost,
@@ -187,14 +198,27 @@ export const transformPublHost: GovernedTable<
     }
     return insertable;
   },
-  prepareInsertStmt: () =>
-    typicalInsertStmtPreparer(PublHostTableName, [
+};
+
+export function publHostDML<
+  Context = unknown,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+>(): TableDmlSuppliers<
+  Context,
+  typeof PublHostTableName,
+  publ_host_insertable,
+  EmitOptions
+> {
+  return {
+    tableName: PublHostTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, [
       "host",
       "host_identity",
       "mutation_count",
       "created_at",
     ]),
-};
+  };
+}
 
 export interface mutable_publ_build_event {
   publ_build_event_id: number; // INTEGER, NOT NULL, primary key
@@ -229,7 +253,7 @@ export type PublBuildEventUpdatable =
   & Omit<PublBuildEvent, "publBuildEventId" | "createdAt">
   & Partial<Pick<PublBuildEvent, "createdAt">>;
 
-export const transformPublBuildEvent: GovernedTable<
+export const transformPublBuildEvent: TableDataTransferSuppliers<
   typeof PublBuildEventTableName,
   publ_build_event,
   PublBuildEvent,
@@ -278,8 +302,20 @@ export const transformPublBuildEvent: GovernedTable<
     }
     return insertable;
   },
-  prepareInsertStmt: () =>
-    typicalInsertStmtPreparer(PublBuildEventTableName, [
+};
+
+export function publBuildEventDML<
+  Context = unknown,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+>(): TableDmlSuppliers<
+  Context,
+  typeof PublBuildEventTableName,
+  publ_build_event_insertable,
+  EmitOptions
+> {
+  return {
+    tableName: PublBuildEventTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, [
       "publ_host_id",
       "iteration_index",
       "build_initiated_at",
@@ -290,7 +326,8 @@ export const transformPublBuildEvent: GovernedTable<
       "resources_memoized_count",
       "created_at",
     ]),
-};
+  };
+}
 
 export interface mutable_publ_server_service {
   publ_server_service_id: number; // INTEGER, NOT NULL, primary key
@@ -324,7 +361,7 @@ export type PublServerServiceUpdatable =
   & Omit<PublServerService, "publServerServiceId" | "createdAt">
   & Partial<Pick<PublServerService, "createdAt">>;
 
-export const transformPublServerService: GovernedTable<
+export const transformPublServerService: TableDataTransferSuppliers<
   typeof PublServerServiceTableName,
   publ_server_service,
   PublServerService,
@@ -364,8 +401,20 @@ export const transformPublServerService: GovernedTable<
     }
     return insertable;
   },
-  prepareInsertStmt: () =>
-    typicalInsertStmtPreparer(PublServerServiceTableName, [
+};
+
+export function publServerServiceDML<
+  Context = unknown,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+>(): TableDmlSuppliers<
+  Context,
+  typeof PublServerServiceTableName,
+  publ_server_service_insertable,
+  EmitOptions
+> {
+  return {
+    tableName: PublServerServiceTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(PublServerServiceTableName, [
       "service_started_at",
       "listen_host",
       "listen_port",
@@ -373,7 +422,8 @@ export const transformPublServerService: GovernedTable<
       "publ_build_event_id",
       "created_at",
     ]),
-};
+  };
+}
 
 export interface mutable_publ_server_static_access_log {
   publ_server_static_access_log_id: number; // INTEGER, NOT NULL, primary key
@@ -422,7 +472,7 @@ export type PublServerStaticAccessLogUpdatable =
   & Omit<PublServerStaticAccessLog, "publServerStaticAccessLogId" | "createdAt">
   & Partial<Pick<PublServerStaticAccessLog, "createdAt">>;
 
-export const transformPublServerStaticAccessLog: GovernedTable<
+export const transformPublServerStaticAccessLog: TableDataTransferSuppliers<
   typeof PublServerStaticAccessLogTableName,
   publ_server_static_access_log,
   PublServerStaticAccessLog,
@@ -465,17 +515,33 @@ export const transformPublServerStaticAccessLog: GovernedTable<
     }
     return insertable;
   },
-  prepareInsertStmt: () =>
-    typicalInsertStmtPreparer(PublServerStaticAccessLogTableName, [
-      "status",
-      "asset_nature",
-      "location_href",
-      "filesys_target_path",
-      "filesys_target_symlink",
-      "publ_server_service_id",
-      "created_at",
-    ]),
 };
+
+export function publServerStaticAccessLogDML<
+  Context = unknown,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+>(): TableDmlSuppliers<
+  Context,
+  typeof PublServerStaticAccessLogTableName,
+  publ_server_static_access_log_insertable,
+  EmitOptions
+> {
+  return {
+    tableName: PublServerStaticAccessLogTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(
+      PublServerStaticAccessLogTableName,
+      [
+        "status",
+        "asset_nature",
+        "location_href",
+        "filesys_target_path",
+        "filesys_target_symlink",
+        "publ_server_service_id",
+        "created_at",
+      ],
+    ),
+  };
+}
 
 export interface mutable_publ_server_error_log {
   publ_server_error_log_id: number; // INTEGER, NOT NULL, primary key
@@ -511,7 +577,7 @@ export type PublServerErrorLogUpdatable =
   & Omit<PublServerErrorLog, "publServerErrorLogId" | "createdAt">
   & Partial<Pick<PublServerErrorLog, "createdAt">>;
 
-export const transformPublServerErrorLog: GovernedTable<
+export const transformPublServerErrorLog: TableDataTransferSuppliers<
   typeof PublServerErrorLogTableName,
   publ_server_error_log,
   PublServerErrorLog,
@@ -548,15 +614,28 @@ export const transformPublServerErrorLog: GovernedTable<
     }
     return insertable;
   },
-  prepareInsertStmt: () =>
-    typicalInsertStmtPreparer(PublServerErrorLogTableName, [
+};
+
+export function publServerErrorLogDML<
+  Context = unknown,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+>(): TableDmlSuppliers<
+  Context,
+  typeof PublServerErrorLogTableName,
+  publ_server_error_log_insertable,
+  EmitOptions
+> {
+  return {
+    tableName: PublServerErrorLogTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(PublServerErrorLogTableName, [
       "location_href",
       "error_summary",
       "error_elaboration",
       "publ_server_service_id",
       "created_at",
     ]),
-};
+  };
+}
 
 export function typicalSqlEmitOptions<Context>(
   inherit?: SqlTextEmitOptions<Context>,
