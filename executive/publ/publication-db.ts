@@ -43,7 +43,7 @@ export class PublicationDatabase
             }];
           },
           transformInserted: (record) =>
-            pdbs.transformPublHost.fromTable(
+            pdbs.publHostDT.fromTable(
               record as unknown as pdbs.mutable_publ_host,
             ),
         },
@@ -86,16 +86,16 @@ export class PublicationDatabase
     }
 
     const insert: pdbs.publ_build_event_insertable = pdbs
-      .transformPublBuildEvent.insertable({
+      .publBuildEventDT.insertable({
         ...pbe,
         publHostId: this.activeHost.publHostId,
       });
     this.activeBuildEvent = await this.insertedRecord<
       pdbs.publ_build_event_insertable,
       pdbs.PublBuildEvent
-    >(insert, pdbs.transformPublBuildEvent.tableName, {
+    >(insert, pdbs.publBuildEventDT.tableName, {
       transformInserted: (record) =>
-        pdbs.transformPublBuildEvent.fromTable(
+        pdbs.publBuildEventDT.fromTable(
           record as unknown as pdbs.mutable_publ_build_event,
         ),
       onNotInserted: (insert, _names, _SQL, insertErr) => {
@@ -118,16 +118,16 @@ export class PublicationDatabase
     }
 
     const insert: pdbs.publ_server_service_insertable = pdbs
-      .transformPublServerService.insertable({
+      .publServerServiceDT.insertable({
         ...ss,
         publBuildEventId: this.activeBuildEvent.publBuildEventId,
       });
     this.activeServerService = await this.insertedRecord<
       pdbs.publ_server_service_insertable,
       pdbs.PublServerService
-    >(insert, pdbs.transformPublServerService.tableName, {
+    >(insert, pdbs.publServerServiceDT.tableName, {
       transformInserted: (record) =>
-        pdbs.transformPublServerService.fromTable(
+        pdbs.publServerServiceDT.fromTable(
           record as unknown as pdbs.mutable_publ_server_service,
         ),
       onNotInserted: (insert, _names, _SQL, insertErr) => {
@@ -150,16 +150,16 @@ export class PublicationDatabase
     }
 
     const insert: pdbs.publ_server_error_log_insertable = pdbs
-      .transformPublServerErrorLog.insertable({
+      .publServerErrorLogDT.insertable({
         ...err,
         publServerServiceId: this.activeServerService.publServerServiceId,
       });
     const logged = await this.insertedRecord<
       pdbs.publ_server_error_log_insertable,
       pdbs.PublServerErrorLog
-    >(insert, pdbs.transformPublServerErrorLog.tableName, {
+    >(insert, pdbs.publServerErrorLogDT.tableName, {
       transformInserted: (record) =>
-        pdbs.transformPublServerErrorLog.fromTable(
+        pdbs.publServerErrorLogDT.fromTable(
           record as unknown as pdbs.publ_server_error_log,
         ),
       onNotInserted: (insert, _names, _SQL, insertErr) => {
@@ -168,6 +168,6 @@ export class PublicationDatabase
         return undefined;
       },
     });
-    return { tableName: pdbs.transformPublServerErrorLog.tableName, logged };
+    return { tableName: pdbs.publServerErrorLogDT.tableName, logged };
   }
 }

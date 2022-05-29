@@ -167,7 +167,7 @@ export type PublHostUpdatable =
   & Omit<PublHost, "publHostId" | "createdAt">
   & Partial<Pick<PublHost, "createdAt">>;
 
-export const transformPublHost: TableDataTransferSuppliers<
+export const publHostDT: TableDataTransferSuppliers<
   typeof PublHostTableName,
   publ_host,
   PublHost,
@@ -256,7 +256,7 @@ export type PublBuildEventUpdatable =
   & Omit<PublBuildEvent, "publBuildEventId" | "createdAt">
   & Partial<Pick<PublBuildEvent, "createdAt">>;
 
-export const transformPublBuildEvent: TableDataTransferSuppliers<
+export const publBuildEventDT: TableDataTransferSuppliers<
   typeof PublBuildEventTableName,
   publ_build_event,
   PublBuildEvent,
@@ -364,7 +364,7 @@ export type PublServerServiceUpdatable =
   & Omit<PublServerService, "publServerServiceId" | "createdAt">
   & Partial<Pick<PublServerService, "createdAt">>;
 
-export const transformPublServerService: TableDataTransferSuppliers<
+export const publServerServiceDT: TableDataTransferSuppliers<
   typeof PublServerServiceTableName,
   publ_server_service,
   PublServerService,
@@ -475,7 +475,7 @@ export type PublServerStaticAccessLogUpdatable =
   & Omit<PublServerStaticAccessLog, "publServerStaticAccessLogId" | "createdAt">
   & Partial<Pick<PublServerStaticAccessLog, "createdAt">>;
 
-export const transformPublServerStaticAccessLog: TableDataTransferSuppliers<
+export const publServerStaticAccessLogDT: TableDataTransferSuppliers<
   typeof PublServerStaticAccessLogTableName,
   publ_server_static_access_log,
   PublServerStaticAccessLog,
@@ -580,7 +580,7 @@ export type PublServerErrorLogUpdatable =
   & Omit<PublServerErrorLog, "publServerErrorLogId" | "createdAt">
   & Partial<Pick<PublServerErrorLog, "createdAt">>;
 
-export const transformPublServerErrorLog: TableDataTransferSuppliers<
+export const publServerErrorLogDT: TableDataTransferSuppliers<
   typeof PublServerErrorLogTableName,
   publ_server_error_log,
   PublServerErrorLog,

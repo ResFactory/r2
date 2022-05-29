@@ -144,7 +144,7 @@ export function tableGovnTypescript<Context>(
       );
       // deno-fmt-ignore
       tsBody.push(uws(`
-        export const transform${tableTsToken}: TableDataTransferSuppliers<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
+        export const ${tableTsTokenCC}DT: TableDataTransferSuppliers<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
           tableName: ${tableTsToken}TableName,
           fromTable: (record) => ({
             ${columns.map(c => `${columnTsToken(c)}: record.${c.columnName}`).join(",\n            ")}
