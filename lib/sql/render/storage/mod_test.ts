@@ -123,67 +123,71 @@ Deno.test("Typescript generator", async (tc) => {
 
   await tc.step("table.ts", () => {
     // const tts = mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions);
-    // Deno.writeTextFileSync("test.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions).typescriptCode(ctx))
+    // Deno.writeTextFileSync("table-test-publHost.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions).typescriptCode(ctx))
     ta.assertEquals(
       mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions)
         .typescriptCode(ctx),
       uws(`
-        export interface mutable_publ_host {
-          publ_host_id: number; // INTEGER, NOT NULL, primary key
-          host: string; // TEXT, NOT NULL
-          host_identity?: UnknownJSON; // JSON
-          mutation_count: number; // INTEGER, NOT NULL
-          created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
-        }
+      export interface mutable_publ_host {
+        publ_host_id: number; // INTEGER, NOT NULL, primary key
+        host: string; // TEXT, NOT NULL
+        host_identity?: UnknownJSON; // JSON
+        mutation_count: number; // INTEGER, NOT NULL
+        created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
+      }
 
-        export const PublHostTableName = "publ_host" as const;
-        export type publ_host = Readonly<mutable_publ_host>;
-        export type MutablePublHost = TableToObject<mutable_publ_host>;
-        export type PublHost = Readonly<MutablePublHost>;
-        export type publ_host_insertable = Omit<publ_host, "publ_host_id" | "created_at"> & Partial<Pick<publ_host, "created_at">>;
-        export type mutable_publ_host_insertable = Omit<mutable_publ_host, "publ_host_id" | "created_at"> & Partial<Pick<mutable_publ_host, "created_at">>;
-        export type PublHostInsertable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
-        export type publ_host_updateable = Omit<publ_host, "publ_host_id" | "created_at"> & Partial<Pick<publ_host, "created_at">>;
-        export type PublHostUpdatable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
+      export const publHostTableName = "publ_host" as const;
+      export const publHostPrimaryKeyColNames = ["publ_host_id"];
+      export type PublHostPrimaryKeyColName = "publ_host_id";
+      export type publ_host = Readonly<mutable_publ_host>;
+      export type MutablePublHost = TableToObject<mutable_publ_host>;
+      export type PublHost = Readonly<MutablePublHost>;
+      export type publ_host_insertable = Omit<publ_host, "publ_host_id" | "created_at"> & Partial<Pick<publ_host, "created_at">>;
+      export type mutable_publ_host_insertable = Omit<mutable_publ_host, "publ_host_id" | "created_at"> & Partial<Pick<mutable_publ_host, "created_at">>;
+      export type PublHostInsertable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
+      export type publ_host_updateable = Omit<publ_host, "publ_host_id" | "created_at"> & Partial<Pick<publ_host, "created_at">>;
+      export type PublHostUpdatable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
 
-        export const publHostDT: TableDataTransferSuppliers<typeof PublHostTableName, publ_host, PublHost, publ_host_insertable, PublHostInsertable> = {
-          tableName: PublHostTableName,
-          fromTable: (record) => ({
-            publHostId: record.publ_host_id,
-            host: record.host,
-            hostIdentity: record.host_identity,
-            mutationCount: record.mutation_count,
-            createdAt: record.created_at
-          }),
-          toTable: (o) => ({
-            publ_host_id: o.publHostId,
+      export const publHostDT: TableDataTransferSuppliers<typeof publHostTableName, publ_host, PublHost, publ_host_insertable, PublHostInsertable> = {
+        tableName: publHostTableName,
+        fromTable: (record) => ({
+          publHostId: record.publ_host_id,
+          host: record.host,
+          hostIdentity: record.host_identity,
+          mutationCount: record.mutation_count,
+          createdAt: record.created_at
+        }),
+        toTable: (o) => ({
+          publ_host_id: o.publHostId,
+          host: o.host,
+          host_identity: o.hostIdentity,
+          mutation_count: o.mutationCount,
+          created_at: o.createdAt
+        }),
+        insertable: (o) => {
+          const insertable: mutable_publ_host_insertable = {
             host: o.host,
             host_identity: o.hostIdentity,
             mutation_count: o.mutationCount,
             created_at: o.createdAt
-          }),
-          insertable: (o) => {
-            const insertable: mutable_publ_host_insertable = {
-              host: o.host,
-              host_identity: o.hostIdentity,
-              mutation_count: o.mutationCount,
-              created_at: o.createdAt
-            };
-            if(typeof insertable.created_at === "undefined") delete insertable.created_at; // allow RDBMS to supply the defaultValue CURRENT_TIMESTAMP
-            return insertable;
-          },
-        };
+          };
+          if(typeof insertable.created_at === "undefined") delete insertable.created_at; // allow RDBMS to supply the defaultValue CURRENT_TIMESTAMP
+          return insertable;
+        },
+      };
 
-        export function publHostDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublHostTableName, "publ_host_id", publ_host_insertable, publ_host, EmitOptions> {
-          return {
-            tableName: PublHostTableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, ["host","host_identity","mutation_count","created_at"], ["publ_host_id"])
-          }
-        };`),
+      export function publHostDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof publHostTableName, PublHostPrimaryKeyColName, publ_host_insertable, publ_host, EmitOptions> {
+        return {
+          tableName: publHostTableName,
+          prepareInsertStmt: typicalInsertStmtPreparer(publHostTableName, ["host","host_identity","mutation_count","created_at"], publHostPrimaryKeyColNames)
+        }
+      };`),
     );
   });
 
   await tc.step("table.ts table referencing foreign key", () => {
+    // const tts = mod.tableGovnTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions);
+    // Deno.writeTextFileSync("table-test-publBuildEvent.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableGovnTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions).typescriptCode(ctx))
     ta.assertEquals(
       mod.tableGovnTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions)
         .typescriptCode(ctx),
@@ -201,7 +205,9 @@ Deno.test("Typescript generator", async (tc) => {
           created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
         }
 
-        export const PublBuildEventTableName = "publ_build_event" as const;
+        export const publBuildEventTableName = "publ_build_event" as const;
+        export const publBuildEventPrimaryKeyColNames = ["publ_build_event_id"];
+        export type PublBuildEventPrimaryKeyColName = "publ_build_event_id";
         export type publ_build_event = Readonly<mutable_publ_build_event>;
         export type MutablePublBuildEvent = TableToObject<mutable_publ_build_event>;
         export type PublBuildEvent = Readonly<MutablePublBuildEvent>;
@@ -211,8 +217,8 @@ Deno.test("Typescript generator", async (tc) => {
         export type publ_build_event_updateable = Omit<publ_build_event, "publ_build_event_id" | "created_at"> & Partial<Pick<publ_build_event, "created_at">>;
         export type PublBuildEventUpdatable = Omit<PublBuildEvent, "publBuildEventId" | "createdAt"> & Partial<Pick<PublBuildEvent, "createdAt">>;
 
-        export const publBuildEventDT: TableDataTransferSuppliers<typeof PublBuildEventTableName, publ_build_event, PublBuildEvent, publ_build_event_insertable, PublBuildEventInsertable> = {
-          tableName: PublBuildEventTableName,
+        export const publBuildEventDT: TableDataTransferSuppliers<typeof publBuildEventTableName, publ_build_event, PublBuildEvent, publ_build_event_insertable, PublBuildEventInsertable> = {
+          tableName: publBuildEventTableName,
           fromTable: (record) => ({
             publBuildEventId: record.publ_build_event_id,
             publHostId: record.publ_host_id,
@@ -254,10 +260,10 @@ Deno.test("Typescript generator", async (tc) => {
           },
         };
 
-        export function publBuildEventDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublBuildEventTableName, "publ_build_event_id", publ_build_event_insertable, publ_build_event, EmitOptions> {
+        export function publBuildEventDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof publBuildEventTableName, PublBuildEventPrimaryKeyColName, publ_build_event_insertable, publ_build_event, EmitOptions> {
           return {
-            tableName: PublBuildEventTableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, ["publ_host_id","iteration_index","build_initiated_at","build_completed_at","build_duration_ms","resources_originated_count","resources_persisted_count","resources_memoized_count","created_at"], ["publ_build_event_id"])
+            tableName: publBuildEventTableName,
+            prepareInsertStmt: typicalInsertStmtPreparer(publBuildEventTableName, ["publ_host_id","iteration_index","build_initiated_at","build_completed_at","build_duration_ms","resources_originated_count","resources_persisted_count","resources_memoized_count","created_at"], publBuildEventPrimaryKeyColNames)
           }
         };`),
     );

@@ -245,7 +245,9 @@ export interface mutable_publ_host {
   created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
 }
 
-export const PublHostTableName = "publ_host" as const;
+export const publHostTableName = "publ_host" as const;
+export const publHostPrimaryKeyColNames = ["publ_host_id"];
+export type PublHostPrimaryKeyColName = "publ_host_id";
 export type publ_host = Readonly<mutable_publ_host>;
 export type MutablePublHost = TableToObject<mutable_publ_host>;
 export type PublHost = Readonly<MutablePublHost>;
@@ -266,13 +268,13 @@ export type PublHostUpdatable =
   & Partial<Pick<PublHost, "createdAt">>;
 
 export const publHostDT: TableDataTransferSuppliers<
-  typeof PublHostTableName,
+  typeof publHostTableName,
   publ_host,
   PublHost,
   publ_host_insertable,
   PublHostInsertable
 > = {
-  tableName: PublHostTableName,
+  tableName: publHostTableName,
   fromTable: (record) => ({
     publHostId: record.publ_host_id,
     host: record.host,
@@ -306,20 +308,20 @@ export function publHostDML<
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 >(): TableDmlSuppliers<
   Context,
-  typeof PublHostTableName,
-  "publ_host_id",
+  typeof publHostTableName,
+  PublHostPrimaryKeyColName,
   publ_host_insertable,
   publ_host,
   EmitOptions
 > {
   return {
-    tableName: PublHostTableName,
-    prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, [
+    tableName: publHostTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(publHostTableName, [
       "host",
       "host_identity",
       "mutation_count",
       "created_at",
-    ], ["publ_host_id"]),
+    ], publHostPrimaryKeyColNames),
   };
 }
 
@@ -336,7 +338,9 @@ export interface mutable_publ_build_event {
   created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
 }
 
-export const PublBuildEventTableName = "publ_build_event" as const;
+export const publBuildEventTableName = "publ_build_event" as const;
+export const publBuildEventPrimaryKeyColNames = ["publ_build_event_id"];
+export type PublBuildEventPrimaryKeyColName = "publ_build_event_id";
 export type publ_build_event = Readonly<mutable_publ_build_event>;
 export type MutablePublBuildEvent = TableToObject<mutable_publ_build_event>;
 export type PublBuildEvent = Readonly<MutablePublBuildEvent>;
@@ -357,13 +361,13 @@ export type PublBuildEventUpdatable =
   & Partial<Pick<PublBuildEvent, "createdAt">>;
 
 export const publBuildEventDT: TableDataTransferSuppliers<
-  typeof PublBuildEventTableName,
+  typeof publBuildEventTableName,
   publ_build_event,
   PublBuildEvent,
   publ_build_event_insertable,
   PublBuildEventInsertable
 > = {
-  tableName: PublBuildEventTableName,
+  tableName: publBuildEventTableName,
   fromTable: (record) => ({
     publBuildEventId: record.publ_build_event_id,
     publHostId: record.publ_host_id,
@@ -412,15 +416,15 @@ export function publBuildEventDML<
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 >(): TableDmlSuppliers<
   Context,
-  typeof PublBuildEventTableName,
-  "publ_build_event_id",
+  typeof publBuildEventTableName,
+  PublBuildEventPrimaryKeyColName,
   publ_build_event_insertable,
   publ_build_event,
   EmitOptions
 > {
   return {
-    tableName: PublBuildEventTableName,
-    prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, [
+    tableName: publBuildEventTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(publBuildEventTableName, [
       "publ_host_id",
       "iteration_index",
       "build_initiated_at",
@@ -430,7 +434,7 @@ export function publBuildEventDML<
       "resources_persisted_count",
       "resources_memoized_count",
       "created_at",
-    ], ["publ_build_event_id"]),
+    ], publBuildEventPrimaryKeyColNames),
   };
 }
 
@@ -444,7 +448,9 @@ export interface mutable_publ_server_service {
   created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
 }
 
-export const PublServerServiceTableName = "publ_server_service" as const;
+export const publServerServiceTableName = "publ_server_service" as const;
+export const publServerServicePrimaryKeyColNames = ["publ_server_service_id"];
+export type PublServerServicePrimaryKeyColName = "publ_server_service_id";
 export type publ_server_service = Readonly<mutable_publ_server_service>;
 export type MutablePublServerService = TableToObject<
   mutable_publ_server_service
@@ -467,13 +473,13 @@ export type PublServerServiceUpdatable =
   & Partial<Pick<PublServerService, "createdAt">>;
 
 export const publServerServiceDT: TableDataTransferSuppliers<
-  typeof PublServerServiceTableName,
+  typeof publServerServiceTableName,
   publ_server_service,
   PublServerService,
   publ_server_service_insertable,
   PublServerServiceInsertable
 > = {
-  tableName: PublServerServiceTableName,
+  tableName: publServerServiceTableName,
   fromTable: (record) => ({
     publServerServiceId: record.publ_server_service_id,
     serviceStartedAt: record.service_started_at,
@@ -513,22 +519,22 @@ export function publServerServiceDML<
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 >(): TableDmlSuppliers<
   Context,
-  typeof PublServerServiceTableName,
-  "publ_server_service_id",
+  typeof publServerServiceTableName,
+  PublServerServicePrimaryKeyColName,
   publ_server_service_insertable,
   publ_server_service,
   EmitOptions
 > {
   return {
-    tableName: PublServerServiceTableName,
-    prepareInsertStmt: typicalInsertStmtPreparer(PublServerServiceTableName, [
+    tableName: publServerServiceTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(publServerServiceTableName, [
       "service_started_at",
       "listen_host",
       "listen_port",
       "publish_url",
       "publ_build_event_id",
       "created_at",
-    ], ["publ_server_service_id"]),
+    ], publServerServicePrimaryKeyColNames),
   };
 }
 
@@ -543,8 +549,13 @@ export interface mutable_publ_server_static_access_log {
   created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
 }
 
-export const PublServerStaticAccessLogTableName =
+export const publServerStaticAccessLogTableName =
   "publ_server_static_access_log" as const;
+export const publServerStaticAccessLogPrimaryKeyColNames = [
+  "publ_server_static_access_log_id",
+];
+export type PublServerStaticAccessLogPrimaryKeyColName =
+  "publ_server_static_access_log_id";
 export type publ_server_static_access_log = Readonly<
   mutable_publ_server_static_access_log
 >;
@@ -580,13 +591,13 @@ export type PublServerStaticAccessLogUpdatable =
   & Partial<Pick<PublServerStaticAccessLog, "createdAt">>;
 
 export const publServerStaticAccessLogDT: TableDataTransferSuppliers<
-  typeof PublServerStaticAccessLogTableName,
+  typeof publServerStaticAccessLogTableName,
   publ_server_static_access_log,
   PublServerStaticAccessLog,
   publ_server_static_access_log_insertable,
   PublServerStaticAccessLogInsertable
 > = {
-  tableName: PublServerStaticAccessLogTableName,
+  tableName: publServerStaticAccessLogTableName,
   fromTable: (record) => ({
     publServerStaticAccessLogId: record.publ_server_static_access_log_id,
     status: record.status,
@@ -629,16 +640,16 @@ export function publServerStaticAccessLogDML<
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 >(): TableDmlSuppliers<
   Context,
-  typeof PublServerStaticAccessLogTableName,
-  "publ_server_static_access_log_id",
+  typeof publServerStaticAccessLogTableName,
+  PublServerStaticAccessLogPrimaryKeyColName,
   publ_server_static_access_log_insertable,
   publ_server_static_access_log,
   EmitOptions
 > {
   return {
-    tableName: PublServerStaticAccessLogTableName,
+    tableName: publServerStaticAccessLogTableName,
     prepareInsertStmt: typicalInsertStmtPreparer(
-      PublServerStaticAccessLogTableName,
+      publServerStaticAccessLogTableName,
       [
         "status",
         "asset_nature",
@@ -648,7 +659,7 @@ export function publServerStaticAccessLogDML<
         "publ_server_service_id",
         "created_at",
       ],
-      ["publ_server_static_access_log_id"],
+      publServerStaticAccessLogPrimaryKeyColNames,
     ),
   };
 }
@@ -662,7 +673,11 @@ export interface mutable_publ_server_error_log {
   created_at?: Date; // DATETIME, default: CURRENT_TIMESTAMP
 }
 
-export const PublServerErrorLogTableName = "publ_server_error_log" as const;
+export const publServerErrorLogTableName = "publ_server_error_log" as const;
+export const publServerErrorLogPrimaryKeyColNames = [
+  "publ_server_error_log_id",
+];
+export type PublServerErrorLogPrimaryKeyColName = "publ_server_error_log_id";
 export type publ_server_error_log = Readonly<mutable_publ_server_error_log>;
 export type MutablePublServerErrorLog = TableToObject<
   mutable_publ_server_error_log
@@ -688,13 +703,13 @@ export type PublServerErrorLogUpdatable =
   & Partial<Pick<PublServerErrorLog, "createdAt">>;
 
 export const publServerErrorLogDT: TableDataTransferSuppliers<
-  typeof PublServerErrorLogTableName,
+  typeof publServerErrorLogTableName,
   publ_server_error_log,
   PublServerErrorLog,
   publ_server_error_log_insertable,
   PublServerErrorLogInsertable
 > = {
-  tableName: PublServerErrorLogTableName,
+  tableName: publServerErrorLogTableName,
   fromTable: (record) => ({
     publServerErrorLogId: record.publ_server_error_log_id,
     locationHref: record.location_href,
@@ -731,21 +746,21 @@ export function publServerErrorLogDML<
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 >(): TableDmlSuppliers<
   Context,
-  typeof PublServerErrorLogTableName,
-  "publ_server_error_log_id",
+  typeof publServerErrorLogTableName,
+  PublServerErrorLogPrimaryKeyColName,
   publ_server_error_log_insertable,
   publ_server_error_log,
   EmitOptions
 > {
   return {
-    tableName: PublServerErrorLogTableName,
-    prepareInsertStmt: typicalInsertStmtPreparer(PublServerErrorLogTableName, [
+    tableName: publServerErrorLogTableName,
+    prepareInsertStmt: typicalInsertStmtPreparer(publServerErrorLogTableName, [
       "location_href",
       "error_summary",
       "error_elaboration",
       "publ_server_service_id",
       "created_at",
-    ], ["publ_server_error_log_id"]),
+    ], publServerErrorLogPrimaryKeyColNames),
   };
 }
 

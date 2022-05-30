@@ -137,7 +137,11 @@ export function tableGovnTypescript<Context>(
         tableTsToken.slice(1);
       tsBody.push(`}\n`);
       tsBody.push(
-        `export const ${tableTsToken}TableName = "${tableSqlName}" as const;`,
+        `export const ${tableTsTokenCC}TableName = "${tableSqlName}" as const;`,
+        `export const ${tableTsTokenCC}PrimaryKeyColNames = [${pkColumnNames.map((cn) => `"${cn}"`).join(", ")
+        }];`,
+        `export type ${tableTsToken}PrimaryKeyColName = ${pkColumnNames.map((cn) => `"${cn}"`).join(" | ")
+        };`,
         `export type ${tableSqlName} = Readonly<mutable_${tableSqlName}>;`,
         `export type Mutable${tableTsToken} = TableToObject<mutable_${tableSqlName}>;`,
         `export type ${tableTsToken} = Readonly<Mutable${tableTsToken}>;`,
@@ -154,8 +158,8 @@ export function tableGovnTypescript<Context>(
       );
       // deno-fmt-ignore
       tsBody.push(uws(`
-        export const ${tableTsTokenCC}DT: TableDataTransferSuppliers<typeof ${tableTsToken}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
-          tableName: ${tableTsToken}TableName,
+        export const ${tableTsTokenCC}DT: TableDataTransferSuppliers<typeof ${tableTsTokenCC}TableName, ${tableSqlName}, ${tableTsToken}, ${tableSqlName}_insertable, ${tableTsToken}Insertable> = {
+          tableName: ${tableTsTokenCC}TableName,
           fromTable: (record) => ({
             ${columns.map(c => `${columnTsToken(c)}: record.${c.columnName}`).join(",\n            ")}
           }),
@@ -171,10 +175,10 @@ export function tableGovnTypescript<Context>(
           },
         };
 
-        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${pkColumnNames.map(cn => `"${cn}"`).join(" | ")}, ${tableSqlName}_insertable, ${tableSqlName}, EmitOptions> {
+        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsTokenCC}TableName, ${pkColumnNames.length > 0 ? `${tableTsToken}PrimaryKeyColName` : "unknown"}, ${tableSqlName}_insertable, ${tableSqlName}, EmitOptions> {
           return {
-            tableName: ${tableTsToken}TableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}]${pkColumnNames.length > 0 ? `, [${pkColumnNames.map(cn => `"${cn}"`).join(" | ")}]` : ''})
+            tableName: ${tableTsTokenCC}TableName,
+            prepareInsertStmt: typicalInsertStmtPreparer(${tableTsTokenCC}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}]${pkColumnNames.length > 0 ? `, ${tableTsTokenCC}PrimaryKeyColNames` : ''})
           }
         };`));
       return tsBody.join("\n");
@@ -185,7 +189,7 @@ export function tableGovnTypescript<Context>(
 export interface TablesTypescriptOptions<
   Context,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-> {
+  > {
   readonly tableTsOptions?: (
     tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, EmitOptions>,
   ) => TableTypescriptOptions<Context>;
@@ -196,13 +200,13 @@ export interface TablesTypescriptOptions<
 export function tablesGovnTypescript<
   Context,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
->(
-  tableDefns: Iterable<
-    govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
-  >,
-  ctx: Context,
-  steOptions: EmitOptions,
-  tsOptions?: TablesTypescriptOptions<Context, EmitOptions>,
+  >(
+    tableDefns: Iterable<
+      govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
+    >,
+    ctx: Context,
+    steOptions: EmitOptions,
+    tsOptions?: TablesTypescriptOptions<Context, EmitOptions>,
 ): string {
   const suggested = path.join(
     path.dirname(path.fromFileUrl(import.meta.url)),
