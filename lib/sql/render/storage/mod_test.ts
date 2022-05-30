@@ -86,22 +86,16 @@ Deno.test("Typescript generator", async (tc) => {
         tsSharedDeclarations: new Set([`export type UnknownJSON = string;`]),
       }).typescriptCode(ctx),
       uws(`
-        export type CamelCase<S extends string> = S extends
-          \`\${infer P1}_\${infer P2}\${infer P3}\`
-          ? \`\${Lowercase<P1>}\${Uppercase<P2>}\${CamelCase<P3>}\`
-          : Lowercase<S>;
-        export type TableToObject<T> = {
-          [K in keyof T as CamelCase<string & K>]: T[K] extends Date ? T[K]
-            : // deno-lint-ignore ban-types
-            (T[K] extends object ? TableToObject<T[K]> : T[K]);
-        };
+
         export type UnknownJSON = string;`),
     );
   });
 
   await tc.step("table.ts", () => {
+    // const tts = mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions);
+    // Deno.writeTextFileSync("test.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions).typescriptCode(ctx))
     ta.assertEquals(
-      mod.tableTypescript(syntheticTD.publHost.tableDefn, emitOptions)
+      mod.tableGovnTypescript(syntheticTD.publHost.tableDefn, emitOptions)
         .typescriptCode(ctx),
       uws(`
         export interface mutable_publ_host {
@@ -122,23 +116,23 @@ Deno.test("Typescript generator", async (tc) => {
         export type publ_host_updateable = Omit<publ_host, "publ_host_id" | "created_at"> & Partial<Pick<publ_host, "created_at">>;
         export type PublHostUpdatable = Omit<PublHost, "publHostId" | "createdAt"> & Partial<Pick<PublHost, "createdAt">>;
 
-        export const transformPublHost = {
+        export const publHostDT: TableDataTransferSuppliers<typeof PublHostTableName, publ_host, PublHost, publ_host_insertable, PublHostInsertable> = {
           tableName: PublHostTableName,
-          fromTable: (t: publ_host): PublHost => ({
-            publHostId: t.publ_host_id,
-            host: t.host,
-            hostIdentity: t.host_identity,
-            mutationCount: t.mutation_count,
-            createdAt: t.created_at
+          fromTable: (record) => ({
+            publHostId: record.publ_host_id,
+            host: record.host,
+            hostIdentity: record.host_identity,
+            mutationCount: record.mutation_count,
+            createdAt: record.created_at
           }),
-          toTable: (o: PublHost): publ_host => ({
+          toTable: (o) => ({
             publ_host_id: o.publHostId,
             host: o.host,
             host_identity: o.hostIdentity,
             mutation_count: o.mutationCount,
             created_at: o.createdAt
           }),
-          insertable: (o: PublHostInsertable): publ_host_insertable => {
+          insertable: (o) => {
             const insertable: mutable_publ_host_insertable = {
               host: o.host,
               host_identity: o.hostIdentity,
@@ -148,15 +142,20 @@ Deno.test("Typescript generator", async (tc) => {
             if(typeof insertable.created_at === "undefined") delete insertable.created_at; // allow RDBMS to supply the defaultValue CURRENT_TIMESTAMP
             return insertable;
           },
+        };
+
+        export function publHostDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublHostTableName, publ_host_insertable, EmitOptions> {
+          return {
+            tableName: PublHostTableName,
+            prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, ["host","host_identity","mutation_count","created_at"])
+          }
         };`),
     );
   });
 
   await tc.step("table.ts table referencing foreign key", () => {
-    // const tts = mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions);
-    // Deno.writeTextFileSync("test.ts", mod.tableTypescriptDeps({ tsSharedDeclarations: tts.tsSharedDeclarations ? new Set<string>(tts.tsSharedDeclarations.values()) : undefined }).typescriptCode(ctx) + "\n" + mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions).typescriptCode(ctx))
     ta.assertEquals(
-      mod.tableTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions)
+      mod.tableGovnTypescript(syntheticTD.publBuildEvent.tableDefn, emitOptions)
         .typescriptCode(ctx),
       uws(`
         export interface mutable_publ_build_event {
@@ -182,21 +181,21 @@ Deno.test("Typescript generator", async (tc) => {
         export type publ_build_event_updateable = Omit<publ_build_event, "publ_build_event_id" | "created_at"> & Partial<Pick<publ_build_event, "created_at">>;
         export type PublBuildEventUpdatable = Omit<PublBuildEvent, "publBuildEventId" | "createdAt"> & Partial<Pick<PublBuildEvent, "createdAt">>;
 
-        export const transformPublBuildEvent = {
+        export const publBuildEventDT: TableDataTransferSuppliers<typeof PublBuildEventTableName, publ_build_event, PublBuildEvent, publ_build_event_insertable, PublBuildEventInsertable> = {
           tableName: PublBuildEventTableName,
-          fromTable: (t: publ_build_event): PublBuildEvent => ({
-            publBuildEventId: t.publ_build_event_id,
-            publHostId: t.publ_host_id,
-            iterationIndex: t.iteration_index,
-            buildInitiatedAt: t.build_initiated_at,
-            buildCompletedAt: t.build_completed_at,
-            buildDurationMs: t.build_duration_ms,
-            resourcesOriginatedCount: t.resources_originated_count,
-            resourcesPersistedCount: t.resources_persisted_count,
-            resourcesMemoizedCount: t.resources_memoized_count,
-            createdAt: t.created_at
+          fromTable: (record) => ({
+            publBuildEventId: record.publ_build_event_id,
+            publHostId: record.publ_host_id,
+            iterationIndex: record.iteration_index,
+            buildInitiatedAt: record.build_initiated_at,
+            buildCompletedAt: record.build_completed_at,
+            buildDurationMs: record.build_duration_ms,
+            resourcesOriginatedCount: record.resources_originated_count,
+            resourcesPersistedCount: record.resources_persisted_count,
+            resourcesMemoizedCount: record.resources_memoized_count,
+            createdAt: record.created_at
           }),
-          toTable: (o: PublBuildEvent): publ_build_event => ({
+          toTable: (o) => ({
             publ_build_event_id: o.publBuildEventId,
             publ_host_id: o.publHostId,
             iteration_index: o.iterationIndex,
@@ -208,7 +207,7 @@ Deno.test("Typescript generator", async (tc) => {
             resources_memoized_count: o.resourcesMemoizedCount,
             created_at: o.createdAt
           }),
-          insertable: (o: PublBuildEventInsertable): publ_build_event_insertable => {
+          insertable: (o) => {
             const insertable: mutable_publ_build_event_insertable = {
               publ_host_id: o.publHostId,
               iteration_index: o.iterationIndex,
@@ -223,6 +222,13 @@ Deno.test("Typescript generator", async (tc) => {
             if(typeof insertable.created_at === "undefined") delete insertable.created_at; // allow RDBMS to supply the defaultValue CURRENT_TIMESTAMP
             return insertable;
           },
+        };
+
+        export function publBuildEventDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublBuildEventTableName, publ_build_event_insertable, EmitOptions> {
+          return {
+            tableName: PublBuildEventTableName,
+            prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, ["publ_host_id","iteration_index","build_initiated_at","build_completed_at","build_duration_ms","resources_originated_count","resources_persisted_count","resources_memoized_count","created_at"])
+          }
         };`),
     );
   });
