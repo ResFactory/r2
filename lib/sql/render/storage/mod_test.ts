@@ -83,7 +83,7 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         host: "test3",
         host_identity: "testHI3",
         mutation_count: 3,
-      }, { returning: ["publ_host_id"] }).SQL(ctx, emitOptions),
+      }, { returning: "primary-keys" }).SQL(ctx, emitOptions),
       `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test3', 'testHI3', 3) RETURNING publ_host_id`,
     );
 
@@ -93,10 +93,10 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         host_identity: "testHI4",
         mutation_count: 4,
       }, {
-        returning: ["publ_host_id"],
+        returning: { columns: ["host"] },
         onConflict: { SQL: () => `ON CONFLICT (host) IGNORE` },
       }).SQL(ctx, emitOptions),
-      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test4', 'testHI4', 4) ON CONFLICT (host) IGNORE RETURNING publ_host_id`,
+      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test4', 'testHI4', 4) ON CONFLICT (host) IGNORE RETURNING host`,
     );
   });
 });
@@ -174,10 +174,10 @@ Deno.test("Typescript generator", async (tc) => {
           },
         };
 
-        export function publHostDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublHostTableName, publ_host_insertable, publ_host, EmitOptions> {
+        export function publHostDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublHostTableName, "publ_host_id", publ_host_insertable, publ_host, EmitOptions> {
           return {
             tableName: PublHostTableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, ["host","host_identity","mutation_count","created_at"])
+            prepareInsertStmt: typicalInsertStmtPreparer(PublHostTableName, ["host","host_identity","mutation_count","created_at"], ["publ_host_id"])
           }
         };`),
     );
@@ -254,10 +254,10 @@ Deno.test("Typescript generator", async (tc) => {
           },
         };
 
-        export function publBuildEventDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublBuildEventTableName, publ_build_event_insertable, publ_build_event, EmitOptions> {
+        export function publBuildEventDML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof PublBuildEventTableName, "publ_build_event_id", publ_build_event_insertable, publ_build_event, EmitOptions> {
           return {
             tableName: PublBuildEventTableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, ["publ_host_id","iteration_index","build_initiated_at","build_completed_at","build_duration_ms","resources_originated_count","resources_persisted_count","resources_memoized_count","created_at"])
+            prepareInsertStmt: typicalInsertStmtPreparer(PublBuildEventTableName, ["publ_host_id","iteration_index","build_initiated_at","build_completed_at","build_duration_ms","resources_originated_count","resources_persisted_count","resources_memoized_count","created_at"], ["publ_build_event_id"])
           }
         };`),
     );

@@ -125,6 +125,12 @@ export function tableGovnTypescript<Context>(
           );
         }
       }
+      const pkColumnNames = pkColumns.map((c) =>
+        ns.tableColumnName({
+          tableName: tableDefn.tableName,
+          columnName: c.columnName,
+        })
+      );
       const omitInsertables = [...pkColumns, ...defaultedColumns];
       const omitUpdatables = omitInsertables;
       const tableTsTokenCC = tableTsToken.charAt(0).toLowerCase() +
@@ -165,10 +171,10 @@ export function tableGovnTypescript<Context>(
           },
         };
 
-        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${tableSqlName}_insertable, ${tableSqlName}, EmitOptions> {
+        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${pkColumnNames.map(cn => `"${cn}"`).join(" | ")}, ${tableSqlName}_insertable, ${tableSqlName}, EmitOptions> {
           return {
             tableName: ${tableTsToken}TableName,
-            prepareInsertStmt: typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}])
+            prepareInsertStmt: typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}]${pkColumnNames.length > 0 ? `, [${pkColumnNames.map(cn => `"${cn}"`).join(" | ")}]` : ''})
           }
         };`));
       return tsBody.join("\n");

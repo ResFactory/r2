@@ -25,6 +25,14 @@ export type TableToObject<T> = {
     (T[K] extends object ? TableToObject<T[K]> : T[K]);
 };
 
+export type RequireOnlyOne<T, Keys extends keyof T = keyof T> =
+  & Pick<T, Exclude<keyof T, Keys>>
+  & {
+    [K in Keys]-?:
+      & Required<Pick<T, K>>
+      & Partial<Record<Exclude<Keys, K>, undefined>>;
+  }[Keys];
+
 export interface SqlTextEmitOptions<Context> {
   readonly quotedLiteral: (value: unknown) => [value: unknown, quoted: string];
 }
@@ -36,13 +44,27 @@ export interface SqlTextSupplier<
   readonly SQL: (ctx?: Context, options?: EmitOptions) => string;
 }
 
+export type InsertStmtReturning<
+  ReturnableRecord,
+  ReturnableColumnName extends keyof ReturnableRecord = keyof ReturnableRecord,
+  ReturnableColumnExpr extends string = string,
+> =
+  | "*"
+  | "primary-keys"
+  | RequireOnlyOne<{
+    readonly columns?: ReturnableColumnName[];
+    readonly exprs?: ReturnableColumnExpr[];
+  }>;
+
 export interface InsertStmtPreparer<
   Context,
   TableName,
+  PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
   EmitOptions extends SqlTextEmitOptions<Context>,
   InsertableColumnName extends keyof InsertableRecord = keyof InsertableRecord,
+  ReturnableColumnName extends keyof ReturnableRecord = keyof ReturnableRecord,
   ReturnableColumnExpr extends (keyof ReturnableRecord | string) =
     (keyof ReturnableRecord | string),
 > {
@@ -69,9 +91,11 @@ export interface InsertStmtPreparer<
         eo?: EmitOptions,
       ) => SqlTextSupplier<Context, EmitOptions>);
     readonly returning?:
-      | ReturnableColumnExpr[]
-      | "*"
-      | ((ctx?: Context, eo?: EmitOptions) => ReturnableColumnExpr[] | "*");
+      | InsertStmtReturning<ReturnableRecord>
+      | ((
+        ctx?: Context,
+        eo?: EmitOptions,
+      ) => InsertStmtReturning<ReturnableRecord>);
     readonly transformSQL?: (
       suggested: string,
       tableName: TableName,
@@ -87,6 +111,7 @@ export interface InsertStmtPreparer<
 export function typicalInsertStmtPreparer<
   Context,
   TableName,
+  PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
   EmitOptions extends SqlTextEmitOptions<Context>,
@@ -96,9 +121,11 @@ export function typicalInsertStmtPreparer<
 >(
   tableName: TableName,
   candidateColumns: InsertableColumnName[],
+  pkColumns?: PrimaryKeyColName[],
 ): InsertStmtPreparer<
   Context,
   TableName,
+  PrimaryKeyColName,
   InsertableRecord,
   ReturnableRecord,
   EmitOptions
@@ -106,7 +133,7 @@ export function typicalInsertStmtPreparer<
   return (ir, pisOptions) => {
     return {
       SQL: (ctx, eo) => {
-        const { emitColumn, returning: returningCols, where, onConflict } =
+        const { emitColumn, returning: returningArg, where, onConflict } =
           pisOptions ?? {};
         const names: InsertableColumnName[] = [];
         const values: [value: unknown, valueSqlText: string][] = [];
@@ -143,18 +170,31 @@ export function typicalInsertStmtPreparer<
             : ss.SQL(ctx, eo);
           return ` ${SQL}`;
         };
-        const returningExprs = returningCols
-          ? (typeof returningCols === "function"
-            ? returningCols(ctx, eo)
-            : returningCols)
+        const returning = returningArg
+          ? (typeof returningArg === "function"
+            ? returningArg(ctx, eo)
+            : returningArg)
           : undefined;
+        let returningSQL = "";
+        if (typeof returning === "string") {
+          switch (returning) {
+            case "*":
+              returningSQL = ` RETURNING *`;
+              break;
+            case "primary-keys":
+              returningSQL = ` RETURNING ${pkColumns!.join(", ")}`;
+              break;
+          }
+        } else if (typeof returning === "object") {
+          if (returning.columns) {
+            returningSQL = ` RETURNING ${returning!.columns!.join(", ")}`;
+          } else {
+            returningSQL = ` RETURNING ${returning!.exprs!.join(", ")}`;
+          }
+        }
         // deno-fmt-ignore
-        const returning = returningExprs
-          ? ` RETURNING ${(returningExprs == "*" ? "*" : returningExprs.join(", "))}`
-          : "";
-        const SQL = `INSERT INTO ${tableName} (${names.join(", ")}) VALUES (${
-          values.map((value) => value[1]).join(", ")
-        })${sqlText(where)}${sqlText(onConflict)}${returning}`;
+        const SQL = `INSERT INTO ${tableName} (${names.join(", ")}) VALUES (${values.map((value) => value[1]).join(", ")
+          })${sqlText(where)}${sqlText(onConflict)}${returningSQL}`;
         return pisOptions?.transformSQL
           ? pisOptions?.transformSQL(
             SQL,
@@ -190,6 +230,7 @@ export interface TableDataTransferSuppliers<
 export interface TableDmlSuppliers<
   Context,
   TableName,
+  PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
   EmitOptions extends SqlTextEmitOptions<Context>,
@@ -197,6 +238,7 @@ export interface TableDmlSuppliers<
   readonly prepareInsertStmt: InsertStmtPreparer<
     Context,
     TableName,
+    PrimaryKeyColName,
     InsertableRecord,
     ReturnableRecord,
     EmitOptions

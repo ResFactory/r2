@@ -781,7 +781,7 @@ export function typicalTableDefnDML<
   EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
     Context
   >,
-  ColumnName extends keyof InsertableRecord & string =
+  InsertableColumnName extends keyof InsertableRecord & string =
     & keyof InsertableRecord
     & string,
   InsertableObject extends tr.TabularRecordToObject<InsertableRecord> =
@@ -792,16 +792,20 @@ export function typicalTableDefnDML<
 >(
   ctx: Context,
   tableName: TableName,
-  validColumnNames: ColumnName[],
+  validColumnNames: InsertableColumnName[],
   tdfs: TableDefnFactoriesSupplier<Context, EmitOptions>,
-  options: DefineTableOptions<Context, TableName, ColumnName, EmitOptions> =
-    typicalDefineTableOptions(),
+  options: DefineTableOptions<
+    Context,
+    TableName,
+    InsertableColumnName,
+    EmitOptions
+  > = typicalDefineTableOptions(),
 ) {
   return (
     populateTableDefn: TableDefnPopulator<
       Context,
       TableName,
-      ColumnName,
+      InsertableColumnName,
       EmitOptions
     >,
   ) => {
@@ -850,10 +854,11 @@ export function typicalTableDefnDML<
       insertDML: ets.typicalInsertStmtPreparer<
         Context,
         TableName,
+        `${TableName}_id`,
         InsertableRecord,
         InsertableRecord,
         EmitOptions
-      >(tableName, validColumnNames),
+      >(tableName, validColumnNames, [`${tableName}_id`]),
     };
   };
 }
