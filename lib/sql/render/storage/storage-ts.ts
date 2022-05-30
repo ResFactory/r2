@@ -10,6 +10,10 @@ import * as s from "./storage.ts";
 //   * [ ] FK references to PK's should use PublHostIdentity
 // * [ ] add `updatable` method (like `insertable`) to transform${tableTsToken} objects
 // * [ ] add data validators to transform${tableTsToken} objects
+//       use https://github.com/tinysource/tinysource/tree/main/schema for validators?
+// * [ ] add foreign key accessors to parent tables
+//         readonly tableChildren: (whereCond: SqlTextSupplier) => Children[]
+//         readonly xyz_id: scalar should also have xyz: () => record accessor
 
 export interface TypescriptCodeSupplier<Context> {
   readonly typescriptCode: (ctx: Context) => string;
