@@ -201,8 +201,7 @@ export async function persistPublDbSqlAssets(
   const {
     destPath = thisFile.dir,
     baseNamePrefix = thisFile.name.replace(/\.[^/.]+$/, ""),
-  } = options ??
-    {};
+  } = options ?? {};
   const { SQL, tsGovn } = publDbSQL();
   const sqlDestPath = path.join(destPath, `${baseNamePrefix}.auto.sql`);
   const tsGovnDestPath = path.join(destPath, `${baseNamePrefix}.auto.govn.ts`);

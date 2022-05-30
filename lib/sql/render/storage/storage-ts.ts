@@ -165,7 +165,7 @@ export function tableGovnTypescript<Context>(
           },
         };
 
-        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${tableSqlName}_insertable, EmitOptions> {
+        export function ${tableTsTokenCC}DML<Context = unknown, EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>>(): TableDmlSuppliers<Context, typeof ${tableTsToken}TableName, ${tableSqlName}_insertable, ${tableSqlName}, EmitOptions> {
           return {
             tableName: ${tableTsToken}TableName,
             prepareInsertStmt: typicalInsertStmtPreparer(${tableTsToken}TableName, [${columns.filter(c => omitInsertables.find(o => o.columnName == c.columnName && !s.isTableColumnDefaultValueSupplier(c)) ? false : true).map(c => `"${c.columnName}"`).join(",")}])
@@ -200,15 +200,17 @@ export function tablesGovnTypescript<
 ): string {
   const suggested = path.join(
     path.dirname(path.fromFileUrl(import.meta.url)),
-    "storage-ts-template.ts",
+    "..",
+    "template",
+    "emittable-typescript.ts",
   );
   let templateText = Deno.readTextFileSync(
     tsOptions?.templateSrcPath?.(suggested) ?? suggested,
-  );
+  ).replaceAll(/^\/\/!.*$/gm, "");
 
   if (tsOptions?.origin) {
     templateText = templateText.replaceAll(
-      "${TSTMPL_ORIGIN}",
+      "${SQL_RENDER_EMIT_TS_ORIGIN}",
       tsOptions?.origin,
     );
   }
@@ -235,11 +237,14 @@ export function tablesGovnTypescript<
 
   /*
    * Template should have this line in the text, which will get replaced with body:
-   *    // ${TSTMPL_BODY}
+   *    // ${SQL_RENDER_EMIT_TS_BODY}
    */
   const body = tsCode.map((tsc) => tsc.typescriptCode(ctx)).join("\n\n");
   if (tsOptions?.origin) {
-    templateText = templateText.replace(/\/\/ \${TSTMPL_BODY}.*$/m, body);
+    templateText = templateText.replace(
+      /\/\/ \${SQL_RENDER_EMIT_TS_BODY}.*$/m,
+      body,
+    );
   }
 
   return templateText;

@@ -4,6 +4,11 @@ import * as govn from "./governance.ts";
 import * as t from "../template/mod.ts";
 import * as tr from "../../../tabular/mod.ts";
 import * as v from "../view.ts";
+import * as ets from "../template/emittable-typescript.ts";
+
+// TODO:
+// * [ ] in foreign key columns allow ON DELETE CASCADE like
+//       FOREIGN KEY("userID") REFERENCES "users"("id") ON DELETE CASCADE
 
 export function isTableColumnCreateSqlTextSupplier<
   Context,
@@ -832,87 +837,23 @@ export function typicalTableDefnDML<
     return {
       tableDefn,
       primaryKeyColDefn: primaryKeyColDefn!,
-      prepareInsert: (
+      prepareInsertable: (
         o: InsertableObject,
         rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
         options?: tr.TransformTabularRecordOptions<InsertableRecord>,
       ) => tr.transformTabularRecord(o, rowState, options),
-      prepareUpdate: (
+      prepareUpdatable: (
         o: UpdatableObject,
         rowState?: tr.TransformTabularRecordsRowState<UpdatableRecord>,
         options?: tr.TransformTabularRecordOptions<UpdatableRecord>,
       ) => tr.transformTabularRecord(o, rowState, options),
-      insertDML: (
-        o: InsertableObject,
-        insertDmlOptions?: {
-          readonly emitColumnNames?: (
-            record: InsertableRecord,
-            steOptions: EmitOptions,
-          ) => string[];
-          readonly emitColumnValue?: (
-            colName: ColumnName,
-            record: InsertableRecord,
-            steOptions: EmitOptions,
-          ) => [value: unknown, sqlText: string];
-          readonly prepareSqlText?: (
-            record: InsertableRecord,
-            names: string[],
-            values: [value: unknown, sqlText: string][],
-            ns: t.SqlObjectNamingStrategy,
-          ) => string;
-        },
-      ): t.SqlTextSupplier<Context, EmitOptions> => {
-        return {
-          SQL: (_, steOptions) => {
-            const {
-              emitColumnNames = (
-                record: InsertableRecord,
-                steOptions: EmitOptions,
-              ) => {
-                const result = Object.keys(record).filter((cn) => {
-                  const c = tableDefn.columns.find((c) => c.columnName == cn);
-                  return isTableColumnDmlContributionsSupplier(c)
-                    ? c.sqlDmlContributions.isInInsertColumnsList(record)
-                    : true;
-                });
-                const ns = steOptions.namingStrategy(ctx);
-                return result.map((cn) =>
-                  ns.tableColumnName({ tableName, columnName: cn })
-                );
-              },
-              emitColumnValue = (
-                colName: ColumnName,
-                record: InsertableRecord,
-                steOptions: EmitOptions,
-              ) => {
-                const value = record[colName];
-                return steOptions.quotedLiteral
-                  ? steOptions.quotedLiteral(value)
-                  : t.typicalQuotedSqlLiteral(value);
-              },
-              prepareSqlText = (
-                _record: InsertableRecord,
-                names: string[],
-                values: [value: unknown, sqlText: string][],
-                ns: t.SqlObjectNamingStrategy,
-              ) =>
-                `INSERT INTO ${ns.tableName(tableName)} (${
-                  names.join(", ")
-                }) VALUES (${values.map((value) => value[1]).join(", ")})`,
-            } = insertDmlOptions ?? {};
-            const ns = steOptions.namingStrategy(ctx);
-            const record = tr.transformTabularRecord<
-              InsertableRecord,
-              InsertableObject
-            >(o);
-            const names = emitColumnNames(record, steOptions);
-            const values = names.map((colName) =>
-              emitColumnValue(colName as ColumnName, record, steOptions)
-            );
-            return prepareSqlText(record, names, values, ns);
-          },
-        };
-      },
+      insertDML: ets.typicalInsertStmtPreparer<
+        Context,
+        TableName,
+        InsertableRecord,
+        InsertableRecord,
+        EmitOptions
+      >(tableName, validColumnNames),
     };
   };
 }
