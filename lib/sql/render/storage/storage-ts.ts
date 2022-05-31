@@ -9,6 +9,7 @@ import * as s from "./storage.ts";
 //   * [ ] PK like `publ_host_id: number;` should be `publ_host_id: PublHostIdentity;`
 //   * [ ] FK references to PK's should use PublHostIdentity
 // * [ ] add `updatable` method (like `insertable`) to transform${tableTsToken} objects
+// * [ ] add `upsert` method which wraps insert with onConflict automation
 // * [ ] add data validators to transform${tableTsToken} objects
 //       use https://github.com/tinysource/tinysource/tree/main/schema for validators?
 // * [ ] add foreign key accessors to parent tables
@@ -136,24 +137,18 @@ export function tableGovnTypescript<Context>(
       const tableTsTokenCC = tableTsToken.charAt(0).toLowerCase() +
         tableTsToken.slice(1);
       tsBody.push(`}\n`);
+      // deno-fmt-ignore
       tsBody.push(
         `export const ${tableTsTokenCC}TableName = "${tableSqlName}" as const;`,
-        `export const ${tableTsTokenCC}PrimaryKeyColNames = [${pkColumnNames.map((cn) => `"${cn}"`).join(", ")
-        }];`,
-        `export type ${tableTsToken}PrimaryKeyColName = ${pkColumnNames.map((cn) => `"${cn}"`).join(" | ")
-        };`,
+        `export const ${tableTsTokenCC}PrimaryKeyColNames = [${pkColumnNames.map((cn) => `"${cn}"`).join(", ")}];`,
+        `export type ${tableTsToken}PrimaryKeyColName = ${pkColumnNames.map((cn) => `"${cn}"`).join(" | ")};`,
         `export type ${tableSqlName} = Readonly<mutable_${tableSqlName}>;`,
         `export type Mutable${tableTsToken} = TableToObject<mutable_${tableSqlName}>;`,
         `export type ${tableTsToken} = Readonly<Mutable${tableTsToken}>;`,
-        // deno-fmt-ignore
         `export type ${tableSqlName}_insertable = Omit<${tableSqlName}, ${omitInsertables.map(c => `"${c.columnName}"`).join(" | ")}> & Partial<Pick<${tableSqlName}, ${defaultedColumns.map(c => `"${c.columnName}"`).join(" | ")}>>;`,
-        // deno-fmt-ignore
         `export type mutable_${tableSqlName}_insertable = Omit<mutable_${tableSqlName}, ${omitInsertables.map(c => `"${c.columnName}"`).join(" | ")}> & Partial<Pick<mutable_${tableSqlName}, ${defaultedColumns.map(c => `"${c.columnName}"`).join(" | ")}>>;`,
-        // deno-fmt-ignore
         `export type ${tableTsToken}Insertable = Omit<${tableTsToken}, ${omitInsertables.map(c => `"${columnTsToken(c)}"`).join(" | ")}> & Partial<Pick<${tableTsToken}, ${defaultedColumns.map(c => `"${columnTsToken(c)}"`).join(" | ")}>>;`,
-        // deno-fmt-ignore
         `export type ${tableSqlName}_updateable = Omit<${tableSqlName}, ${omitUpdatables.map(c => `"${c.columnName}"`).join(" | ")}> & Partial<Pick<${tableSqlName}, ${defaultedColumns.map(c => `"${c.columnName}"`).join(" | ")}>>;`,
-        // deno-fmt-ignore
         `export type ${tableTsToken}Updatable = Omit<${tableTsToken}, ${omitUpdatables.map(c => `"${columnTsToken(c)}"`).join(" | ")}> & Partial<Pick<${tableTsToken}, ${defaultedColumns.map(c => `"${columnTsToken(c)}"`).join(" | ")}>>;\n`,
       );
       // deno-fmt-ignore
@@ -189,7 +184,7 @@ export function tableGovnTypescript<Context>(
 export interface TablesTypescriptOptions<
   Context,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-  > {
+> {
   readonly tableTsOptions?: (
     tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, EmitOptions>,
   ) => TableTypescriptOptions<Context>;
@@ -200,13 +195,13 @@ export interface TablesTypescriptOptions<
 export function tablesGovnTypescript<
   Context,
   EmitOptions extends t.SqlTextEmitOptions<Context>,
-  >(
-    tableDefns: Iterable<
-      govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
-    >,
-    ctx: Context,
-    steOptions: EmitOptions,
-    tsOptions?: TablesTypescriptOptions<Context, EmitOptions>,
+>(
+  tableDefns: Iterable<
+    govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>
+  >,
+  ctx: Context,
+  steOptions: EmitOptions,
+  tsOptions?: TablesTypescriptOptions<Context, EmitOptions>,
 ): string {
   const suggested = path.join(
     path.dirname(path.fromFileUrl(import.meta.url)),
