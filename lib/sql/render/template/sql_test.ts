@@ -120,65 +120,65 @@ const fixturePrime = ws.unindentWhitespace(`
 
   -- no SQL lint issues
 
-  CREATE TABLE IF NOT EXISTS publ_host (
-      publ_host_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      host TEXT NOT NULL,
-      host_identity JSON,
-      mutation_count INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(host)
+  CREATE TABLE IF NOT EXISTS "publ_host" (
+      "publ_host_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "host" TEXT NOT NULL,
+      "host_identity" JSON,
+      "mutation_count" INTEGER NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE("host")
   );
   -- encountered persistence request for 1_publ-host.sql
 
-  CREATE VIEW IF NOT EXISTS publ_host_vw AS
-      SELECT publ_host_id, host, host_identity, mutation_count, created_at
-      FROM publ_host;
+  CREATE VIEW IF NOT EXISTS "publ_host_vw" AS
+      SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
+      FROM "publ_host";
 
-  CREATE TABLE IF NOT EXISTS publ_build_event (
-      publ_build_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      publ_host_id INTEGER NOT NULL,
-      iteration_index INTEGER NOT NULL,
-      build_initiated_at DATETIME NOT NULL,
-      build_completed_at DATETIME NOT NULL,
-      build_duration_ms INTEGER NOT NULL,
-      resources_originated_count INTEGER NOT NULL,
-      resources_persisted_count INTEGER NOT NULL,
-      resources_memoized_count INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(publ_host_id) REFERENCES publ_host(publ_host_id)
+  CREATE TABLE IF NOT EXISTS "publ_build_event" (
+      "publ_build_event_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "publ_host_id" INTEGER NOT NULL,
+      "iteration_index" INTEGER NOT NULL,
+      "build_initiated_at" DATETIME NOT NULL,
+      "build_completed_at" DATETIME NOT NULL,
+      "build_duration_ms" INTEGER NOT NULL,
+      "resources_originated_count" INTEGER NOT NULL,
+      "resources_persisted_count" INTEGER NOT NULL,
+      "resources_memoized_count" INTEGER NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY("publ_host_id") REFERENCES "publ_host"("publ_host_id")
   );
 
-  CREATE TABLE IF NOT EXISTS publ_server_service (
-      publ_server_service_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      service_started_at DATETIME NOT NULL,
-      listen_host TEXT NOT NULL,
-      listen_port INTEGER NOT NULL,
-      publish_url TEXT NOT NULL,
-      publ_build_event_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(publ_build_event_id) REFERENCES publ_build_event(publ_build_event_id)
+  CREATE TABLE IF NOT EXISTS "publ_server_service" (
+      "publ_server_service_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "service_started_at" DATETIME NOT NULL,
+      "listen_host" TEXT NOT NULL,
+      "listen_port" INTEGER NOT NULL,
+      "publish_url" TEXT NOT NULL,
+      "publ_build_event_id" INTEGER NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY("publ_build_event_id") REFERENCES "publ_build_event"("publ_build_event_id")
   );
 
-  CREATE TABLE IF NOT EXISTS publ_server_static_access_log (
-      publ_server_static_access_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      status INTEGER NOT NULL,
-      asset_nature TEXT NOT NULL,
-      location_href TEXT NOT NULL,
-      filesys_target_path TEXT NOT NULL,
-      filesys_target_symlink TEXT,
-      publ_server_service_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
+  CREATE TABLE IF NOT EXISTS "publ_server_static_access_log" (
+      "publ_server_static_access_log_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "status" INTEGER NOT NULL,
+      "asset_nature" TEXT NOT NULL,
+      "location_href" TEXT NOT NULL,
+      "filesys_target_path" TEXT NOT NULL,
+      "filesys_target_symlink" TEXT,
+      "publ_server_service_id" INTEGER NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
   );
 
-  CREATE TABLE IF NOT EXISTS publ_server_error_log (
-      publ_server_error_log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      location_href TEXT NOT NULL,
-      error_summary TEXT NOT NULL,
-      error_elaboration JSON,
-      publ_server_service_id INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(publ_server_service_id) REFERENCES publ_server_service(publ_server_service_id)
+  CREATE TABLE IF NOT EXISTS "publ_server_error_log" (
+      "publ_server_error_log_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "location_href" TEXT NOT NULL,
+      "error_summary" TEXT NOT NULL,
+      "error_elaboration" JSON,
+      "publ_server_service_id" INTEGER NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
   );
 
-  INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test', 'testHI', 0);`);
+  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);`);

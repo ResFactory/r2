@@ -18,13 +18,13 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
     ta.assertEquals(
       syntheticTD.publHost.tableDefn.SQL(ctx, emitOptions),
       uws(`
-        CREATE TABLE IF NOT EXISTS publ_host (
-            publ_host_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            host TEXT NOT NULL,
-            host_identity JSON,
-            mutation_count INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(host)
+        CREATE TABLE IF NOT EXISTS "publ_host" (
+            "publ_host_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "host" TEXT NOT NULL,
+            "host_identity" JSON,
+            "mutation_count" INTEGER NOT NULL,
+            "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE("host")
         )`),
     );
   });
@@ -33,9 +33,9 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
     ta.assertEquals(
       syntheticTD.publHost.viewWrapper.SQL(ctx, emitOptions),
       uws(`
-        CREATE VIEW IF NOT EXISTS publ_host_vw AS
-            SELECT publ_host_id, host, host_identity, mutation_count, created_at
-            FROM publ_host`),
+        CREATE VIEW IF NOT EXISTS "publ_host_vw" AS
+            SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
+            FROM "publ_host"`),
     );
   });
 
@@ -43,18 +43,18 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
     ta.assertEquals(
       syntheticTD.publBuildEvent.tableDefn.SQL(ctx, emitOptions),
       uws(`
-        CREATE TABLE IF NOT EXISTS publ_build_event (
-            publ_build_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            publ_host_id INTEGER NOT NULL,
-            iteration_index INTEGER NOT NULL,
-            build_initiated_at DATETIME NOT NULL,
-            build_completed_at DATETIME NOT NULL,
-            build_duration_ms INTEGER NOT NULL,
-            resources_originated_count INTEGER NOT NULL,
-            resources_persisted_count INTEGER NOT NULL,
-            resources_memoized_count INTEGER NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(publ_host_id) REFERENCES publ_host(publ_host_id)
+        CREATE TABLE IF NOT EXISTS "publ_build_event" (
+            "publ_build_event_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "publ_host_id" INTEGER NOT NULL,
+            "iteration_index" INTEGER NOT NULL,
+            "build_initiated_at" DATETIME NOT NULL,
+            "build_completed_at" DATETIME NOT NULL,
+            "build_duration_ms" INTEGER NOT NULL,
+            "resources_originated_count" INTEGER NOT NULL,
+            "resources_persisted_count" INTEGER NOT NULL,
+            "resources_memoized_count" INTEGER NOT NULL,
+            "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY("publ_host_id") REFERENCES "publ_host"("publ_host_id")
         )`),
     );
   });
@@ -66,7 +66,7 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         host_identity: "testHI1",
         mutation_count: 0,
       }).SQL(ctx, emitOptions),
-      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test1', 'testHI1', 0)`,
+      `INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test1', 'testHI1', 0)`,
     );
 
     ta.assertEquals(
@@ -75,7 +75,7 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         host_identity: "testHI2",
         mutation_count: 2,
       }, { returning: "*" }).SQL(ctx, emitOptions),
-      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test2', 'testHI2', 2) RETURNING *`,
+      `INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test2', 'testHI2', 2) RETURNING *`,
     );
 
     ta.assertEquals(
@@ -84,7 +84,7 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         host_identity: "testHI3",
         mutation_count: 3,
       }, { returning: "primary-keys" }).SQL(ctx, emitOptions),
-      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test3', 'testHI3', 3) RETURNING publ_host_id`,
+      `INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test3', 'testHI3', 3) RETURNING "publ_host_id"`,
     );
 
     ta.assertEquals(
@@ -94,9 +94,9 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
         mutation_count: 4,
       }, {
         returning: { columns: ["host"] },
-        onConflict: { SQL: () => `ON CONFLICT (host) IGNORE` },
+        onConflict: { SQL: () => `ON CONFLICT ("host") IGNORE` },
       }).SQL(ctx, emitOptions),
-      `INSERT INTO publ_host (host, host_identity, mutation_count) VALUES ('test4', 'testHI4', 4) ON CONFLICT (host) IGNORE RETURNING host`,
+      `INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test4', 'testHI4', 4) ON CONFLICT ("host") IGNORE RETURNING "host"`,
     );
   });
 });

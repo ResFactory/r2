@@ -110,7 +110,9 @@ export function typicalSqlViewDefnFactory<
               "create view select statement",
               rawSelectStmtSqlText,
             );
-            const ns = steOptions.namingStrategy(ctx);
+            const ns = steOptions.namingStrategy(ctx, {
+              quoteIdentifiers: true,
+            });
             const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
               isIdempotent ? "IF NOT EXISTS " : ""
             }${ns.viewName(viewName)}${
@@ -140,7 +142,7 @@ export function typicalSqlViewDefnFactory<
       const { ifExists = true } = dvOptions ?? {};
       return {
         SQL: (ctx, steOptions) => {
-          const ns = steOptions.namingStrategy(ctx);
+          const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
           return `DROP VIEW ${ifExists ? "IF EXISTS " : ""}${
             ns.viewName(viewName)
           }`;

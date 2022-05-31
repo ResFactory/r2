@@ -11,7 +11,7 @@ Deno.test("SQL assembler (SQLa) schema", async (tc) => {
     const view = sdf.sqlSchemaDefn("synthetic_schema");
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
-      `CREATE SCHEMA IF NOT EXISTS synthetic_schema`,
+      `CREATE SCHEMA IF NOT EXISTS "synthetic_schema"`,
     );
   });
 
@@ -21,7 +21,7 @@ Deno.test("SQL assembler (SQLa) schema", async (tc) => {
     });
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
-      `CREATE SCHEMA synthetic_schema`,
+      `CREATE SCHEMA "synthetic_schema"`,
     );
   });
 });

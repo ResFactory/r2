@@ -136,7 +136,7 @@ export function typicalTableColumnDefnSqlTextSupplier<
 ) => string {
   return (ctx, steOptions) => {
     const tCD = ctx.tableColumnDefn;
-    const ns = steOptions.namingStrategy(ctx);
+    const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
     const columnName = ns.tableColumnName({
       tableName: ctx.tableDefn.tableName,
       columnName: ctx.tableColumnDefn.columnName,
@@ -321,10 +321,11 @@ export function typicalTableDefnDecoratorsFactory<
         SQL: (ctx, steOptions) =>
           `UNIQUE(${
             columnNames.map((cn) =>
-              steOptions.namingStrategy(ctx).tableColumnName?.({
-                tableName: tableDefn.tableName,
-                columnName: cn,
-              }) ?? cn
+              steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+                .tableColumnName?.({
+                  tableName: tableDefn.tableName,
+                  columnName: cn,
+                }) ?? cn
             ).join(", ")
           })`,
       });
@@ -502,7 +503,9 @@ export function typicalDefineTableOptions<
           if (isTableColumnForeignKeySupplier(c)) {
             tableDefn.decorators.push({
               SQL: (ctx, steOptions) => {
-                const ns = steOptions.namingStrategy(ctx);
+                const ns = steOptions.namingStrategy(ctx, {
+                  quoteIdentifiers: true,
+                });
                 const tn = ns.tableName;
                 const cn = ns.tableColumnName;
                 return `FOREIGN KEY(${
@@ -649,7 +652,7 @@ export function staticTableDefn<
         }
       },
       SQL: (sqlCtx, steOptions) => {
-        const ns = steOptions.namingStrategy(ctx);
+        const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
         const columnDefns: string[] = [];
         const tableCtx:
           & Context
@@ -884,15 +887,18 @@ export function tableDefnViewWrapper<
   const selectColumnNamesSS: t.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
       selectColumnNames.map((cn) =>
-        steOptions.namingStrategy(ctx).tableColumnName({
-          tableName: tableDefn.tableName,
-          columnName: cn,
-        })
+        steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+          .tableColumnName({
+            tableName: tableDefn.tableName,
+            columnName: cn,
+          })
       ).join(", "),
   };
   const tableNameSS: t.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
-      steOptions.namingStrategy(ctx).tableName?.(tableDefn.tableName) ??
+      steOptions.namingStrategy(ctx, { quoteIdentifiers: true }).tableName?.(
+        tableDefn.tableName,
+      ) ??
         tableDefn.tableName,
   };
   return factory.sqlViewStrTmplLiteral<ViewName, ColumnName>(

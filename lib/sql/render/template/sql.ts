@@ -16,8 +16,8 @@ export interface SqlObjectNamingStrategy {
   ) => string;
 }
 
-// deno-lint-ignore no-empty-interface
 export interface SqlObjectNamingStrategyOptions<Context> {
+  readonly quoteIdentifiers: boolean;
   // readonly qualifyTableName: boolean;
   // readonly qualifyViewName: boolean;
 }
@@ -56,14 +56,29 @@ export function typicalQuotedSqlLiteral(
 export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
   Context
 > {
-  const namingStrategy: SqlObjectNamingStrategySupplier<Context> = () => {
-    return {
-      schemaName: (name) => name,
-      tableName: (name) => name,
-      tableColumnName: (tc) => tc.columnName,
-      viewName: (name) => name,
-      viewColumnName: (vc) => vc.columnName,
-    };
+  const quotedIdentifiersNS: SqlObjectNamingStrategy = {
+    schemaName: (name) => `"${name}"`,
+    tableName: (name) => `"${name}"`,
+    tableColumnName: (tc) => `"${tc.columnName}"`,
+    viewName: (name) => `"${name}"`,
+    viewColumnName: (vc) => `"${vc.columnName}"`,
+  };
+
+  const bareIdentifiersNS: SqlObjectNamingStrategy = {
+    schemaName: (name) => name,
+    tableName: (name) => name,
+    tableColumnName: (tc) => tc.columnName,
+    viewName: (name) => name,
+    viewColumnName: (vc) => vc.columnName,
+  };
+
+  const namingStrategy: SqlObjectNamingStrategySupplier<Context> = (
+    _,
+    nsOptions,
+  ) => {
+    return nsOptions?.quoteIdentifiers
+      ? quotedIdentifiersNS
+      : bareIdentifiersNS;
   };
 
   return {

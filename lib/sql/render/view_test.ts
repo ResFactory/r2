@@ -16,7 +16,7 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       uws(`
-         CREATE VIEW IF NOT EXISTS synthetic_view AS
+         CREATE VIEW IF NOT EXISTS "synthetic_view" AS
              SELECT this, that, the_other
                FROM table
               WHERE something = 'true'`),
@@ -34,7 +34,7 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       uws(`
-         CREATE TEMP VIEW synthetic_view AS
+         CREATE TEMP VIEW "synthetic_view" AS
              SELECT this, that, the_other
                FROM table
               WHERE something = 'true'`),
@@ -52,8 +52,8 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       uws(`
-         DROP VIEW IF EXISTS synthetic_view;
-         CREATE VIEW synthetic_view AS
+         DROP VIEW IF EXISTS "synthetic_view";
+         CREATE VIEW "synthetic_view" AS
              SELECT this, that, the_other
                FROM table
               WHERE something = 'true'`),
@@ -65,11 +65,11 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
     const dvIE = vdf.dropView("synthetic_view", { ifExists: false });
     ta.assertEquals(
       dv.SQL(ctx, emitOptions),
-      `DROP VIEW IF EXISTS synthetic_view`,
+      `DROP VIEW IF EXISTS "synthetic_view"`,
     );
     ta.assertEquals(
       dvIE.SQL(ctx, emitOptions),
-      `DROP VIEW synthetic_view`,
+      `DROP VIEW "synthetic_view"`,
     );
   });
 });

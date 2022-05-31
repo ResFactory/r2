@@ -33,7 +33,26 @@ export type RequireOnlyOne<T, Keys extends keyof T = keyof T> =
       & Partial<Record<Exclude<Keys, K>, undefined>>;
   }[Keys];
 
+export interface SqlObjectNamingStrategy {
+  readonly tableName: (tableName: string) => string;
+  readonly tableColumnName: (
+    tc: { tableName: string; columnName: string },
+  ) => string;
+}
+
+export interface SqlObjectNamingStrategySupplier<Context> {
+  (
+    ctx: Context,
+    nsOptions?: SqlObjectNamingStrategyOptions<Context>,
+  ): SqlObjectNamingStrategy;
+}
+
+export interface SqlObjectNamingStrategyOptions<Context> {
+  readonly quoteIdentifiers: boolean;
+}
+
 export interface SqlTextEmitOptions<Context> {
+  readonly namingStrategy: SqlObjectNamingStrategySupplier<Context>;
   readonly quotedLiteral: (value: unknown) => [value: unknown, quoted: string];
 }
 
@@ -58,7 +77,7 @@ export type InsertStmtReturning<
 
 export interface InsertStmtPreparer<
   Context,
-  TableName,
+  TableName extends string,
   PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
@@ -73,6 +92,7 @@ export interface InsertStmtPreparer<
       columnName: keyof InsertableRecord,
       record: InsertableRecord,
       tableName: TableName,
+      ns: SqlObjectNamingStrategy,
       eo?: EmitOptions,
       ctx?: Context,
     ) =>
@@ -102,6 +122,7 @@ export interface InsertStmtPreparer<
       record: InsertableRecord,
       names: InsertableColumnName[],
       values: [value: unknown, sqlText: string][],
+      ns: SqlObjectNamingStrategy,
       eo?: EmitOptions,
       ctx?: Context,
     ) => string;
@@ -110,7 +131,7 @@ export interface InsertStmtPreparer<
 
 export function typicalInsertStmtPreparer<
   Context,
-  TableName,
+  TableName extends string,
   PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
@@ -135,6 +156,10 @@ export function typicalInsertStmtPreparer<
       SQL: (ctx, eo) => {
         const { emitColumn, returning: returningArg, where, onConflict } =
           pisOptions ?? {};
+        const ns = eo?.namingStrategy(ctx ?? ({} as Context), {
+          quoteIdentifiers: true,
+        }) ??
+          quotedIdentifiersNS;
         const names: InsertableColumnName[] = [];
         const values: [value: unknown, valueSqlText: string][] = [];
         candidateColumns.forEach((c) => {
@@ -144,7 +169,7 @@ export function typicalInsertStmtPreparer<
             valueSqlText: string,
           ] | undefined;
           if (emitColumn) {
-            ec = emitColumn(c, ir, tableName, eo, ctx);
+            ec = emitColumn(c, ir, tableName, ns, eo, ctx);
           } else {
             const { quotedLiteral = typicalQuotedLiteral } = eo ?? {};
             const qValue = quotedLiteral((ir as Any)[c]);
@@ -182,18 +207,30 @@ export function typicalInsertStmtPreparer<
               returningSQL = ` RETURNING *`;
               break;
             case "primary-keys":
-              returningSQL = ` RETURNING ${pkColumns!.join(", ")}`;
+              returningSQL = ` RETURNING ${
+                pkColumns!.map((n) =>
+                  ns.tableColumnName({ tableName, columnName: String(n) })
+                ).join(", ")
+              }`;
               break;
           }
         } else if (typeof returning === "object") {
           if (returning.columns) {
-            returningSQL = ` RETURNING ${returning!.columns!.join(", ")}`;
+            returningSQL = ` RETURNING ${
+              returning!.columns!.map((n) =>
+                ns.tableColumnName({ tableName, columnName: String(n) })
+              ).join(", ")
+            }`;
           } else {
-            returningSQL = ` RETURNING ${returning!.exprs!.join(", ")}`;
+            returningSQL = ` RETURNING ${
+              returning!.exprs!.map((n) =>
+                ns.tableColumnName({ tableName, columnName: String(n) })
+              ).join(", ")
+            }`;
           }
         }
         // deno-fmt-ignore
-        const SQL = `INSERT INTO ${tableName} (${names.join(", ")}) VALUES (${values.map((value) => value[1]).join(", ")
+        const SQL = `INSERT INTO ${ns.tableName(tableName)} (${names.map(n => ns.tableColumnName({ tableName, columnName: String(n) })).join(", ")}) VALUES (${values.map((value) => value[1]).join(", ")
           })${sqlText(where)}${sqlText(onConflict)}${returningSQL}`;
         return pisOptions?.transformSQL
           ? pisOptions?.transformSQL(
@@ -202,6 +239,7 @@ export function typicalInsertStmtPreparer<
             ir,
             names,
             values,
+            ns,
             eo,
             ctx,
           )
@@ -229,7 +267,7 @@ export interface TableDataTransferSuppliers<
 
 export interface TableDmlSuppliers<
   Context,
-  TableName,
+  TableName extends string,
   PrimaryKeyColName extends string,
   InsertableRecord,
   ReturnableRecord,
@@ -247,6 +285,16 @@ export interface TableDmlSuppliers<
 
 // ${SQL_RENDER_EMIT_TS_BODY} each table will generate its own body
 
+const quotedIdentifiersNS: SqlObjectNamingStrategy = {
+  tableName: (name) => `"${name}"`,
+  tableColumnName: (tc) => `"${tc.columnName}"`,
+};
+
+const bareIdentifiersNS: SqlObjectNamingStrategy = {
+  tableName: (name) => name,
+  tableColumnName: (tc) => tc.columnName,
+};
+
 export const typicalQuotedLiteral = (
   value: unknown,
 ): [value: unknown, quoted: string] => {
@@ -262,6 +310,8 @@ export function typicalSqlEmitOptions<Context>(
 ): SqlTextEmitOptions<Context> {
   return {
     quotedLiteral: typicalQuotedLiteral,
+    namingStrategy: (_, nsOptions) =>
+      nsOptions?.quoteIdentifiers ? quotedIdentifiersNS : bareIdentifiersNS,
     ...inherit,
   };
 }

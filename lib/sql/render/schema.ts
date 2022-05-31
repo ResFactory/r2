@@ -66,7 +66,8 @@ export function typicalSqlSchemaDefnFactory<
         SQL: (ctx, steOptions) => {
           return `CREATE SCHEMA ${
             isIdempotent ? "IF NOT EXISTS " : ""
-          }${steOptions.namingStrategy(ctx).schemaName?.(schemaName)}`;
+          }${steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+            .schemaName?.(schemaName)}`;
         },
       };
     },
