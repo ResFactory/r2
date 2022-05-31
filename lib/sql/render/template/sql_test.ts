@@ -87,7 +87,7 @@ Deno.test("SQL assembler (SQLa) template", () => {
 
     ${schema.publServerErrorLog.tableDefn}
 
-    ${schema.publHost.insertDML({ host: "test", hostIdentity: "testHI", mutationCount: 0 })}`;
+    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
 
   const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
   if (DDL.lintIssues?.length) {
