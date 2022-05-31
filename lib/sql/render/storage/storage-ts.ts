@@ -15,6 +15,9 @@ import * as s from "./storage.ts";
 // * [ ] add foreign key accessors to parent tables
 //         readonly tableChildren: (whereCond: SqlTextSupplier) => Children[]
 //         readonly xyz_id: scalar should also have xyz: () => record accessor
+// * [ ] add typed column definitions like
+//   * [ ] const publHostColumn1Defn = { ... defn }
+//   * [ ] const publHostColumns = [publHostColumn1Defn, publHostColumn2Defn, etc]
 
 export interface TypescriptCodeSupplier<Context> {
   readonly typescriptCode: (ctx: Context) => string;
