@@ -9,6 +9,7 @@
 -- * if table's rows are mutable, it MUST have a `updated_at DATETIME` column (not having an updated_at means it's immutable)
 -- * if table's rows are deleteable, it MUST have a `deleted_at DATETIME` column for soft deletes (not having an deleted_at means it's immutable)
 
+-- TODO: add `record_status` table and foreign key to indicate record status, versioning, etc.
 -- TODO: create a govn_* set of tables that would contain business logic, assurance, presentation, and other details
 --       govn_entity would be a table that stores table meta data (descriptions, immutability, presentation, migration instructions, etc.)
 --       govn_entity_property would be a table that stores table column meta data (descriptions, immutability, presentation, migration instructions, etc.)
