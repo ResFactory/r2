@@ -5,6 +5,9 @@ import * as t from "../template/mod.ts";
 import * as s from "./storage.ts";
 
 // TODO:
+// * [ ] consider parsing SQL statements for type-safe results using
+//       https://tokern.io/blog/open-source-sql-parsers/ - perhaps any SQL statement
+//       SQL supplier can be type-safe?
 // * [ ] in interface decls:
 //   * [ ] PK like `publ_host_id: number;` should be `publ_host_id: PublHostIdentity;`
 //   * [ ] FK references to PK's should use PublHostIdentity
