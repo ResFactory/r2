@@ -22,7 +22,7 @@ jobs:
       - run: deno --version
 
       # Check if the code is formatted according to Deno's default formatting conventions.
-      - run: deno fmt --check
+      - run: deno fmt --check **/*.ts
 
       # Scan the code for syntax errors and style issues.
       # If you want to use a custom linter configuration you can add a configuration file with --config <myconfig>

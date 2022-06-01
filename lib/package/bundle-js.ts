@@ -120,11 +120,11 @@ export interface BundledJavascriptSupplier {
 export interface NotBundledTypescriptEvent<ReasonCtx>
   extends TypescriptSupplier {
   readonly reason:
-  | "business-rule"
-  | "src-not-found"
-  | "diagnosable-issue"
-  | "undiagnosable-error"
-  | string;
+    | "business-rule"
+    | "src-not-found"
+    | "diagnosable-issue"
+    | "undiagnosable-error"
+    | string;
   readonly reasonCtx?: ReasonCtx;
 }
 
@@ -144,7 +144,7 @@ export class TransformTypescriptEventEmitter extends events.EventEmitter<{
   ): Promise<void>;
   diagnosableBundleIssue(evt: BundledTypescriptEvent): Promise<void>;
   undiagnosableBundleError(ts: TypescriptSupplier, e: Error): Promise<void>;
-}> { }
+}> {}
 
 export interface TransformTypescriptOptions {
   readonly ee?: TransformTypescriptEventEmitter;
