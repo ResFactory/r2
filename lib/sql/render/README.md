@@ -11,6 +11,10 @@ to prepare the final SQL that will be loaded into the database.
 
 ## TODO
 
+* Incorporate [Evolutionary Database Design](https://martinfowler.com/articles/evodb.html)
+  principles into SQL rendering infrastructure.
+* See if [Database Change and Version Control for Teams](https://www.bytebase.com/_nuxt/img/main.a176dc4.webp)
+  makes sense as a generator target.
 * Learn from [DataHub](https://datahubproject.io/docs/features) about how to
   document and manage meta data ('data governance') artifacts and incorporate
   appropriate governance capabilities. These are DataHub features we should
