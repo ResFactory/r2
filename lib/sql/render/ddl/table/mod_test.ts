@@ -4,10 +4,11 @@ import * as mod from "./mod.ts";
 import * as tf from "./test-fixtures.ts";
 import * as vw from "../view.ts";
 import * as tmpl from "../../template/mod.ts";
+import * as sqlite from "../../dialect/sqlite/table.ts";
 
 Deno.test("SQL assember (SQLa) storage", async (tc) => {
   const ctx: tf.SyntheticStorageContext = {
-    tdfs: mod.sqliteTableDefnFactories<tf.SyntheticStorageContext>(),
+    tdfs: sqlite.sqliteTableDefnFactories<tf.SyntheticStorageContext>(),
     vdf: vw.typicalSqlViewDefnFactory<tf.SyntheticStorageContext>(),
   };
 
@@ -103,7 +104,7 @@ Deno.test("SQL assember (SQLa) storage", async (tc) => {
 
 Deno.test("Typescript generator", async (tc) => {
   const ctx: tf.SyntheticStorageContext = {
-    tdfs: mod.sqliteTableDefnFactories<tf.SyntheticStorageContext>(),
+    tdfs: sqlite.sqliteTableDefnFactories<tf.SyntheticStorageContext>(),
     vdf: vw.typicalSqlViewDefnFactory<tf.SyntheticStorageContext>(),
   };
 

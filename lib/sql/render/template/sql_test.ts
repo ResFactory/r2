@@ -4,7 +4,7 @@ import * as stf from "../ddl/table/test-fixtures.ts";
 import * as mod from "./sql.ts";
 import * as tbl from "../ddl/table/mod.ts";
 import * as vw from "../ddl/view.ts";
-import * as sqlite from "../ddl/table/sqlite.ts";
+import * as sqlite from "../dialect/sqlite/table.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
