@@ -40,6 +40,11 @@ load into an RDBMS.
 - CALL: Call a PL/SQL or JAVA subprogram.
 - EXPLAIN PLAN: It describes the access path to data.
 
+### PL (Procedural or Programming Language)
+
+- BODY defines PL (stored function or stored procedure) body
+- CONTRACT defines the header, parameter, etcs.
+
 ### DCL (Data Control Language)
 
 - GRANT: This command gives users access privileges to the database.
