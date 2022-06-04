@@ -5,6 +5,7 @@ import * as tmpl from "../../template/mod.ts";
 import * as s from "./table.ts";
 
 // TODO:
+// * [ ] see if generating https://github.com/koskimas/kysely modules makes sense
 // * [ ] consider parsing SQL statements for type-safe results using
 //       https://tokern.io/blog/open-source-sql-parsers/ - perhaps any SQL statement
 //       SQL supplier can be type-safe?

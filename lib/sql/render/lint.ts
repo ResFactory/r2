@@ -31,7 +31,7 @@ export function templateStringLintIssue(
 
 export const isTemplateStringLintIssue = safety.typeGuard<
   TemplateStringSqlLintIssue
->("templateLiterals", "templateExprs");
+>("lintIssue", "templateLiterals", "templateExprs");
 
 export interface SqlLintIssuesSupplier {
   readonly lintIssues: SqlLintIssueSupplier[];

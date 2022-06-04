@@ -1,19 +1,20 @@
 import * as safety from "../../../safety/mod.ts";
 import * as tmpl from "../template/mod.ts";
+import * as sp from "../space.ts";
 
 export interface SchemaDefinition<
   Context,
-  SchemaName extends string,
+  SchemaName extends sp.SqlSpace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+> extends tmpl.SqlTextSupplier<Context, EmitOptions>, sp.SqlSpaceSupplier {
   readonly isValid: boolean;
-  readonly schemaName: SchemaName;
+  readonly sqlSpace: SchemaName;
   readonly isIdempotent: boolean;
 }
 
 export function isSchemaDefinition<
   Context,
-  SchemaName extends string,
+  SchemaName extends sp.SqlSpace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
@@ -21,7 +22,7 @@ export function isSchemaDefinition<
   const isSD = safety.typeGuard<
     SchemaDefinition<Context, SchemaName, EmitOptions>
   >(
-    "schemaName",
+    "sqlSpace",
     "SQL",
   );
   return isSD(o);
@@ -29,7 +30,7 @@ export function isSchemaDefinition<
 
 export interface SchemaDefnOptions<
   Context,
-  SchemaName extends string,
+  SchemaName extends sp.SqlSpace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
   readonly isIdempotent?: boolean;
@@ -42,7 +43,7 @@ export interface SchemaDefnFactory<
       Context
     >,
 > {
-  sqlSchemaDefn: <SchemaName extends string>(
+  sqlSchemaDefn: <SchemaName extends sp.SqlSpace>(
     schemaName: SchemaName,
     schemaDefnOptions?: SchemaDefnOptions<Context, SchemaName, EmitOptions>,
   ) =>
@@ -62,7 +63,7 @@ export function typicalSqlSchemaDefnFactory<
       const { isIdempotent = true } = sdOptions ?? {};
       return {
         isValid: true,
-        schemaName,
+        sqlSpace: schemaName,
         isIdempotent,
         populateSqlTextLintIssues: () => {},
         SQL: (ctx, steOptions) => {

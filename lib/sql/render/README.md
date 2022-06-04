@@ -9,6 +9,50 @@ Instead of inventing yet another template language, `SQLa` uses a set of naming
 conventions plus the full power of JavaScript (and TypeScript) Template strings
 to prepare the final SQL that will be loaded into the database.
 
+## SQL rendering module organization
+
+This SQL rendering library is meant to provide type-safe SQL code generation to
+help prepare and reliably load SQL into multiple RDBMS dialects. The library is
+not meant to replace or hide SQL, it's meant to make SQL easier to prepare and
+load into an RDBMS.
+
+### DDL (Data Definition Language)
+
+- CREATE: This command is used to create the database or its objects (like
+  table, index, function, views, store procedure, and triggers).
+- DROP: This command is used to delete objects from the database.
+- ALTER: This is used to alter the structure of the database.
+- TRUNCATE: This is used to remove all records from a table, including all
+  spaces allocated for the records are removed.
+- COMMENT: This is used to add comments to the data dictionary.
+- RENAME: This is used to rename an object existing in the database.
+
+### DQL (Data Query Language)
+
+- SELECT: It is used to retrieve data from the database.
+
+### DML(Data Manipulation Language)
+
+- INSERT : It is used to insert data into a table.
+- UPDATE: It is used to update existing data within a table.
+- DELETE : It is used to delete records from a database table.
+- LOCK: Table control concurrency.
+- CALL: Call a PL/SQL or JAVA subprogram.
+- EXPLAIN PLAN: It describes the access path to data.
+
+### DCL (Data Control Language)
+
+- GRANT: This command gives users access privileges to the database.
+- REVOKE: This command withdraws the user’s access privileges given by using the
+  GRANT command.
+
+### TCL (Transaction Control Language)
+
+- COMMIT: Commits a Transaction.
+- ROLLBACK: Rollbacks a transaction in case of any error occurs.
+- SAVEPOINT: Sets a savepoint within a transaction.
+- SET TRANSACTION: Specify characteristics for the transaction.
+
 ## TODO
 
 - Incorporate
