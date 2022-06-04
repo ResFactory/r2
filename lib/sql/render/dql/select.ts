@@ -16,7 +16,7 @@ export interface Select<
   SelectStmtName extends string,
   ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly selectStmt: tmpl.SqlTextSupplier<Context, EmitOptions>;
   readonly selectStmtName?: SelectStmtName;
@@ -38,8 +38,8 @@ export function isSelect<
   SelectStmtName extends string,
   ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  >(
-    o: unknown,
+>(
+  o: unknown,
 ): o is Select<Context, SelectStmtName, ColumnName, EmitOptions> {
   const isSS = safety.typeGuard<
     Select<Context, SelectStmtName, ColumnName, EmitOptions>
@@ -52,15 +52,15 @@ export function select<
   SelectStmtName extends string,
   ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  >(
-    ssOptions?: tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
-      readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
-        & Select<Context, SelectStmtName, ColumnName, EmitOptions>
-        & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
-      );
-      readonly selectStmtName?: SelectStmtName;
-      readonly selectColumns?: ColumnName[];
-    },
+>(
+  ssOptions?: tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
+    readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
+      & Select<Context, SelectStmtName, ColumnName, EmitOptions>
+      & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
+    );
+    readonly selectStmtName?: SelectStmtName;
+    readonly selectColumns?: ColumnName[];
+  },
 ) {
   return (
     literals: TemplateStringsArray,
