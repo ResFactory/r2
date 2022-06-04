@@ -4,7 +4,7 @@ import * as mod from "./mod.ts";
 import * as tf from "./test-fixtures.ts";
 import * as vw from "../view.ts";
 import * as tmpl from "../../template/mod.ts";
-import * as sqlite from "../../dialect/sqlite/table.ts";
+import * as sqlite from "../../dialect/sqlite/mod.ts";
 
 Deno.test("SQL assember (SQLa) storage", async (tc) => {
   const ctx: tf.SyntheticStorageContext = {
