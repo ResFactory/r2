@@ -1,22 +1,22 @@
 import { path, testingAsserts as ta } from "../deps-test.ts";
 import * as ws from "../../../text/whitespace.ts";
-import * as stf from "../storage/test-fixtures.ts";
+import * as stf from "../ddl/table/test-fixtures.ts";
 import * as mod from "./sql.ts";
-import * as s from "../storage/mod.ts";
-import * as v from "../view.ts";
-import * as sqlite from "../storage/sqlite.ts";
+import * as tbl from "../ddl/table/mod.ts";
+import * as vw from "../ddl/view.ts";
+import * as sqlite from "../ddl/table/sqlite.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
 
 interface SyntheticTmplContext extends stf.SyntheticStorageContext {
-  readonly vdf: v.ViewDefnFactory<SyntheticTmplContext>;
+  readonly vdf: vw.ViewDefnFactory<SyntheticTmplContext>;
 }
 
 Deno.test("SQL assembler (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {
     tdfs: sqlite.sqliteTableDefnFactories<SyntheticTmplContext>(),
-    vdf: v.typicalSqlViewDefnFactory<SyntheticTmplContext>(),
+    vdf: vw.typicalSqlViewDefnFactory<SyntheticTmplContext>(),
   };
   const schema = stf.syntheticTableDefns(ctx);
   const persist = (
@@ -31,18 +31,18 @@ Deno.test("SQL assembler (SQLa) template", () => {
   };
 
   const tablesDeclared = new Set<
-    s.TableDefinition<SyntheticTmplContext, Any, Any, Any>
+    tbl.TableDefinition<SyntheticTmplContext, Any, Any, Any>
   >();
   const viewsDeclared = new Set<
-    v.ViewDefinition<SyntheticTmplContext, Any, Any, Any>
+    vw.ViewDefinition<SyntheticTmplContext, Any, Any, Any>
   >();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (s.isTableDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
+    if (tbl.isTableDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (v.isViewDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
+    if (vw.isViewDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
       viewsDeclared.add(sts);
     }
   }

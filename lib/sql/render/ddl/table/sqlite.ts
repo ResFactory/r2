@@ -1,5 +1,5 @@
-import * as s from "./storage.ts";
-import * as t from "../template/mod.ts";
+import * as s from "./table.ts";
+import * as t from "../../template/mod.ts";
 
 export function sqliteTableDefnFactories<
   Context,

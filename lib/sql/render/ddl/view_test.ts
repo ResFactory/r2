@@ -1,12 +1,12 @@
-import { testingAsserts as ta } from "./deps-test.ts";
-import { unindentWhitespace as uws } from "../../text/whitespace.ts";
+import { testingAsserts as ta } from "../deps-test.ts";
+import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./view.ts";
-import * as t from "./template/mod.ts";
+import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL assembler (SQLa) views", async (tc) => {
   const vdf = mod.typicalSqlViewDefnFactory();
   const ctx = undefined;
-  const emitOptions = t.typicalSqlTextEmitOptions();
+  const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent view", () => {
     const view = vdf.sqlViewStrTmplLiteral("synthetic_view")`

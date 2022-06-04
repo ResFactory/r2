@@ -1,18 +1,22 @@
-import * as safety from "../../safety/mod.ts";
-import * as ws from "../../text/whitespace.ts";
-import * as t from "./template/mod.ts";
-import * as l from "./lint.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as ws from "../../../text/whitespace.ts";
+import * as tmpl from "../template/mod.ts";
+import * as l from "../lint.ts";
+
+// TODO: use https://github.com/oguimbal/pgsql-ast-parser or similar to parse
+// SQL statements and auto-discover columns, tables, etc. instead of requiring
+// developers to provide definition
 
 export type SelectNotFirstWordLintIssue = l.TemplateStringSqlLintIssue;
 
-export interface SelectStatement<
+export interface Select<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends t.SqlTextSupplier<Context, EmitOptions> {
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
-  readonly selectStmt: t.SqlTextSupplier<Context, EmitOptions>;
+  readonly selectStmt: tmpl.SqlTextSupplier<Context, EmitOptions>;
   readonly selectStmtName?: SelectStmtName;
   readonly columns?: ColumnName[];
 }
@@ -27,30 +31,30 @@ const firstWord = (text: string) => {
   return false;
 };
 
-export function isSelectStatement<
+export function isSelect<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
-): o is SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions> {
+): o is Select<Context, SelectStmtName, ColumnName, EmitOptions> {
   const isSS = safety.typeGuard<
-    SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
+    Select<Context, SelectStmtName, ColumnName, EmitOptions>
   >("selectStmt", "SQL");
   return isSS(o);
 }
 
-export function selectStmt<
+export function select<
   Context,
   SelectStmtName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
-  ssOptions?: t.SqlTextSupplierOptions<Context, EmitOptions> & {
+  ssOptions?: tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
-      & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
-      & t.SqlTextLintIssuesSupplier<Context, EmitOptions>
+      & Select<Context, SelectStmtName, ColumnName, EmitOptions>
+      & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
     );
     readonly selectStmtName?: SelectStmtName;
     readonly selectColumns?: ColumnName[];
@@ -58,10 +62,10 @@ export function selectStmt<
 ) {
   return (
     literals: TemplateStringsArray,
-    ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
+    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ):
-    & SelectStatement<Context, SelectStmtName, ColumnName, EmitOptions>
-    & t.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
+    & Select<Context, SelectStmtName, ColumnName, EmitOptions>
+    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
     let invalid: SelectNotFirstWordLintIssue | undefined;
     const candidateSQL = literals[0];
     const command = firstWord(candidateSQL);
@@ -76,14 +80,15 @@ export function selectStmt<
       }
     }
 
-    const partial = t.SQL<Context, EmitOptions>({
+    const partial = tmpl.SQL<Context, EmitOptions>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const selectStmt = partial(literals, ...expressions);
-    const { selectColumns } = ssOptions ?? {};
+    const { selectColumns, selectStmtName } = ssOptions ?? {};
     return {
       isValid: invalid === undefined,
       columns: selectColumns,
+      selectStmtName: selectStmtName,
       selectStmt,
       SQL: invalid
         ? ((_, steOptions) => steOptions.comments(invalid!.lintIssue))

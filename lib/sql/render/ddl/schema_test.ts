@@ -1,11 +1,11 @@
-import { testingAsserts as ta } from "./deps-test.ts";
+import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./schema.ts";
-import * as t from "./template/mod.ts";
+import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL assembler (SQLa) schema", async (tc) => {
   const sdf = mod.typicalSqlSchemaDefnFactory();
   const ctx = undefined;
-  const emitOptions = t.typicalSqlTextEmitOptions();
+  const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent schema declaration", () => {
     const view = sdf.sqlSchemaDefn("synthetic_schema");

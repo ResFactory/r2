@@ -1,8 +1,8 @@
-import { path } from "../deps.ts";
-import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
+import { path } from "../../deps.ts";
+import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 import * as govn from "./governance.ts";
-import * as t from "../template/mod.ts";
-import * as s from "./storage.ts";
+import * as tmpl from "../../template/mod.ts";
+import * as s from "./table.ts";
 
 // TODO:
 // * [ ] consider parsing SQL statements for type-safe results using
@@ -60,7 +60,7 @@ export interface TableTypescriptCodeSupplier<Context>
 
 export function tableGovnTypescript<Context>(
   tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>,
-  steOptions: t.SqlTextEmitOptions<Context>,
+  steOptions: tmpl.SqlTextEmitOptions<Context>,
   _tsOptions?: TableTypescriptOptions<Context>,
 ): TableTypescriptCodeSupplier<Context> {
   const snakeToCamelCase = (str: string) =>
@@ -189,7 +189,7 @@ export function tableGovnTypescript<Context>(
 
 export interface TablesTypescriptOptions<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
   readonly tableTsOptions?: (
     tableDefn: govn.TableDefinition<Context, govn.Any, govn.Any, EmitOptions>,
@@ -200,7 +200,7 @@ export interface TablesTypescriptOptions<
 
 export function tablesGovnTypescript<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   tableDefns: Iterable<
     govn.TableDefinition<Context, govn.Any, govn.Any, govn.Any>

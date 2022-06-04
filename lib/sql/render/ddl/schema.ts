@@ -1,11 +1,11 @@
-import * as safety from "../../safety/mod.ts";
-import * as t from "./template/mod.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as tmpl from "../template/mod.ts";
 
 export interface SchemaDefinition<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends t.SqlTextSupplier<Context, EmitOptions> {
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly schemaName: SchemaName;
   readonly isIdempotent: boolean;
@@ -14,7 +14,7 @@ export interface SchemaDefinition<
 export function isSchemaDefinition<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
 ): o is SchemaDefinition<Context, SchemaName, EmitOptions> {
@@ -30,30 +30,32 @@ export function isSchemaDefinition<
 export interface SchemaDefnOptions<
   Context,
   SchemaName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
   readonly isIdempotent?: boolean;
 }
 
 export interface SchemaDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
-    Context
-  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
+    tmpl.SqlTextEmitOptions<
+      Context
+    >,
 > {
   sqlSchemaDefn: <SchemaName extends string>(
     schemaName: SchemaName,
     schemaDefnOptions?: SchemaDefnOptions<Context, SchemaName, EmitOptions>,
   ) =>
     & SchemaDefinition<Context, SchemaName, EmitOptions>
-    & t.SqlTextLintIssuesSupplier<Context, EmitOptions>;
+    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>;
 }
 
 export function typicalSqlSchemaDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
-    Context
-  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
+    tmpl.SqlTextEmitOptions<
+      Context
+    >,
 >(): SchemaDefnFactory<Context, EmitOptions> {
   return {
     sqlSchemaDefn: (schemaName, sdOptions) => {

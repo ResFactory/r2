@@ -1,28 +1,28 @@
-import * as safety from "../../safety/mod.ts";
-import * as ws from "../../text/whitespace.ts";
-import * as t from "./template/mod.ts";
-import * as ss from "./select-stmt.ts";
+import * as safety from "../../../safety/mod.ts";
+import * as ws from "../../../text/whitespace.ts";
+import * as tmpl from "../template/mod.ts";
+import * as ss from "../dql/select.ts";
 
 export interface ViewDefinition<
   Context,
   ViewName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends t.SqlTextSupplier<Context, EmitOptions> {
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly viewName: ViewName;
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
   readonly columns?: ColumnName[];
   // deno-lint-ignore no-explicit-any
-  readonly selectStmt: ss.SelectStatement<Context, any, any, EmitOptions>;
+  readonly selectStmt: ss.Select<Context, any, any, EmitOptions>;
 }
 
 export function isViewDefinition<
   Context,
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
 ): o is ViewDefinition<Context, TableName, ColumnName, EmitOptions> {
@@ -40,22 +40,23 @@ export interface ViewDefnOptions<
   Context,
   ViewName extends string,
   ColumnName extends string,
-  EmitOptions extends t.SqlTextEmitOptions<Context>,
-> extends t.SqlTextSupplierOptions<Context, EmitOptions> {
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+> extends tmpl.SqlTextSupplierOptions<Context, EmitOptions> {
   readonly viewColumns?: ColumnName[];
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
   readonly before?: (
     viewName: ViewName,
     vdOptions: ViewDefnOptions<Context, ViewName, ColumnName, EmitOptions>,
-  ) => t.SqlTextSupplier<Context, EmitOptions>;
+  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
 }
 
 export interface ViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
-    Context
-  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
+    tmpl.SqlTextEmitOptions<
+      Context
+    >,
 > {
   sqlViewStrTmplLiteral: <
     ViewName extends string,
@@ -70,27 +71,28 @@ export interface ViewDefnFactory<
     >,
   ) => (
     literals: TemplateStringsArray,
-    ...expressions: t.SqlPartialExpression<Context, EmitOptions>[]
+    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ) =>
     & ViewDefinition<Context, ViewName, ColumnName, EmitOptions>
-    & t.SqlTextLintIssuesSupplier<Context, EmitOptions>;
+    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>;
   dropView: <ViewName extends string>(
     viewName: ViewName,
     options?: { ifExists?: boolean },
-  ) => t.SqlTextSupplier<Context, EmitOptions>;
+  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
 }
 
 export function typicalSqlViewDefnFactory<
   Context,
-  EmitOptions extends t.SqlTextEmitOptions<Context> = t.SqlTextEmitOptions<
-    Context
-  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
+    tmpl.SqlTextEmitOptions<
+      Context
+    >,
 >(): ViewDefnFactory<Context, EmitOptions> {
   return {
     sqlViewStrTmplLiteral: (viewName, viewOptions) => {
       return (literals, ...expressions) => {
         // deno-lint-ignore no-explicit-any
-        const partial = ss.selectStmt<Context, any, any, EmitOptions>({
+        const partial = ss.select<Context, any, any, EmitOptions>({
           literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
         });
         const selectStmt = partial(literals, ...expressions);
@@ -128,7 +130,7 @@ export function typicalSqlViewDefnFactory<
                 : ""
             } AS\n${viewSelectStmtSqlText}`;
             return viewOptions?.before
-              ? t.SQL<Context, EmitOptions>(ctx)`${[
+              ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
                 viewOptions.before(viewName, viewOptions),
                 create,
               ]}`
