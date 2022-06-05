@@ -5,6 +5,7 @@ import * as tmpl from "../../template/mod.ts";
 import * as tr from "../../../../tabular/mod.ts";
 import * as vw from "../view.ts";
 import * as ets from "../../template/emittable-typescript.ts";
+import * as d from "../domain.ts";
 
 // TODO:
 // * [ ] in foreign key columns allow ON DELETE CASCADE like
@@ -183,11 +184,7 @@ export function typicalTableColumnsFactory<
         & govn.TableColumnNullabilitySupplier
         & govn.TableColumnPrimaryKeySupplier = {
           columnName: columnName,
-          sqlDataType: { SQL: () => `INTEGER` },
-          tsType: {
-            tsCodeGenEmit: "number",
-            typeGuard: safety.typeGuard<number>(),
-          },
+          ...d.integer(),
           isPrimaryKey: true,
           isNullable: false,
           isTableColumnCreateSqlTextSupplier: true,
@@ -205,11 +202,7 @@ export function typicalTableColumnsFactory<
                 EmitOptions
               > = {
                 columnName: foreignColumnName ?? columnName,
-                sqlDataType: { SQL: () => `INTEGER` },
-                tsType: {
-                  tsCodeGenEmit: "number",
-                  typeGuard: safety.typeGuard<number>(),
-                },
+                ...d.integer(),
                 isNullable: options?.isNullable ?? false,
                 foreignKey: {
                   tableDefn,
@@ -230,11 +223,7 @@ export function typicalTableColumnsFactory<
     integer: (columnName, options) => {
       return {
         columnName: columnName,
-        sqlDataType: { SQL: () => `INTEGER` },
-        tsType: {
-          tsCodeGenEmit: "number",
-          typeGuard: safety.typeGuard<number>(),
-        },
+        ...d.integer(),
         isPrimaryKey: options?.isPrimaryKey ?? false,
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,
@@ -281,11 +270,7 @@ export function typicalTableColumnsFactory<
     text: (columnName, options) => {
       return {
         columnName: columnName,
-        sqlDataType: { SQL: () => `TEXT` },
-        tsType: {
-          tsCodeGenEmit: "string",
-          typeGuard: safety.typeGuard<string>(),
-        },
+        ...d.text(),
         isPrimaryKey: options?.isPrimaryKey ?? false,
         isNullable: options?.isNullable ?? false,
         isTableColumnCreateSqlTextSupplier: true,

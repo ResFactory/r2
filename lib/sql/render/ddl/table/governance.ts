@@ -1,4 +1,4 @@
-import * as safety from "../../../../safety/mod.ts";
+import * as d from "../domain.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as l from "../../lint.ts";
 
@@ -80,16 +80,11 @@ export interface TableColumnNullabilitySupplier {
   readonly isNullable: boolean;
 }
 
+// deno-lint-ignore no-empty-interface
 export interface TableColumnDataTypeSupplier<
   TsType,
   EmitOptions extends tmpl.SqlTextEmitOptions<Any>,
-> {
-  readonly sqlDataType: tmpl.SqlTextSupplier<Any, EmitOptions>;
-  readonly tsType: {
-    readonly tsCodeGenEmit: string;
-    readonly tsCodeGenDeclare?: string[];
-    readonly typeGuard: safety.TypeGuard<TsType>;
-  };
+> extends d.DataDomainSupplier<TsType, EmitOptions> {
 }
 
 export interface TableColumnValueSupplier<
