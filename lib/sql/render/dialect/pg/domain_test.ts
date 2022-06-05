@@ -10,7 +10,9 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent domain declaration", () => {
-    const domain = sdf.pgDomainDefn(d.text(), "custom_type_1");
+    const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+      isIdempotent: true,
+    });
     ta.assertEquals(
       domain.SQL(ctx, emitOptions),
       `BEGIN CREATE DOMAIN custom_type_1 AS TEXT; EXCEPTION WHEN DUPLICATE_OBJECT THEN /* ignore error without warning */ END`,
@@ -19,6 +21,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
 
   await tc.step("idempotent domain declaration with warning", () => {
     const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+      isIdempotent: true,
       warnOnDuplicate: (identifier) =>
         `domain "${identifier}" already exists, skipping`,
     });
@@ -32,6 +35,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
     "idempotent domain declaration with warning, human friendly format",
     () => {
       const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+        isIdempotent: true,
         warnOnDuplicate: (identifier) =>
           `domain "${identifier}" already exists, skipping`,
         humanFriendlyFmtIndent: "  ",
@@ -50,9 +54,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
   );
 
   await tc.step("schema declaration (non-idempotent)", () => {
-    const view = sdf.pgDomainDefn(d.integer(), "custom_type_2", {
-      isIdempotent: false,
-    });
+    const view = sdf.pgDomainDefn(d.integer(), "custom_type_2");
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       `CREATE DOMAIN custom_type_2 AS INTEGER`,

@@ -13,7 +13,13 @@ export function syntheticTableDefns(ctx: SyntheticStorageContext) {
     { host: string; host_identity: unknown; mutation_count: number },
     SyntheticStorageContext,
     "publ_host"
-  >(ctx, "publ_host", ["host", "host_identity", "mutation_count"], tdfs)(
+  >(
+    ctx,
+    "publ_host",
+    ["host", "host_identity", "mutation_count"],
+    tdfs,
+    mod.typicalDefineTableOptions({ isIdempotent: true }),
+  )(
     (
       defineColumns,
       { columnsFactory: cf, decoratorsFactory: df },
@@ -31,19 +37,24 @@ export function syntheticTableDefns(ctx: SyntheticStorageContext) {
     publHost.tableDefn,
     "publ_host_vw",
     ctx.vdf,
-    { isIdempotent: true },
   );
 
-  const publBuildEvent = mod.typicalStaticTableDefn(ctx, "publ_build_event", [
-    "publ_host_id",
-    "iteration_index",
-    "build_initiated_at",
-    "build_completed_at",
-    "build_duration_ms",
-    "resources_originated_count",
-    "resources_persisted_count",
-    "resources_memoized_count",
-  ], tdfs)(
+  const publBuildEvent = mod.typicalStaticTableDefn(
+    ctx,
+    "publ_build_event",
+    [
+      "publ_host_id",
+      "iteration_index",
+      "build_initiated_at",
+      "build_completed_at",
+      "build_duration_ms",
+      "resources_originated_count",
+      "resources_persisted_count",
+      "resources_memoized_count",
+    ],
+    tdfs,
+    mod.typicalDefineTableOptions({ isIdempotent: true }),
+  )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(
         publHost.primaryKeyColDefn.foreignKeyTableColDefn(),
@@ -69,6 +80,7 @@ export function syntheticTableDefns(ctx: SyntheticStorageContext) {
       "publ_build_event_id",
     ],
     tdfs,
+    mod.typicalDefineTableOptions({ isIdempotent: true }),
   )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(
@@ -94,6 +106,7 @@ export function syntheticTableDefns(ctx: SyntheticStorageContext) {
       "publ_server_service_id",
     ],
     tdfs,
+    mod.typicalDefineTableOptions({ isIdempotent: true }),
   )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(
@@ -118,6 +131,7 @@ export function syntheticTableDefns(ctx: SyntheticStorageContext) {
       "publ_server_service_id",
     ],
     tdfs,
+    mod.typicalDefineTableOptions({ isIdempotent: true }),
   )(
     (defineColumns, { columnsFactory: cf }) => {
       defineColumns(

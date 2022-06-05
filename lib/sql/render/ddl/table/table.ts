@@ -482,7 +482,7 @@ export function typicalDefineTableOptions<
 ): DefineTableOptions<Context, TableName, ColumnName, EmitOptions> {
   return {
     isTemp: options?.isTemp,
-    isIdempotent: options?.isIdempotent ?? true,
+    isIdempotent: options?.isIdempotent ?? false,
     prepareEvents: (tdEE) => {
       const { enforceForeignKeys = true } = options ?? {};
       if (enforceForeignKeys) {
@@ -588,7 +588,7 @@ export function staticTableDefn<
     prepareEvents = (
       tdEE: TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>,
     ) => tdEE,
-  } = options ?? { isIdempotent: true };
+  } = options ?? { isIdempotent: false };
   const tdEE = prepareEvents(
     new TableDefnEventEmitter<Context, TableName, ColumnName, EmitOptions>(),
   );

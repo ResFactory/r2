@@ -75,8 +75,9 @@ export function typicalDomainDefnFactory<
 >(): SchemaDefnFactory<Context, EmitOptions> {
   return {
     pgDomainDefn: (dd, domainName, ddOptions) => {
-      const { isIdempotent = true, humanFriendlyFmtIndent: hffi } = ddOptions ??
-        {};
+      const { isIdempotent = false, humanFriendlyFmtIndent: hffi } =
+        ddOptions ??
+          {};
       return {
         ...dd,
         isValid: true,

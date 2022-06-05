@@ -10,7 +10,9 @@ Deno.test("SQL assembler (SQLa) schema", async (tc) => {
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent schema declaration", () => {
-    const view = sdf.sqlSchemaDefn<SchemaName>("synthetic_schema1");
+    const view = sdf.sqlSchemaDefn<SchemaName>("synthetic_schema1", {
+      isIdempotent: true,
+    });
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       `CREATE SCHEMA IF NOT EXISTS "synthetic_schema1"`,
@@ -18,9 +20,7 @@ Deno.test("SQL assembler (SQLa) schema", async (tc) => {
   });
 
   await tc.step("schema declaration (non-idempotent)", () => {
-    const view = sdf.sqlSchemaDefn<SchemaName>("synthetic_schema2", {
-      isIdempotent: false,
-    });
+    const view = sdf.sqlSchemaDefn<SchemaName>("synthetic_schema2");
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       `CREATE SCHEMA "synthetic_schema2"`,

@@ -60,7 +60,7 @@ export function typicalSqlSchemaDefnFactory<
 >(): SchemaDefnFactory<Context, EmitOptions> {
   return {
     sqlSchemaDefn: (schemaName, sdOptions) => {
-      const { isIdempotent = true } = sdOptions ?? {};
+      const { isIdempotent = false } = sdOptions ?? {};
       return {
         isValid: true,
         sqlSpace: schemaName,
