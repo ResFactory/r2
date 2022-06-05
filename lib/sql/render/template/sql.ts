@@ -38,7 +38,9 @@ export interface SqlTextEmitOptions<Context> {
       | "create table"
       | "define table column"
       | "create view"
-      | "create view select statement",
+      | "create view select statement"
+      | "create routine"
+      | "create routine body",
     content?: string,
   ) => string;
 }
@@ -102,6 +104,14 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
 
         case "create view select statement":
           indent = "    ";
+          break;
+
+        case "create routine":
+          indent = "";
+          break;
+
+        case "create routine body":
+          indent = "  ";
           break;
       }
       if (content) {
