@@ -61,6 +61,10 @@ load into an RDBMS.
 ## TODO
 
 - Incorporate
+  [Database Performance for Developers](https://use-the-index-luke.com/)
+  suggestions into SQLa renderers so that developers just have to give feature
+  flags and the proper SQL is generated for them.
+- Incorporate
   [Evolutionary Database Design](https://martinfowler.com/articles/evodb.html)
   principles into SQL rendering infrastructure.
 - See if
