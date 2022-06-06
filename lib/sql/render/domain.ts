@@ -11,11 +11,18 @@ export type AxiomSqlDomain<
   Context = Any,
 > = ax.Axiom<TsValueType> & {
   readonly sqlDataType: (
-    purpose: "create table column" | "stored routine arg",
+    purpose:
+      | "create table column"
+      | "stored routine arg"
+      | "table foreign key ref",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
+  readonly referenceASD: (
+    options?: { readonly isNullable?: boolean },
+  ) => AxiomSqlDomain<Any, EmitOptions, Context>;
+  readonly isNullable: boolean;
 };
 
 export function isAxiomSqlDomain<
@@ -36,7 +43,15 @@ export type IdentifiableSqlDomain<
   DomainIdentity extends string = string,
 > =
   & AxiomSqlDomain<TsValueType, EmitOptions, Context>
-  & { readonly identity: DomainIdentity };
+  & {
+    readonly reference: <ForeignIdentity>(
+      options?: {
+        readonly foreignIdentity?: ForeignIdentity;
+        readonly isNullable?: boolean;
+      },
+    ) => Omit<IdentifiableSqlDomain<Any, EmitOptions, Context>, "reference">;
+    readonly identity: DomainIdentity;
+  };
 
 export type IdentifiableSqlDomains<
   Object,
@@ -63,6 +78,10 @@ export function textNullable<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isNullable: true,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? textNullable() : text();
+    },
   };
 }
 
@@ -77,6 +96,10 @@ export function text<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isNullable: false,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? textNullable() : text();
+    },
   };
 }
 
@@ -91,6 +114,10 @@ export function integer<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
+    isNullable: false,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? integerNullable() : integer();
+    },
   };
 }
 
@@ -105,6 +132,10 @@ export function integerNullable<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
+    isNullable: true,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? integerNullable() : integer();
+    },
   };
 }
 
@@ -119,6 +150,10 @@ export function jsonText<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
+    isNullable: false,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? jsonTextNullable() : jsonText();
+    },
   };
 }
 
@@ -133,6 +168,10 @@ export function jsonTextNullable<
     ...axiom,
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
+    isNullable: true,
+    referenceASD: (rasdOptions?) => {
+      return rasdOptions?.isNullable ? jsonTextNullable() : jsonText();
+    },
   };
 }
 
@@ -159,9 +198,21 @@ export function sqlDomains<
   >[] = [];
   axiom.properties.forEach((prop) => {
     if (isAxiomSqlDomain<Any, EmitOptions, Context>(prop.axiom)) {
+      const typedAxiom = prop.axiom;
       domains.push({
-        ...prop.axiom,
+        ...typedAxiom,
         identity: prop.axiomPropertyName as PropertyName,
+        reference: (rOptions) => {
+          const result: Omit<
+            IdentifiableSqlDomain<Any, EmitOptions, Context>,
+            "reference"
+          > = {
+            identity:
+              (rOptions?.foreignIdentity ?? prop.axiomPropertyName) as string,
+            ...typedAxiom.referenceASD(rOptions),
+          };
+          return result;
+        },
       });
     } else {
       onPropertyNotAxiomSqlDomain?.(prop, domains);

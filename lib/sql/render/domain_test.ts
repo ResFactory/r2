@@ -6,7 +6,7 @@ import { $ } from "../../safety/axiom.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-Deno.test("type-safe data domain IDE experiments", () => {
+Deno.test("type-safe data domains", async (tc) => {
   // use these for type-testing in IDE
   const syntheticDefn = $.object({
     text: mod.text(),
@@ -23,36 +23,76 @@ Deno.test("type-safe data domain IDE experiments", () => {
     // mod.sqlDomains but OK for Axiom
     non_domain: $.string.optional(),
   });
-  // hover over 'names' to see quasi-typed names
-  const _names = syntheticDefn.properties.map((p) => p.axiomPropertyName);
-  // _goodNameFound and _badNameFound show type-safety by name
-  const _goodNameFound = syntheticDefn.properties.map((p) =>
-    p.axiomPropertyName
-  ).find((p) => p === "text");
-  // uncomment the following to see the IDE picking up type mismatch error for `p`
-  //const _badNameFound = syntheticDefn.properties.map((p) => p.axiomPropertyName).find(p => p === "bad");
 
-  let lintIssuesCount = 0;
-  const syntheticDomains = mod.sqlDomains(syntheticDefn, {
-    onPropertyNotAxiomSqlDomain: (prop) => {
-      lintIssuesCount++;
-      ta.assertEquals("non_domain", prop.axiomPropertyName);
-    },
+  // deno-lint-ignore require-await
+  await tc.step("axiom IDE experiments", async () => {
+    // hover over 'names' to see quasi-typed names
+    const _names = syntheticDefn.properties.map((p) => p.axiomPropertyName);
+    // _goodNameFound and _badNameFound show type-safety by name
+    const _goodNameFound = syntheticDefn.properties.map((p) =>
+      p.axiomPropertyName
+    ).find((p) => p === "text");
+    // uncomment the following to see the IDE picking up type mismatch error for `p`
+    //const _badNameFound = syntheticDefn.properties.map((p) => p.axiomPropertyName).find(p => p === "bad");
+
+    // hover over 'Synthetic' to see fully typed object
+    type Synthetic = ax.AxiomType<typeof syntheticDefn>;
+    // try typing in bad properties or invalid types
+    const _synthetic: Synthetic = {
+      text: "synthetic",
+      text_custom: "synthetic_custom",
+      int: 0,
+      int_custom: 1,
+      json: `{"synthetic": "yes"}`,
+      json_custom: `{ "synthetic": "yes", "custom": true }`,
+      // bad: "hello"
+    };
   });
-  ta.assertEquals(1, lintIssuesCount);
-  const _sdNames = syntheticDomains.domains.map((d) => d.identity);
-  const _sdSqlTypes = syntheticDomains.domains.map((d) => d.sqlDataType);
 
-  // hover over 'PublHost' to see fully typed object
-  type Synthetic = ax.AxiomType<typeof syntheticDefn>;
-  // try typing in bad properties or invalid types
-  const _synthetic: Synthetic = {
-    text: "synthetic",
-    text_custom: "synthetic_custom",
-    int: 0,
-    int_custom: 1,
-    json: `{"synthetic": "yes"}`,
-    json_custom: `{ "synthetic": "yes", "custom": true }`,
-    // bad: "hello"
-  };
+  await tc.step("domain-wrapped axiom", async (tc) => {
+    let lintIssuesCount = 0;
+    const syntheticDomains = mod.sqlDomains(syntheticDefn, {
+      onPropertyNotAxiomSqlDomain: (prop) => {
+        lintIssuesCount++;
+        ta.assertEquals("non_domain", prop.axiomPropertyName);
+      },
+    });
+
+    await tc.step("lint issues count", () => {
+      ta.assertEquals(1, lintIssuesCount);
+    });
+
+    await tc.step("IDE experiments", () => {
+      // hover over 'names' to see quasi-typed names
+      const _sdNames = syntheticDomains.domains.map((d) => d.identity);
+      const _sdSqlTypes = syntheticDomains.domains.map((d) => d.sqlDataType);
+    });
+
+    await tc.step("references (for foreign keys, etc.)", () => {
+      const intDomain = syntheticDomains.domains.find((d) =>
+        d.identity == "int"
+      );
+      ta.assert(intDomain);
+      ta.assertEquals("int", intDomain.identity);
+      const intRefASD = intDomain.referenceASD();
+      ta.assert(intRefASD);
+      const intRef = intDomain.reference();
+      ta.assertEquals("int", intRef.identity);
+      const intRefOther = intDomain.reference({ foreignIdentity: "intRef" });
+      ta.assertEquals("intRef", intRefOther.identity);
+    });
+
+    // hover over 'SyntheticDomains' to see fully typed object
+    type SyntheticDomains = ax.AxiomType<typeof syntheticDomains>;
+    // try typing in bad properties or invalid types
+    const _synthetic: SyntheticDomains = {
+      text: "synthetic",
+      text_custom: "synthetic_custom",
+      int: 0,
+      int_custom: 1,
+      json: `{"synthetic": "yes"}`,
+      json_custom: `{ "synthetic": "yes", "custom": true }`,
+      // bad: "hello"
+    };
+  });
 });
