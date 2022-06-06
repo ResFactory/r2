@@ -7,6 +7,7 @@
 // - changed AxiomObjectType to AxiomObjectTypeStrict and forced default strict
 // - added AxiomObjectProperty signature to all properties of objects to ease
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
+// - added AxiomOptional type and and isAxiomOptional guard to ease reflection
 // - changed test cases to use Deno unit testing
 
 // deno-lint-ignore-file no-explicit-any
@@ -61,11 +62,16 @@ type AxiomContext = {
   readonly path: readonly (number | string)[];
 };
 
+type AxiomOptional = { isAxiomOptional: true };
+
+const isAxiomOptional = (o: unknown): o is AxiomOptional =>
+  o && (typeof o === "object") && ("isAxiomOptional" in o) ? true : false;
+
 type Axiom<TType> = {
   /**
    * Shortcut to union this axiom with `$.undefined`.
    */
-  readonly optional: () => Axiom<TType | undefined>;
+  readonly optional: () => Axiom<TType | undefined> & AxiomOptional;
   /**
    * Return the unmodified `value` if it matches the axiom. Otherwise, throw
    * an error.
@@ -148,7 +154,10 @@ const create = <TType>(
   test: (value: unknown, context: AxiomContext) => value is TType,
 ): Axiom<TType> => {
   const axiom: Axiom<TType> = {
-    optional: lazy(() => $.union(axiom, $.undefined)),
+    optional: lazy(() => ({
+      ...$.union(axiom, $.undefined),
+      isAxiomOptional: true,
+    })),
     parse: (value) => {
       axiom.test(value, {
         onInvalid: (reason) => {
@@ -368,4 +377,5 @@ export {
   type AxiomOptions,
   type AxiomType,
   isAxiomObjectProperty,
+  isAxiomOptional,
 };

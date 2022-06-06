@@ -1,22 +1,34 @@
-import { testingAsserts as ta } from "../deps-test.ts";
+import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./axiom.ts";
 import { $ } from "./axiom.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-// use these for type-testing in IDE
-const $publHost = $.object({
-  host: $.number,
-  mutation_count: $.string.optional(),
-  host_identity: $.string.optional(),
-});
+Deno.test("type-safe data structures IDE experiments", () => {
+  // use these for type-testing in IDE
+  const $publHost = $.object({
+    host: $.string,
+    mutation_count: $.number,
+    host_identity: $.string.optional(),
+  });
+  // hover over 'names' to see quasi-typed names
+  const _names = $publHost.properties.map((p) => p.axiomPropertyName);
+  // _goodNameFound and _badNameFound show type-safety by name
+  const _goodNameFound = $publHost.properties.map((p) => p.axiomPropertyName)
+    .find((p) => p === "host");
+  // uncomment the following to see the IDE picking up type mismatch error for `p`
+  //const _badNameFound = $publHost.properties.map((p) => p.axiomPropertyName).find(p => p === "hostx");
 
-type PublHost = mod.AxiomType<typeof $publHost>;
-const _publHost: PublHost = {
-  host: 0,
-  // bad: "hello"
-};
+  // hover over 'PublHost' to see fully typed object
+  type PublHost = mod.AxiomType<typeof $publHost>;
+  // try typing in bad properties or invalid types
+  const _publHost: PublHost = {
+    host: "test",
+    mutation_count: 0,
+    // bad: "hello"
+  };
+});
 
 Deno.test("type-safe data structures at build-time and runtime-testable", async (tc) => {
   const basicCases: Record<string, [mod.Axiom<Any>, Any[], Any[]]> = {
@@ -142,6 +154,9 @@ Deno.test("type-safe data structures at build-time and runtime-testable", async 
     ta.assert(!$.string.test(undefined));
     ta.assert($.string.optional().test(undefined));
     ta.assertEquals($.string.optional(), $.string.optional());
+
+    const so = $.string.optional();
+    ta.assert(mod.isAxiomOptional(so));
   });
 
   await tc.step("object index", () => {
