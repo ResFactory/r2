@@ -151,6 +151,15 @@ Deno.test("type-safe data structures at build-time and runtime-testable", async 
     ta.assert(!$object.test({ bar: "", foo: "" }));
   });
 
+  await tc.step("object property reflection", () => {
+    const $object = $.object({ foo: $.string });
+    ta.assertEquals($object.properties.length, 1);
+    const $foo = $object.properties[0];
+    ta.assert(mod.isAxiomObjectProperty($foo));
+    ta.assertEquals("foo", $foo.axiomPropertyName);
+    ta.assert($foo.axiom);
+  });
+
   await tc.step("error", () => {
     const $object = $.object({
       "foo bar 😄": $.array($.object({ baz: $.string })),
