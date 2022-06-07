@@ -8,7 +8,7 @@ type Any = any;
 
 Deno.test("type-safe data domains", async (tc) => {
   // use these for type-testing in IDE
-  const syntheticDefn = $.object({
+  const syntheticDecl = {
     text: mod.text(),
     text_nullable: mod.textNullable(),
     text_custom: mod.text($.string),
@@ -22,16 +22,13 @@ Deno.test("type-safe data domains", async (tc) => {
     // passing in Axiom without domain wrapper will be a "lint" error for
     // mod.sqlDomains but OK for Axiom
     non_domain: $.string.optional(),
-  });
+  };
+  const syntheticDefn = $.object(syntheticDecl);
 
   // deno-lint-ignore require-await
   await tc.step("axiom IDE experiments", async () => {
     // hover over 'names' to see quasi-typed names
-    const _names = syntheticDefn.properties.map((p) => p.axiomPropertyName);
-    // _goodNameFound and _badNameFound show type-safety by name
-    const _goodNameFound = syntheticDefn.properties.map((p) =>
-      p.axiomPropertyName
-    ).find((p) => p === "text");
+    const _names = syntheticDefn.axiomObjectDeclPropNames;
     // uncomment the following to see the IDE picking up type mismatch error for `p`
     //const _badNameFound = syntheticDefn.properties.map((p) => p.axiomPropertyName).find(p => p === "bad");
 
@@ -51,10 +48,10 @@ Deno.test("type-safe data domains", async (tc) => {
 
   await tc.step("domain-wrapped axiom", async (tc) => {
     let lintIssuesCount = 0;
-    const syntheticDomains = mod.sqlDomains(syntheticDefn, {
-      onPropertyNotAxiomSqlDomain: (prop) => {
+    const syntheticDomains = mod.sqlDomains(syntheticDecl, {
+      onPropertyNotAxiomSqlDomain: (name) => {
         lintIssuesCount++;
-        ta.assertEquals("non_domain", prop.axiomPropertyName);
+        ta.assertEquals("non_domain", name);
       },
     });
 

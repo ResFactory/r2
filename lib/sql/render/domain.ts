@@ -19,9 +19,11 @@ export type AxiomSqlDomain<
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
-  readonly referenceASD: (
-    options?: { readonly isNullable?: boolean },
-  ) => AxiomSqlDomain<Any, EmitOptions, Context>;
+  readonly referenceASD: () => AxiomSqlDomain<
+    TsValueType,
+    EmitOptions,
+    Context
+  >;
   readonly isNullable: boolean;
 };
 
@@ -47,25 +49,24 @@ export type IdentifiableSqlDomain<
     readonly reference: <ForeignIdentity>(
       options?: {
         readonly foreignIdentity?: ForeignIdentity;
-        readonly isNullable?: boolean;
       },
     ) => Omit<IdentifiableSqlDomain<Any, EmitOptions, Context>, "reference">;
     readonly identity: DomainIdentity;
   };
 
-export type IdentifiableSqlDomains<
-  Object,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-  PropertyName extends keyof Object & string = keyof Object & string,
-> = ax.AxiomObject<Object> & {
-  readonly domains: IdentifiableSqlDomain<
-    Any,
-    EmitOptions,
-    Context,
-    PropertyName
-  >[];
-};
+// export type IdentifiableSqlDomains<
+//   Object,
+//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+//   Context = Any,
+//   PropertyName extends keyof Object & string = keyof Object & string,
+//   > = ax.AxiomObject<Object> & {
+//     readonly domains: IdentifiableSqlDomain<
+//       Any,
+//       EmitOptions,
+//       Context,
+//       PropertyName
+//     >[];
+//   };
 
 export function textNullable<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -79,9 +80,7 @@ export function textNullable<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: true,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? textNullable() : text();
-    },
+    referenceASD: () => text(),
   };
 }
 
@@ -97,9 +96,7 @@ export function text<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? textNullable() : text();
-    },
+    referenceASD: () => text(),
   };
 }
 
@@ -115,9 +112,7 @@ export function integer<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: false,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? integerNullable() : integer();
-    },
+    referenceASD: () => integer(),
   };
 }
 
@@ -133,9 +128,7 @@ export function integerNullable<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: true,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? integerNullable() : integer();
-    },
+    referenceASD: () => integer(),
   };
 }
 
@@ -151,9 +144,7 @@ export function jsonText<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: false,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? jsonTextNullable() : jsonText();
-    },
+    referenceASD: () => jsonText(),
   };
 }
 
@@ -169,53 +160,51 @@ export function jsonTextNullable<
     ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: true,
-    referenceASD: (rasdOptions?) => {
-      return rasdOptions?.isNullable ? jsonTextNullable() : jsonText();
-    },
+    referenceASD: () => jsonText(),
   };
 }
 
 export function sqlDomains<
-  Object,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
-  PropertyName extends keyof Object & string = keyof Object & string,
 >(
-  axiom: ax.AxiomObject<Object>,
+  props: TPropAxioms,
   sdOptions?: {
     readonly onPropertyNotAxiomSqlDomain?: (
-      prop: ax.AxiomObjectProperty<Object>,
-      domains: IdentifiableSqlDomain<Any, EmitOptions, Context, PropertyName>[],
+      name: string,
+      axiom: Any,
+      domains: IdentifiableSqlDomain<Any, EmitOptions, Context>[],
     ) => void;
   },
-): IdentifiableSqlDomains<Object, EmitOptions, Context> {
+) { // we let Typescript infer function return to allow generics to be more effective
   const { onPropertyNotAxiomSqlDomain } = sdOptions ?? {};
   const domains: IdentifiableSqlDomain<
     Any,
     EmitOptions,
-    Context,
-    PropertyName
+    Context
   >[] = [];
-  axiom.properties.forEach((prop) => {
-    if (isAxiomSqlDomain<Any, EmitOptions, Context>(prop.axiom)) {
-      const typedAxiom = prop.axiom;
+  const axiom = ax.$.object(props);
+  Object.entries(axiom.axiomObjectDecl).forEach((entry) => {
+    const [name, axiom] = entry;
+    if (isAxiomSqlDomain<Any, EmitOptions, Context>(axiom)) {
+      const typedAxiom = axiom;
       domains.push({
         ...typedAxiom,
-        identity: prop.axiomPropertyName as PropertyName,
+        identity: name as Any,
         reference: (rOptions) => {
           const result: Omit<
             IdentifiableSqlDomain<Any, EmitOptions, Context>,
             "reference"
           > = {
-            identity:
-              (rOptions?.foreignIdentity ?? prop.axiomPropertyName) as string,
-            ...typedAxiom.referenceASD(rOptions),
+            identity: (rOptions?.foreignIdentity ?? name) as string,
+            ...typedAxiom.referenceASD(),
           };
           return result;
         },
       });
     } else {
-      onPropertyNotAxiomSqlDomain?.(prop, domains);
+      onPropertyNotAxiomSqlDomain?.(name, axiom, domains);
     }
   });
   return {
