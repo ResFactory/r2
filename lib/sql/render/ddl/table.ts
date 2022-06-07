@@ -270,9 +270,26 @@ export function housekeeping<
   };
 }
 
-export type TableNameSupplier<TableName extends string> = {
+export type TableDefnition<
+  TableName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> = tmpl.SqlTextSupplier<Context, EmitOptions> & {
   readonly tableName: TableName;
 };
+
+export function isTableDefnition<
+  TableName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  o: unknown,
+): o is TableDefnition<TableName, EmitOptions, Context> {
+  const isTD = safety.typeGuard<
+    TableDefnition<TableName, EmitOptions, Context>
+  >("tableName", "SQL");
+  return isTD(o);
+}
 
 export function table<
   TableName extends string,
@@ -317,28 +334,26 @@ export function table<
     }
   }
 
-  const result:
-    & TableNameSupplier<TableName>
-    & tmpl.SqlTextSupplier<Context, EmitOptions> = {
-      tableName,
-      SQL: (ctx, steOptions) => {
-        const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
-        const indent = steOptions.indentation("define table column");
-        const afterCDs =
-          tdOptions?.sqlPartial?.("after all column definitions") ?? [];
-        const decoratorsSQL = [...afterColumnDefnsSS, ...afterCDs].map((sts) =>
-          sts.SQL(ctx, steOptions)
-        ).join(`,\n${indent}`);
+  const result: TableDefnition<TableName, EmitOptions, Context> = {
+    tableName,
+    SQL: (ctx, steOptions) => {
+      const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+      const indent = steOptions.indentation("define table column");
+      const afterCDs =
+        tdOptions?.sqlPartial?.("after all column definitions") ?? [];
+      const decoratorsSQL = [...afterColumnDefnsSS, ...afterCDs].map((sts) =>
+        sts.SQL(ctx, steOptions)
+      ).join(`,\n${indent}`);
 
-        const { isTemp, isIdempotent } = tdOptions ?? {};
-        // deno-fmt-ignore
-        const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
+      const { isTemp, isIdempotent } = tdOptions ?? {};
+      // deno-fmt-ignore
+      const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
         columnDefnsSS.map(cdss => cdss.SQL(ctx, steOptions)).join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
         "\n)";
-        return result;
-      },
-    };
+      return result;
+    },
+  };
 
   // we let Typescript infer function return to allow generics in sqlDomains to
   // be more effective but we want other parts of the `result` to be as strongly

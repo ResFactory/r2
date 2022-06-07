@@ -33,6 +33,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("table 1 definition", () => {
+    ta.assert(mod.isTableDefnition(syntheticTable1Defn));
     ta.assert(syntheticTable1Defn);
     ta.assertEquals("synthetic_table1", syntheticTable1Defn.tableName);
     ta.assert(syntheticTable1Defn.domains.length == 5);
@@ -64,6 +65,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   });
 
   await tc.step("table 2 definition", () => {
+    ta.assert(mod.isTableDefnition(syntheticTable2Defn));
     ta.assert(syntheticTable2Defn);
     ta.assertEquals("synthetic_table2", syntheticTable2Defn.tableName);
     ta.assert(syntheticTable2Defn.domains.length == 3);
