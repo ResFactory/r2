@@ -17,6 +17,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   const syntheticTable2Defn = mod.table(
     "synthetic_table2",
     {
+      // TODO: ...mod.tableIdentity("synthetic_table2"),
       column_pk: mod.primaryKey(d.integer()),
       column_fk_pk: mod.foreignKey(
         syntheticTable1Defn.tableName,

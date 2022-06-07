@@ -252,11 +252,40 @@ export function typicalTableColumnDefnSQL<
   };
 }
 
+export type TableIdentityColumnName<TableName extends string> =
+  `${TableName}_id`;
+
+export type TableIdentityColumnsSupplier<
+  TableName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  TableIdColumnName extends TableIdentityColumnName<TableName> =
+    TableIdentityColumnName<TableName>,
+> = {
+  [K in keyof TableName as TableIdColumnName]: d.AxiomSqlDomain<
+    number,
+    EmitOptions,
+    Context
+  >;
+};
+
+// export function tableIdentity<
+//   TableName extends string,
+//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+//   Context = Any,
+//   TableIdColumnName extends TableIdentityColumnName<TableName> =
+//   TableIdentityColumnName<TableName>,
+//   >(tableName: TableName): TableIdentityColumnsSupplier<TableName, EmitOptions, Context> {
+//   return {
+//     [`${tableName}_id` as string as TableIdColumnName]: primaryKey<number, EmitOptions, Context>(d.integer()),
+//   };
+// }
+
 export type HousekeepingColumnsDefns<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 > = {
-  created_at: d.AxiomSqlDomain<Date, EmitOptions, Context>;
+  readonly created_at: d.AxiomSqlDomain<Date, EmitOptions, Context>;
 };
 
 export function housekeeping<
