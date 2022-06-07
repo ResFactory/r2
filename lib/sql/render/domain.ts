@@ -5,6 +5,53 @@ import * as tmpl from "./template/mod.ts";
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
 
+interface DomainDefn {
+  [key: string]: Any;
+  length?: never;
+}
+
+type DomainIntersection<U> = (
+  U extends Any ? (k: U) => void : never
+) extends (k: infer I) => void ? I
+  : never;
+
+// istanbul ignore next
+const isObject = (obj: Any) => {
+  if (typeof obj === "object" && obj !== null) {
+    if (typeof Object.getPrototypeOf === "function") {
+      const prototype = Object.getPrototypeOf(obj);
+      return prototype === Object.prototype || prototype === null;
+    }
+
+    return Object.prototype.toString.call(obj) === "[object Object]";
+  }
+
+  return false;
+};
+
+const mergeArrays = true;
+export const mergeDomain = <T extends DomainDefn[]>(
+  ...objects: T
+): DomainIntersection<T[number]> =>
+  objects.reduce((result, current) => {
+    Object.keys(current).forEach((key) => {
+      if (Array.isArray(result[key]) && Array.isArray(current[key])) {
+        result[key] = mergeArrays
+          ? Array.from(new Set((result[key] as unknown[]).concat(current[key])))
+          : current[key];
+      } else if (isObject(result[key]) && isObject(current[key])) {
+        result[key] = mergeDomain(
+          result[key] as DomainDefn,
+          current[key] as DomainDefn,
+        );
+      } else {
+        result[key] = current[key];
+      }
+    });
+
+    return result;
+  }, {}) as Any;
+
 export type AxiomSqlDomain<
   TsValueType,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -19,6 +66,11 @@ export type AxiomSqlDomain<
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
+  readonly sqlPartial?: (
+    destination:
+      | "create table, full column defn"
+      | "create table, after all column definitions",
+  ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
   readonly referenceASD: () => AxiomSqlDomain<
     TsValueType,
     EmitOptions,
@@ -53,6 +105,25 @@ export type IdentifiableSqlDomain<
     ) => Omit<IdentifiableSqlDomain<Any, EmitOptions, Context>, "reference">;
     readonly identity: DomainIdentity;
   };
+
+export function isIdentifiableSqlDomain<
+  TsValueType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  DomainIdentity extends string = string,
+>(
+  o: unknown,
+): o is IdentifiableSqlDomain<
+  TsValueType,
+  EmitOptions,
+  Context,
+  DomainIdentity
+> {
+  const isISD = safety.typeGuard<
+    IdentifiableSqlDomain<TsValueType, EmitOptions, Context, DomainIdentity>
+  >("identity");
+  return isAxiomSqlDomain(o) && isISD(o);
+}
 
 export function textNullable<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -174,25 +245,29 @@ export function sqlDomains<
   Object.entries(axiom.axiomObjectDecl).forEach((entry) => {
     const [name, axiom] = entry;
     if (isAxiomSqlDomain<Any, EmitOptions, Context>(axiom)) {
-      const typedAxiom = axiom;
-      domains.push({
-        ...typedAxiom,
-        identity: name as Any,
-        reference: (rOptions) => {
-          const result: Omit<
-            IdentifiableSqlDomain<Any, EmitOptions, Context>,
-            "reference"
-          > = {
-            identity: (rOptions?.foreignIdentity ?? name) as string,
-            ...typedAxiom.referenceASD(),
-          };
-          return result;
-        },
-      });
+      const mutatableISD = axiom as safety.Writeable<
+        IdentifiableSqlDomain<Any, EmitOptions, Context>
+      >;
+      mutatableISD.identity = name as Any;
+      mutatableISD.reference = (rOptions) => {
+        const result: Omit<
+          IdentifiableSqlDomain<Any, EmitOptions, Context>,
+          "reference"
+        > = {
+          identity: (rOptions?.foreignIdentity ?? name) as string,
+          ...axiom.referenceASD(),
+        };
+        return result;
+      };
+      domains.push(mutatableISD);
     } else {
       onPropertyNotAxiomSqlDomain?.(name, axiom, domains);
     }
   });
+
+  // we let Typescript infer function return to allow generics to be more
+  // easily passed to consumers (if we typed it to an interface we'd limit
+  // the type-safety)
   return {
     ...axiom,
     domains,

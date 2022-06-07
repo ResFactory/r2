@@ -4,6 +4,7 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 import * as ax from "../../../safety/axiom.ts";
 import { $ } from "../../../safety/axiom.ts";
+import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.table("synthetic_table1", {
@@ -28,8 +29,8 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     },
   );
 
-  // const ctx = undefined;
-  // const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx = undefined;
+  const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("table 1 definition", () => {
     ta.assert(syntheticTable1Defn);
@@ -46,6 +47,20 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     );
   });
 
+  await tc.step("table 1 SQL", () => {
+    ta.assertEquals(
+      syntheticTable1Defn.SQL(ctx, emitOptions),
+      uws(`
+        CREATE TABLE "synthetic_table1" (
+            "column_pk" INTEGER PRIMARY KEY,
+            "column_one_text" TEXT NOT NULL,
+            "column_two_text_nullable" TEXT,
+            "column_unique" TEXT NOT NULL,
+            UNIQUE("column_unique")
+        )`),
+    );
+  });
+
   await tc.step("table 2 definition", () => {
     ta.assert(syntheticTable2Defn);
     ta.assertEquals("synthetic_table2", syntheticTable2Defn.tableName);
@@ -57,6 +72,20 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
         "column_fk_text",
       ],
       syntheticTable2Defn.domains.map((cd) => cd.identity),
+    );
+  });
+
+  await tc.step("table 2 SQL", () => {
+    ta.assertEquals(
+      syntheticTable2Defn.SQL(ctx, emitOptions),
+      uws(`
+        CREATE TABLE "synthetic_table2" (
+            "column_pk" INTEGER PRIMARY KEY,
+            "column_fk_pk" INTEGER NOT NULL,
+            "column_fk_text" TEXT NOT NULL,
+            FOREIGN KEY("column_fk_pk") REFERENCES "synthetic_table1"("column_pk"),
+            FOREIGN KEY("column_fk_text") REFERENCES "synthetic_table1"("column_one_text")
+        )`),
     );
   });
 

@@ -105,3 +105,9 @@ export type RequireOnlyOne<T, Keys extends keyof T = keyof T> =
       & Required<Pick<T, K>>
       & Partial<Record<Exclude<Keys, K>, undefined>>;
   }[Keys];
+
+export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+
+export type DeepWriteable<T> = {
+  -readonly [P in keyof T]: DeepWriteable<T[P]>;
+};

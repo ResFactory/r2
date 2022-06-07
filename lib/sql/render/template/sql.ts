@@ -132,11 +132,18 @@ export function typicalSqlTextPersistOptions(): SqlTextPersistOptions {
   };
 }
 
+export interface RenderedSqlText<
+  Context,
+  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+> {
+  (ctx: Context, options: EmitOptions): string;
+}
+
 export interface SqlTextSupplier<
   Context,
   EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
 > {
-  readonly SQL: (ctx: Context, options: EmitOptions) => string;
+  readonly SQL: RenderedSqlText<Context, EmitOptions>;
 }
 
 export function isSqlTextSupplier<
