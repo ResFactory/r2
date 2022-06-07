@@ -6,7 +6,7 @@ import * as ax from "../../../safety/axiom.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
-  const syntheticTable1Defn = mod.table("synthetic_table1", {
+  const syntheticTable1Defn = mod.tableDefn("synthetic_table1", {
     column_pk: mod.primaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
@@ -14,7 +14,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     ...mod.housekeeping(),
   });
 
-  const syntheticTable2Defn = mod.table(
+  const syntheticTable2Defn = mod.tableDefn(
     "synthetic_table2",
     {
       // TODO: ...mod.tableIdentity("synthetic_table2"),

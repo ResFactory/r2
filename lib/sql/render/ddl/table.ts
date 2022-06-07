@@ -320,7 +320,7 @@ export function isTableDefnition<
   return isTD(o);
 }
 
-export function table<
+export function tableDefn<
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
