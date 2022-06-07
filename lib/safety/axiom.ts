@@ -5,9 +5,11 @@
 // Changes:
 // - renamed Schema* to Axiom*
 // - changed AxiomObjectType to AxiomObjectTypeStrict and forced default strict
+// - added AxiomOptional type and and isAxiomOptional guard to ease reflection
 // - added AxiomObjectProperty signature to all properties of objects to ease
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
-// - added AxiomOptional type and and isAxiomOptional guard to ease reflection
+// - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
+//   reflection (consumers may need the original object declarations)
 // - changed test cases to use Deno unit testing
 
 // deno-lint-ignore-file no-explicit-any
@@ -85,55 +87,54 @@ type Axiom<TType> = {
   readonly test: (value: unknown, options?: AxiomOptions) => value is TType;
 };
 
-type MutatableAxiomObjectProperty<
-  TType,
-  PropertyName extends keyof TType = keyof TType,
-> = {
-  axiomPropertyName: PropertyName;
-  axiom: Axiom<any>;
+type MutatableAxiomObjectProperty<PropertyName extends string> = {
+  axiomObjectPropertyName: PropertyName;
 };
 
-type AxiomObjectProperty<TType> = Readonly<
-  MutatableAxiomObjectProperty<TType>
+type AxiomObjectProperty<PropertyName extends string> = Readonly<
+  MutatableAxiomObjectProperty<PropertyName>
 >;
 
-function isAxiomObjectProperty<TType>(
+function isAxiomObjectProperty<PropertyName extends string>(
   o: unknown,
-): o is AxiomObjectProperty<TType> {
+): o is AxiomObjectProperty<PropertyName> {
   if (o && typeof o === "object") {
-    return "axiomPropertyName" in o && "axiom" in o;
+    return "axiomObjectPropertyName" in o;
   }
   return false;
 }
 
-function transformToAxiomObjectProperty<
-  TType,
-  PropertyName extends keyof TType = keyof TType,
->(
+function transformToAxiomObjectProperty<PropertyName extends string>(
   axiomPropertyName: PropertyName,
   o: Axiom<any>,
-): Axiom<any> & AxiomObjectProperty<TType> | false {
-  if (isAxiomObjectProperty(o)) {
+): Axiom<any> & AxiomObjectProperty<PropertyName> | false {
+  if (isAxiomObjectProperty<PropertyName>(o)) {
     return o;
   }
   if (typeof o === "object") {
-    (o as unknown as MutatableAxiomObjectProperty<TType>)
-      .axiomPropertyName = axiomPropertyName as PropertyName;
-    return o as unknown as (Axiom<any> & AxiomObjectProperty<TType>);
+    (o as unknown as MutatableAxiomObjectProperty<PropertyName>)
+      .axiomObjectPropertyName = axiomPropertyName as PropertyName;
+    return o as unknown as (Axiom<any> & AxiomObjectProperty<PropertyName>);
   }
   return false;
 }
 
-type AxiomObject<TType> = Axiom<TType> & {
-  /**
-   * Re-construct the object/record axiom with all properties as optional.
-   */
-  readonly partial: () => AxiomObject<Simplify<Partial<TType>>>;
-  /**
-   * Re-construct the object/record axiom with all properties as optional.
-   */
-  readonly properties: AxiomObjectProperty<TType>[];
-};
+type AxiomObject<
+  TType,
+  TPropAxioms extends Record<string, Axiom<any>>,
+  TIndexType,
+  > = Axiom<TType> & {
+    /**
+     * Re-construct the object/record axiom with all properties as optional.
+     */
+    readonly partial: () => AxiomObject<
+      Simplify<Partial<TType>>,
+      TPropAxioms,
+      TIndexType
+    >;
+    readonly axiomObjectDecl: TPropAxioms;
+    readonly axiomObjectDeclPropNames: (keyof TType & string)[];
+  };
 
 const isObject = (value: any): value is Record<string, any> =>
   typeof value === "object" && value !== null;
@@ -213,33 +214,26 @@ const create = <TType>(
 const createObject = <
   TPropAxioms extends Record<string, Axiom<any>>,
   TIndexType,
-  PropertyName extends keyof Simplify<
-    AxiomObjectTypeStrict<TPropAxioms, TIndexType>
-  > = keyof Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>,
->(
-  props: TPropAxioms,
-  index: Axiom<TIndexType> | undefined,
-): AxiomObject<Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>> => {
-  const properties: AxiomObjectProperty<
-    Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>
-  >[] = [];
+  >(
+    props: TPropAxioms,
+    index: Axiom<TIndexType> | undefined,
+): AxiomObject<
+  Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>,
+  TPropAxioms,
+  TIndexType
+> => {
   for (const entry of Object.entries(props)) {
     const [name, value] = entry;
-    const transformed = transformToAxiomObjectProperty<
-      Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>
-    >(name as PropertyName, value);
-    if (transformed) {
-      properties.push({
-        axiom: transformed,
-        axiomPropertyName: transformed.axiomPropertyName,
-      });
-    }
+    transformToAxiomObjectProperty<
+      keyof Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>> & string
+    >(name as any, value);
   }
 
   const objectAxiom: AxiomObject<
-    Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>
+    Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>,
+    TPropAxioms,
+    TIndexType
   > = {
-    properties,
     ...create(
       (
         value,
@@ -263,6 +257,8 @@ const createObject = <
       ) => (partialProps[key] = axiom.optional()));
       return createObject(partialProps, index && index.optional()) as never;
     }),
+    axiomObjectDecl: props as any,
+    axiomObjectDeclPropNames: Object.keys(props) as any,
   };
 
   return objectAxiom;
@@ -328,13 +324,13 @@ const object = <TPropAxioms extends Record<string, Axiom<any>>, TIndexType>(
 // Combinatorial
 const union = <
   TAxioms extends readonly [Axiom<any>, ...(readonly Axiom<any>[])],
->(...axioms: TAxioms) =>
+  >(...axioms: TAxioms) =>
   create((value): value is AxiomType<TAxioms[number]> =>
     axioms.some((axiom) => axiom.test(value))
   );
 const intersection = <
   TAxioms extends readonly [Axiom<any>, ...(readonly Axiom<any>[])],
->(...axioms: TAxioms) =>
+  >(...axioms: TAxioms) =>
   create((
     value,
     context,
