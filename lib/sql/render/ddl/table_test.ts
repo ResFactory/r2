@@ -11,6 +11,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: mod.unique(d.text()),
+    ...mod.housekeeping(),
   });
 
   const syntheticTable2Defn = mod.table(
@@ -34,13 +35,14 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   await tc.step("table 1 definition", () => {
     ta.assert(syntheticTable1Defn);
     ta.assertEquals("synthetic_table1", syntheticTable1Defn.tableName);
-    ta.assert(syntheticTable1Defn.domains.length == 4);
+    ta.assert(syntheticTable1Defn.domains.length == 5);
     ta.assertEquals(
       [
         "column_pk",
         "column_one_text",
         "column_two_text_nullable",
         "column_unique",
+        "created_at",
       ],
       syntheticTable1Defn.domains.map((cd) => cd.identity),
     );
@@ -51,10 +53,11 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       syntheticTable1Defn.SQL(ctx, emitOptions),
       uws(`
         CREATE TABLE "synthetic_table1" (
-            "column_pk" INTEGER PRIMARY KEY,
+            "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_one_text" TEXT NOT NULL,
             "column_two_text_nullable" TEXT,
             "column_unique" TEXT NOT NULL,
+            "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             UNIQUE("column_unique")
         )`),
     );
@@ -79,7 +82,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       syntheticTable2Defn.SQL(ctx, emitOptions),
       uws(`
         CREATE TABLE "synthetic_table2" (
-            "column_pk" INTEGER PRIMARY KEY,
+            "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_fk_pk" INTEGER NOT NULL,
             "column_fk_text" TEXT NOT NULL,
             FOREIGN KEY("column_fk_pk") REFERENCES "synthetic_table1"("column_pk"),
@@ -96,6 +99,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       // TODO: figure out why removing this nullable text fails the test
       column_two_text_nullable: "TODO: should be nullable but test fails",
       column_unique: "unique",
+      created_at: new Date(),
     };
     ta.assert(syntheticTable1Defn.test(synthetic1, {
       onInvalid: (reason) => {

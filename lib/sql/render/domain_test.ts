@@ -18,6 +18,12 @@ Deno.test("type-safe data domains", async (tc) => {
     json: mod.jsonText(),
     json_custom: mod.jsonText($.string),
     json_nullable: mod.jsonTextNullable(),
+    date: mod.date(),
+    date_custom: mod.date($.date),
+    date_nullable: mod.dateNullable(),
+    date_time: mod.dateTime(),
+    date_time_custom: mod.dateTime($.date),
+    date_time_nullable: mod.dateTimeNullable(),
 
     // passing in Axiom without domain wrapper will be a "lint" error for
     // mod.sqlDomains but OK for Axiom
@@ -42,6 +48,10 @@ Deno.test("type-safe data domains", async (tc) => {
       int_custom: 1,
       json: `{"synthetic": "yes"}`,
       json_custom: `{ "synthetic": "yes", "custom": true }`,
+      date: new Date(),
+      date_custom: new Date(),
+      date_time: new Date(),
+      date_time_custom: new Date(),
       // bad: "hello"
     };
   });
@@ -89,6 +99,10 @@ Deno.test("type-safe data domains", async (tc) => {
       int_custom: 1,
       json: `{"synthetic": "yes"}`,
       json_custom: `{ "synthetic": "yes", "custom": true }`,
+      date: new Date(),
+      date_custom: new Date(),
+      date_time: new Date(),
+      date_time_custom: new Date(),
       // bad: "hello"
     };
   });

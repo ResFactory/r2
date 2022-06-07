@@ -12,6 +12,7 @@ export type TablePrimaryKeyColumnDefn<
   Context = Any,
 > = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
   readonly isPrimaryKey: true;
+  readonly isAutoIncrement: boolean;
 };
 
 export function isTablePrimaryKeyColumnDefn<
@@ -23,7 +24,7 @@ export function isTablePrimaryKeyColumnDefn<
 ): o is TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context> {
   const isTPKCD = safety.typeGuard<
     TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context>
-  >("isPrimaryKey");
+  >("isPrimaryKey", "isAutoIncrement");
   return isTPKCD(o);
 }
 
@@ -33,10 +34,27 @@ export function primaryKey<
   Context = Any,
 >(
   axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
+  pkOptions?: {
+    readonly isAutoIncrement?: boolean;
+  },
 ): TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context> {
+  const { isAutoIncrement = true } = pkOptions ?? {};
   return {
     ...axiom,
     isPrimaryKey: true,
+    isAutoIncrement,
+    sqlPartial: (dest) => {
+      if (dest === "create table, column defn decorators") {
+        const ctcdd = axiom?.sqlPartial?.(
+          "create table, column defn decorators",
+        );
+        const decorators: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+          SQL: () => `PRIMARY KEY${isAutoIncrement ? " AUTOINCREMENT" : ""}`,
+        };
+        return ctcdd ? [decorators, ...ctcdd] : [decorators];
+      }
+      return axiom.sqlPartial?.(dest);
+    },
   };
 }
 
@@ -195,10 +213,6 @@ export function unique<
   return result;
 }
 
-export type TableNameSupplier<TableName extends string> = {
-  readonly tableName: TableName;
-};
-
 export function typicalTableColumnDefnSQL<
   TableName extends string,
   ColumnName extends string,
@@ -219,10 +233,13 @@ export function typicalTableColumnDefnSQL<
       steOptions,
     );
     if (sqlDataType) sqlDataType = " " + sqlDataType;
-    const primaryKey = isTablePrimaryKeyColumnDefn(isd)
-      ? isd.isPrimaryKey ? " PRIMARY KEY" : ""
+    const decorations = isd.sqlPartial?.(
+      "create table, column defn decorators",
+    );
+    const decoratorsSQL = decorations
+      ? ` ${decorations.map((d) => d.SQL(ctx, steOptions)).join(" ")}`
       : "";
-    const notNull = primaryKey.length == 0
+    const notNull = decoratorsSQL.length == 0
       ? isd.isNullable ? "" : " NOT NULL"
       : "";
     const defaultValue = isd.sqlDefaultValue
@@ -231,35 +248,31 @@ export function typicalTableColumnDefnSQL<
       }`
       : "";
     // deno-fmt-ignore
-    return `${steOptions.indentation("define table column")}${columnName}${sqlDataType}${primaryKey}${notNull}${defaultValue}`;
+    return `${steOptions.indentation("define table column")}${columnName}${sqlDataType}${decoratorsSQL}${notNull}${defaultValue}`;
   };
 }
 
-// export type TableDefinition<
-//   TableName extends string,
-//   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-//   ColumnName extends keyof TPropAxioms & string = keyof TPropAxioms & string,
-// > = d.IdentifiableSqlDomains<TPropAxioms, EmitOptions, Context> & {
-//   readonly tableName: TableName;
-//   // readonly columns: Record<
-//   //   ColumnName,
-//   //   TableColumnDefn<TPropAxioms, Any, EmitOptions, Context>
-//   // >;
-// };
+export type HousekeepingColumnsDefns<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> = {
+  created_at: d.AxiomSqlDomain<Date, EmitOptions, Context>;
+};
 
-// export function isTableDefinition<
-//   TableName extends string,
-//   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-//   >(o: unknown): o is TableDefinition<TableName, TPropAxioms, EmitOptions, Context> {
-//   const isTD = safety.typeGuard<
-//     TableDefinition<TableName, TPropAxioms, EmitOptions, Context>
-//   >("tableName", "domains");
-//   return isTD(o);
-// }
+export function housekeeping<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(): HousekeepingColumnsDefns<EmitOptions, Context> {
+  return {
+    created_at: d.dateTime(undefined, {
+      sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+    }),
+  };
+}
+
+export type TableNameSupplier<TableName extends string> = {
+  readonly tableName: TableName;
+};
 
 export function table<
   TableName extends string,
@@ -335,48 +348,3 @@ export function table<
     ...result,
   };
 }
-
-// export type TypicalTablePrimaryKeyColName<TableName extends string> =
-//   `${TableName}_id`;
-// export type TypicalTablePrimaryKeySupplier<
-//   TableName extends string,
-//   Object,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-// > = {
-//   readonly [columnName in `${TableName}_id`]: TableColumnDefn<
-//     Object,
-//     number,
-//     EmitOptions,
-//     Context
-//   >;
-// };
-// export type TypicalTableHousekeepingSupplier<
-//   TableName extends string,
-//   Object,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-// > = {
-//   readonly created_at: TableColumnDefn<Object, Date, EmitOptions, Context>;
-// };
-// export type TypicalTableObject<
-//   TableName extends string,
-//   Object,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-// > =
-//   & Object
-//   & TypicalTablePrimaryKeySupplier<TableName, Object, EmitOptions, Context>
-//   & TypicalTableHousekeepingSupplier<TableName, Object, EmitOptions, Context>;
-
-// export type TypicalTableDefinition<
-//   TableName extends string,
-//   Object,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-// > = TableDefinition<
-//   TableName,
-//   TypicalTableObject<TableName, Object, EmitOptions, Context>,
-//   EmitOptions,
-//   Context
-// >;

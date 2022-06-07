@@ -69,6 +69,7 @@ export type AxiomSqlDomain<
   readonly sqlPartial?: (
     destination:
       | "create table, full column defn"
+      | "create table, column defn decorators"
       | "create table, after all column definitions",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
   readonly referenceASD: () => AxiomSqlDomain<
@@ -134,10 +135,10 @@ export function textNullable<
 ): AxiomSqlDomain<string | undefined, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: true,
     referenceASD: () => text(),
+    ...asdOptions,
   };
 }
 
@@ -150,10 +151,74 @@ export function text<
 ): AxiomSqlDomain<string, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
     referenceASD: () => text(),
+    ...asdOptions,
+  };
+}
+
+export function date<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<Date> = ax.$.date,
+  asdOptions?: Partial<AxiomSqlDomain<Date, EmitOptions, Context>>,
+): AxiomSqlDomain<Date, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `DATE` }),
+    isNullable: false,
+    referenceASD: () => date(),
+    ...asdOptions,
+  };
+}
+
+export function dateNullable<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
+  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, EmitOptions, Context>>,
+): AxiomSqlDomain<Date | undefined, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `DATE` }),
+    isNullable: true,
+    referenceASD: () => date(),
+    ...asdOptions,
+  };
+}
+
+export function dateTime<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<Date> = ax.$.date,
+  asdOptions?: Partial<AxiomSqlDomain<Date, EmitOptions, Context>>,
+): AxiomSqlDomain<Date, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `DATETIME` }),
+    isNullable: false,
+    referenceASD: () => dateTime(),
+    ...asdOptions,
+  };
+}
+
+export function dateTimeNullable<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
+  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, EmitOptions, Context>>,
+): AxiomSqlDomain<Date | undefined, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `DATETIME` }),
+    isNullable: true,
+    referenceASD: () => dateTime(),
+    ...asdOptions,
   };
 }
 
@@ -166,10 +231,10 @@ export function integer<
 ): AxiomSqlDomain<number, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: false,
     referenceASD: () => integer(),
+    ...asdOptions,
   };
 }
 
@@ -182,10 +247,10 @@ export function integerNullable<
 ): AxiomSqlDomain<number | undefined, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: true,
     referenceASD: () => integer(),
+    ...asdOptions,
   };
 }
 
@@ -198,10 +263,10 @@ export function jsonText<
 ): AxiomSqlDomain<string, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: false,
     referenceASD: () => jsonText(),
+    ...asdOptions,
   };
 }
 
@@ -214,10 +279,10 @@ export function jsonTextNullable<
 ): AxiomSqlDomain<string | undefined, EmitOptions, Context> {
   return {
     ...axiom,
-    ...asdOptions,
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: true,
     referenceASD: () => jsonText(),
+    ...asdOptions,
   };
 }
 
