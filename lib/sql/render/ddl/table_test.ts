@@ -3,7 +3,6 @@ import * as mod from "./table.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 import * as ax from "../../../safety/axiom.ts";
-import { $ } from "../../../safety/axiom.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
