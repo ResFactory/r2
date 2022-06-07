@@ -10,6 +10,7 @@
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
 // - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
 //   reflection (consumers may need the original object declarations)
+// - added Date primitives (TODO: add test cases)
 // - changed test cases to use Deno unit testing
 
 // deno-lint-ignore-file no-explicit-any
@@ -280,6 +281,7 @@ const boolean = create((value): value is boolean =>
 const symbol = create((value): value is symbol =>
   typeof value === "symbol" || value instanceof Symbol
 );
+const date = create((value): value is Date => value instanceof Date);
 const undefined_ = create((value): value is undefined =>
   typeof value === "undefined"
 );
@@ -356,6 +358,7 @@ const $ = {
     object,
     record,
     string,
+    date,
     symbol,
     tuple,
     undefined: undefined_,
