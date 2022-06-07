@@ -11,6 +11,7 @@
 // - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
 //   reflection (consumers may need the original object declarations)
 // - added Date primitives (TODO: add test cases)
+// - changed SmartPartial to organize required properties earlier than optional
 // - changed test cases to use Deno unit testing
 
 // deno-lint-ignore-file no-explicit-any
@@ -26,8 +27,8 @@ type RequiredKeys<T> = {
   readonly [P in keyof T]: undefined extends T[P] ? never : P;
 }[keyof T];
 type SmartPartial<T> =
-  & Partial<Pick<T, OptionalKeys<T>>>
-  & Pick<T, RequiredKeys<T>>;
+  & Pick<T, RequiredKeys<T>>
+  & Partial<Pick<T, OptionalKeys<T>>>;
 
 // eslint-disable-next-line functional/prefer-readonly-type
 type Simplify<T> = T extends Record<string, unknown> ? { [P in keyof T]: T[P] }
