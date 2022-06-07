@@ -54,20 +54,6 @@ export type IdentifiableSqlDomain<
     readonly identity: DomainIdentity;
   };
 
-// export type IdentifiableSqlDomains<
-//   Object,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-//   PropertyName extends keyof Object & string = keyof Object & string,
-//   > = ax.AxiomObject<Object> & {
-//     readonly domains: IdentifiableSqlDomain<
-//       Any,
-//       EmitOptions,
-//       Context,
-//       PropertyName
-//     >[];
-//   };
-
 export function textNullable<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
