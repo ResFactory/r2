@@ -2,6 +2,8 @@ import * as safety from "../../../safety/mod.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
 import * as tmpl from "../template/mod.ts";
+import * as tr from "../../../tabular/mod.ts";
+import * as ets from "../template/emittable-typescript.ts";
 
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
@@ -320,7 +322,23 @@ export function isTableDefnition<
   return isTD(o);
 }
 
-export function tableDefn<
+export interface TableDefnOptions<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> {
+  readonly isIdempotent?: boolean;
+  readonly isTemp?: boolean;
+  readonly sqlPartial?: (
+    destination: "after all column definitions",
+  ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
+  readonly onPropertyNotAxiomSqlDomain?: (
+    name: string,
+    axiom: ax.Axiom<Any>,
+    domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+  ) => void;
+}
+
+export function tableDefinition<
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -328,31 +346,22 @@ export function tableDefn<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdOptions?: {
-    readonly isIdempotent?: boolean;
-    readonly isTemp?: boolean;
-    readonly sqlPartial?: (
-      destination: "after all column definitions",
-    ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
-    readonly onPropertyNotAxiomSqlDomain?: (
-      name: string,
-      axiom: ax.Axiom<Any>,
-      domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
-    ) => void;
-  },
+  tdOptions?: TableDefnOptions<EmitOptions, Context>,
 ) {
   const columnDefnsSS: tmpl.SqlTextSupplier<Context, EmitOptions>[] = [];
   const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context, EmitOptions>[] = [];
   const sd = d.sqlDomains(props, tdOptions);
-  for (const isd of sd.domains) {
-    const typicalSQL = typicalTableColumnDefnSQL(tableName, isd);
-    if (isd.sqlPartial) {
-      const acdPartial = isd.sqlPartial(
+  for (const columnDefn of sd.domains) {
+    const typicalSQL = typicalTableColumnDefnSQL(tableName, columnDefn);
+    if (columnDefn.sqlPartial) {
+      const acdPartial = columnDefn.sqlPartial(
         "create table, after all column definitions",
       );
       if (acdPartial) afterColumnDefnsSS.push(...acdPartial);
 
-      const ctcPartial = isd.sqlPartial("create table, full column defn");
+      const ctcPartial = columnDefn.sqlPartial(
+        "create table, full column defn",
+      );
       if (ctcPartial) {
         columnDefnsSS.push(...ctcPartial);
       } else {
@@ -390,5 +399,50 @@ export function tableDefn<
   return {
     ...sd,
     ...result,
+  };
+}
+
+export function tableDefnRowFactory<
+  TableName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  tableName: TableName,
+  props: TPropAxioms,
+  tdrfOptions?: TableDefnOptions<EmitOptions, Context>,
+) {
+  const tableDefn = tableDefinition(tableName, props, tdrfOptions);
+
+  type InsertableRecord =
+    & tr.UntypedTabularRecordObject
+    & ax.AxiomType<typeof tableDefn>;
+  type InsertableColumnName = keyof InsertableRecord & string;
+  type InsertableObject = tr.TabularRecordToObject<InsertableRecord>;
+
+  // we let Typescript infer function return to allow generics in sqlDomains to
+  // be more effective but we want other parts of the `result` to be as strongly
+  // typed as possible
+  return {
+    ...tableDefn,
+    prepareInsertable: (
+      o: InsertableObject,
+      rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
+      options?: tr.TransformTabularRecordOptions<InsertableRecord>,
+    ) => tr.transformTabularRecord(o, rowState, options),
+    insertDML: ets.typicalInsertStmtPreparer<
+      Context,
+      TableName,
+      string,
+      InsertableRecord,
+      InsertableRecord,
+      EmitOptions
+    >(
+      tableName,
+      tableDefn.domains.map((d) => d.identity) as InsertableColumnName[],
+      tableDefn.domains.filter((d) =>
+        isTablePrimaryKeyColumnDefn(d) ? true : false
+      ).map((d) => d.identity),
+    ),
   };
 }
