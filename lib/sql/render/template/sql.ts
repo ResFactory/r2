@@ -52,6 +52,10 @@ export function typicalQuotedSqlLiteral(
   if (typeof value === "string") {
     return [value, `'${value.replaceAll("'", "''")}'`];
   }
+  if (value instanceof Date) {
+    // TODO: add date formatting options
+    return [value, `'${String(value)}'`];
+  }
   return [value, String(value)];
 }
 
