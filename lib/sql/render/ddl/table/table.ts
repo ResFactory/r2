@@ -850,7 +850,13 @@ export function typicalTableDefnDML<
         InsertableRecord,
         InsertableRecord,
         EmitOptions
-      >(tableName, validColumnNames, [`${tableName}_id`]),
+      >(
+        tableName,
+        (group) =>
+          group === "primary-keys"
+            ? [`${tableName}_id` as InsertableColumnName]
+            : validColumnNames,
+      ),
     };
   };
 }

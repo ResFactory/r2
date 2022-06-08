@@ -7,7 +7,7 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.tableDefnRowFactory("synthetic_table1", {
-    column_pk: mod.primaryKey(d.integer()),
+    column_pk: mod.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: mod.unique(d.text()),
@@ -18,7 +18,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     "synthetic_table2",
     {
       // TODO: ...mod.tableIdentity("synthetic_table2"),
-      column_pk: mod.primaryKey(d.integer()),
+      column_pk: mod.autoIncPrimaryKey(d.integer()),
       column_fk_pk: mod.foreignKey(
         syntheticTable1Defn.tableName,
         syntheticTable1Defn.axiomObjectDecl.column_pk,
@@ -59,7 +59,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
             "column_one_text" TEXT NOT NULL,
             "column_two_text_nullable" TEXT,
             "column_unique" TEXT NOT NULL,
-            "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE("column_unique")
         )`),
     );
@@ -113,7 +113,6 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
 
   await tc.step("typed table 1 DML row values", () => {
     const insertable = syntheticTable1Defn.prepareInsertable({
-      columnPk: 1,
       columnOneText: "text",
       columnUnique: "value",
       createdAt: new Date(),
@@ -121,7 +120,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     ta.assert(insertable);
     ta.assertEquals(
       syntheticTable1Defn.insertDML(insertable).SQL(ctx, emitOptions),
-      `INSERT INTO "synthetic_table1" ("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (1, 'text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }')`,
     );
@@ -130,7 +129,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
         ctx,
         emitOptions,
       ),
-      `INSERT INTO "synthetic_table1" ("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (1, 'text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') RETURNING *`,
     );
@@ -140,7 +139,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
           ctx,
           emitOptions,
         ),
-      `INSERT INTO "synthetic_table1" ("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (1, 'text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') RETURNING "column_pk"`,
     );
@@ -152,7 +151,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
         ctx,
         emitOptions,
       ),
-      `INSERT INTO "synthetic_table1" ("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (1, 'text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') ON CONFLICT ("column_pk") IGNORE RETURNING "column_pk"`,
     );

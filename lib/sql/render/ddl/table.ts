@@ -30,28 +30,78 @@ export function isTablePrimaryKeyColumnDefn<
   return isTPKCD(o);
 }
 
+export type TableColumnInsertDmlExclusionSupplier<
+  ColumnTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
+  readonly isExcludedFromInsertDML: true;
+};
+
+export function isTableColumnInsertDmlExclusionSupplier<
+  ColumnTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  o: unknown,
+): o is TableColumnInsertDmlExclusionSupplier<
+  ColumnTsType,
+  EmitOptions,
+  Context
+> {
+  const isIDES = safety.typeGuard<
+    TableColumnInsertDmlExclusionSupplier<ColumnTsType, EmitOptions, Context>
+  >("isExcludedFromInsertDML");
+  return isIDES(o);
+}
+
 export function primaryKey<
   ColumnTsType,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
   axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
-  pkOptions?: {
-    readonly isAutoIncrement?: boolean;
-  },
 ): TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context> {
-  const { isAutoIncrement = true } = pkOptions ?? {};
   return {
     ...axiom,
     isPrimaryKey: true,
-    isAutoIncrement,
+    isAutoIncrement: false,
     sqlPartial: (dest) => {
       if (dest === "create table, column defn decorators") {
         const ctcdd = axiom?.sqlPartial?.(
           "create table, column defn decorators",
         );
         const decorators: tmpl.SqlTextSupplier<Context, EmitOptions> = {
-          SQL: () => `PRIMARY KEY${isAutoIncrement ? " AUTOINCREMENT" : ""}`,
+          SQL: () => `PRIMARY KEY`,
+        };
+        return ctcdd ? [decorators, ...ctcdd] : [decorators];
+      }
+      return axiom.sqlPartial?.(dest);
+    },
+  };
+}
+
+export function autoIncPrimaryKey<
+  ColumnTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
+):
+  & TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context>
+  & TableColumnInsertDmlExclusionSupplier<ColumnTsType, EmitOptions, Context> {
+  return {
+    ...axiom,
+    isPrimaryKey: true,
+    isExcludedFromInsertDML: true,
+    isAutoIncrement: true,
+    sqlPartial: (dest) => {
+      if (dest === "create table, column defn decorators") {
+        const ctcdd = axiom?.sqlPartial?.(
+          "create table, column defn decorators",
+        );
+        const decorators: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+          SQL: () => `PRIMARY KEY AUTOINCREMENT`,
         };
         return ctcdd ? [decorators, ...ctcdd] : [decorators];
       }
@@ -271,23 +321,11 @@ export type TableIdentityColumnsSupplier<
   >;
 };
 
-// export function tableIdentity<
-//   TableName extends string,
-//   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-//   Context = Any,
-//   TableIdColumnName extends TableIdentityColumnName<TableName> =
-//   TableIdentityColumnName<TableName>,
-//   >(tableName: TableName): TableIdentityColumnsSupplier<TableName, EmitOptions, Context> {
-//   return {
-//     [`${tableName}_id` as string as TableIdColumnName]: primaryKey<number, EmitOptions, Context>(d.integer()),
-//   };
-// }
-
 export type HousekeepingColumnsDefns<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 > = {
-  readonly created_at: d.AxiomSqlDomain<Date, EmitOptions, Context>;
+  readonly created_at: d.AxiomSqlDomain<Date | undefined, EmitOptions, Context>;
 };
 
 export function housekeeping<
@@ -295,7 +333,7 @@ export function housekeeping<
   Context = Any,
 >(): HousekeepingColumnsDefns<EmitOptions, Context> {
   return {
-    created_at: d.dateTime(undefined, {
+    created_at: d.dateTimeNullable(undefined, {
       sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
     }),
   };
@@ -372,7 +410,47 @@ export function tableDefinition<
     }
   }
 
-  const result: TableDefnition<TableName, EmitOptions, Context> = {
+  type PrimaryKeys = {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { isPrimaryKey: true } ? Property
+          : never
+      >
+    ]: TablePrimaryKeyColumnDefn<
+      d.AxiomPrimitive<TPropAxioms, Property>,
+      EmitOptions,
+      Context
+    >;
+  };
+  const primaryKey: PrimaryKeys = {} as Any;
+  for (const column of sd.domains) {
+    if (isTablePrimaryKeyColumnDefn(column)) {
+      primaryKey[column.identity as (keyof PrimaryKeys)] = column as Any;
+    }
+  }
+
+  // ESSENTIAL TODO: see d.AxiomPrimitive; do we need to "manually" compute the
+  // TsType through conditional types or can we infer it from ax.Axiom<?>
+  type ForeignKeyRefs = {
+    [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
+      d.AxiomPrimitive<TPropAxioms, Property>,
+      TableName,
+      EmitOptions,
+      Context
+    >;
+  };
+  const fkRef: ForeignKeyRefs = {} as Any;
+  for (const column of sd.domains) {
+    fkRef[column.identity as (keyof TPropAxioms)] = () => {
+      return foreignKey(tableName, column);
+    };
+  }
+
+  const result: TableDefnition<TableName, EmitOptions, Context> & {
+    primaryKey: PrimaryKeys;
+    foreignKeyRef: ForeignKeyRefs;
+  } = {
     tableName,
     SQL: (ctx, steOptions) => {
       const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
@@ -391,6 +469,8 @@ export function tableDefinition<
         "\n)";
       return result;
     },
+    primaryKey,
+    foreignKeyRef: fkRef,
   };
 
   // we let Typescript infer function return to allow generics in sqlDomains to
@@ -414,9 +494,24 @@ export function tableDefnRowFactory<
 ) {
   const tableDefn = tableDefinition(tableName, props, tdrfOptions);
 
-  type InsertableRecord =
+  type EntireRecord =
     & tr.UntypedTabularRecordObject
     & ax.AxiomType<typeof tableDefn>;
+  type ExcludeFromInsert = {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { isExcludedFromInsertDML: true }
+          ? Property
+          : never
+      >
+    ]: true;
+  };
+  type ExcludePropertyName = Extract<
+    keyof EntireRecord,
+    keyof ExcludeFromInsert
+  >;
+  type InsertableRecord = Omit<EntireRecord, ExcludePropertyName>;
   type InsertableColumnName = keyof InsertableRecord & string;
   type InsertableObject = tr.TabularRecordToObject<InsertableRecord>;
 
@@ -435,14 +530,23 @@ export function tableDefnRowFactory<
       TableName,
       string,
       InsertableRecord,
-      InsertableRecord,
+      EntireRecord,
       EmitOptions
     >(
       tableName,
-      tableDefn.domains.map((d) => d.identity) as InsertableColumnName[],
-      tableDefn.domains.filter((d) =>
-        isTablePrimaryKeyColumnDefn(d) ? true : false
-      ).map((d) => d.identity),
+      (group) => {
+        if (group === "primary-keys") {
+          return tableDefn.domains.filter((d) =>
+            isTablePrimaryKeyColumnDefn(d) ? true : false
+          ).map((d) => d.identity) as InsertableColumnName[];
+        }
+        return tableDefn.domains.filter((d) =>
+          isTableColumnInsertDmlExclusionSupplier(d) &&
+            d.isExcludedFromInsertDML
+            ? false
+            : true
+        ).map((d) => d.identity) as InsertableColumnName[];
+      },
     ),
   };
 }

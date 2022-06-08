@@ -88,6 +88,11 @@ export interface InsertStmtPreparer<
     (keyof ReturnableRecord | string),
 > {
   (ir: InsertableRecord, options?: {
+    readonly isColumnEmittable?: (
+      columnName: keyof InsertableRecord,
+      record: InsertableRecord,
+      tableName: TableName,
+    ) => boolean;
     readonly emitColumn?: (
       columnName: keyof InsertableRecord,
       record: InsertableRecord,
@@ -141,8 +146,7 @@ export function typicalInsertStmtPreparer<
     (keyof ReturnableRecord | string),
 >(
   tableName: TableName,
-  candidateColumns: InsertableColumnName[],
-  pkColumns?: PrimaryKeyColName[],
+  candidateColumns: (group?: "all" | "primary-keys") => InsertableColumnName[],
 ): InsertStmtPreparer<
   Context,
   TableName,
@@ -154,15 +158,22 @@ export function typicalInsertStmtPreparer<
   return (ir, pisOptions) => {
     return {
       SQL: (ctx, eo) => {
-        const { emitColumn, returning: returningArg, where, onConflict } =
-          pisOptions ?? {};
+        const {
+          isColumnEmittable,
+          emitColumn,
+          returning: returningArg,
+          where,
+          onConflict,
+        } = pisOptions ?? {};
         const ns = eo?.namingStrategy(ctx ?? ({} as Context), {
           quoteIdentifiers: true,
         }) ??
           quotedIdentifiersNS;
         const names: InsertableColumnName[] = [];
         const values: [value: unknown, valueSqlText: string][] = [];
-        candidateColumns.forEach((c) => {
+        candidateColumns().forEach((c) => {
+          if (isColumnEmittable && !isColumnEmittable(c, ir, tableName)) return;
+
           let ec: [
             columNameSqlText: string,
             value: unknown,
@@ -208,7 +219,7 @@ export function typicalInsertStmtPreparer<
               break;
             case "primary-keys":
               returningSQL = ` RETURNING ${
-                pkColumns!.map((n) =>
+                candidateColumns("primary-keys").map((n) =>
                   ns.tableColumnName({ tableName, columnName: String(n) })
                 ).join(", ")
               }`;
