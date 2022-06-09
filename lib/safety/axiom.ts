@@ -10,7 +10,7 @@
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
 // - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
 //   reflection (consumers may need the original object declarations)
-// - added AxiomMappedPrimitive to improve reflection (TODO: ask Chris if this)
+// - added AxiomMappedPrimitive to improve reflection (TODO: ask Chris if this
 //   is the best way to implement
 // - added Date primitives (TODO: add test cases)
 // - changed SmartPartial to organize required properties earlier than optional

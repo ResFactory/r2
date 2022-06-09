@@ -2,12 +2,17 @@ For any modules that leverage SQL for functionality, assembling and loading SQL
 in a deterministically reproducible manner is crucial.
 
 This SQL Assembler (SQLa) and SQL rendering library is a Deno TypeScript module
-which uses the power of JavaScript Template literals (Template strings) to
-create SQL components as building blocks.
+which uses the power of JavaScript Template literals (template strings) to
+create SQL components as building blocks ("SQL partials").
 
 Instead of inventing yet another template language, `SQLa` uses a set of naming
-conventions plus the full power of JavaScript (and TypeScript) Template strings
+conventions plus the full power of JavaScript (and TypeScript) template strings
 to prepare the final SQL that will be loaded into the database.
+
+`SQLa` is not an ORM or another layer in the middle between the application and
+an RDBMS. Instead, `SQLa` is merely a convenient SQL _generator_ and assembler.
+It makes the preparation of SQL DDL, DML, and DQL easier for developers but it
+does not rewrite SQL or attempt to remove SQL knowledge.
 
 ## SQL rendering module organization
 
@@ -60,6 +65,29 @@ load into an RDBMS.
 
 ## TODO
 
+- Add type-safe where criteria builder in DQL SELECT statements so that outbound
+  select columns are properly typed but so are in-bound where criteria with
+  proper bind-able parameters (using ? or :name strategies).
+  - We should create a new `where` (or `SQL Expressions`) specific string
+    templates literal that can accept experssions like `${a.xyz}` or `${wc.abc}`
+    or `${from.name}`.
+    - `a` is "SQL statement argument" (similar to stored routines arguments)
+      that would automatically emit properly quoted arguments.
+    - `wc.*` would be where criteria or similar string builder expressions that
+      are in common use like `${wc.in()}` -- be careful to only introduce `wc`
+      convenience for type-safety and not make people learn yet another language
+    - `from.*` would work by matching `name` with any`TableDefinition` or
+      `ViewDefinition` instances in the current scope.
+    - `sp.*` and `sf.*` or `sr.*` would point to known stored routines and
+      allowing calling them like `${sp.abc(p1, p2, p3)}` which could translate
+      to `CALL abc('p1value', p2Value, 'p3value')` etc.
+      - each stored routine (stored function/procedure) should have a
+        SqlTextSupplier that would generate a `CALL abc(...)` in a type-safe
+        manner and not require duplication of SQL. Something like this:
+        `${schema.srDefn.call(x, y, z)}`
+  - Only introduce high-value type-safety features into template expressions
+    which would enhance readability or improve the SQL, not try to replace it or
+    create another DSL. `SQLa` is about SQL assembly, not replacing SQL.
 - Migrate stored routines to Axiom
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)
