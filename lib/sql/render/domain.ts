@@ -5,16 +5,6 @@ import * as tmpl from "./template/mod.ts";
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
 
-// ESSENTIAL TODO:do we need to "manually" compute the TsType through
-// conditional types or can we infer it from ax.Axiom<?>
-export type AxiomPrimitive<
-  TPropAxioms,
-  Property extends keyof TPropAxioms,
-  Else = Any,
-> = TPropAxioms[Property] extends ax.Axiom<string> ? string
-  : (TPropAxioms[Property] extends ax.Axiom<number> ? number
-    : (TPropAxioms[Property] extends ax.Axiom<bigint> ? bigint : Else));
-
 interface DomainDefn {
   [key: string]: Any;
   length?: never;

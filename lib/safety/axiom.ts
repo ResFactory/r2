@@ -10,6 +10,8 @@
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
 // - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
 //   reflection (consumers may need the original object declarations)
+// - added AxiomMappedPrimitive to improve reflection (TODO: ask Chris if this)
+//   is the best way to implement
 // - added Date primitives (TODO: add test cases)
 // - changed SmartPartial to organize required properties earlier than optional
 // - changed test cases to use Deno unit testing
@@ -88,6 +90,16 @@ type Axiom<TType> = {
    */
   readonly test: (value: unknown, options?: AxiomOptions) => value is TType;
 };
+
+// ESSENTIAL TODO: do we need to "manually" compute the TsType through
+// conditional types or can we infer it from ax.Axiom<?>
+type AxiomMappedPrimitive<
+  TPropAxioms,
+  Property extends keyof TPropAxioms,
+  Else = any,
+> = TPropAxioms[Property] extends Axiom<string> ? string
+  : (TPropAxioms[Property] extends Axiom<number> ? number
+    : (TPropAxioms[Property] extends Axiom<bigint> ? bigint : Else));
 
 type MutatableAxiomObjectProperty<PropertyName extends string> = {
   axiomObjectPropertyName: PropertyName;
@@ -372,6 +384,7 @@ export {
   $,
   type Axiom,
   type AxiomContext,
+  type AxiomMappedPrimitive,
   type AxiomObject,
   type AxiomObjectProperty,
   type AxiomOptions,

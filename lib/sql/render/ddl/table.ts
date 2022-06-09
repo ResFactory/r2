@@ -419,7 +419,7 @@ export function tableDefinition<
           : never
       >
     ]: TablePrimaryKeyColumnDefn<
-      d.AxiomPrimitive<TPropAxioms, Property>,
+      ax.AxiomMappedPrimitive<TPropAxioms, Property>,
       EmitOptions,
       Context
     >;
@@ -435,7 +435,7 @@ export function tableDefinition<
   // TsType through conditional types or can we infer it from ax.Axiom<?>
   type ForeignKeyRefs = {
     [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
-      d.AxiomPrimitive<TPropAxioms, Property>,
+      ax.AxiomMappedPrimitive<TPropAxioms, Property>,
       TableName,
       EmitOptions,
       Context
