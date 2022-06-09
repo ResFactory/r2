@@ -89,6 +89,8 @@ load into an RDBMS.
     which would enhance readability or improve the SQL, not try to replace it or
     create another DSL. `SQLa` is about SQL assembly, not replacing SQL.
 - Migrate stored routines to Axiom
+- Implement dml/dto.ts for type-safe Axiom-based data transfer objects to/from
+  camel-case JS objects and snake_case SQL-style records
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)
   suggestions into SQLa renderers so that developers just have to give feature
