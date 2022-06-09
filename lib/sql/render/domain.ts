@@ -9,6 +9,15 @@ import * as tmpl from "./template/mod.ts";
  * - defining a column of a view that may generate create view DDL
  * - defining an argument of a stored function or procedure
  *
+ * A domain should be a simple JS/TS object that has no other relationships or
+ * dependencies (see 'domains' below for relationships). Domains are effective
+ * when they remain type-safe through Axiom and should be composable through
+ * simple functions and spread operators. This allows, e.g., a column defined
+ * for a "create table" DDL defintion to be used as an argument definition for
+ * a stored function and vice-versa. Favoring composability over inheritance
+ * is the reason why a data definition domain remains a simple JS object
+ * instead of a class.
+ *
  * A `domains` object groups multiple Axiom-typed "data definition" domains
  * and treats them as a collection. Domains are abstract types valuable for
  * these use cases:
