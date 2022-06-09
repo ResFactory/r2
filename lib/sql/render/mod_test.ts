@@ -36,16 +36,14 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
       SyntheticTmplContext
     >
   >();
-  const viewsDeclared = new Set<
-    vw.ViewDefinition<Any, Any, Any, Any>
-  >();
+  const viewsDeclared = new Set<vw.ViewDefinition<Any, Any, Any>>();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
     if (tbl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (vw.isViewDefinition<Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (vw.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }

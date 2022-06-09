@@ -10,7 +10,6 @@ type Any = any;
 
 export interface ViewDefinition<
   ViewName extends string,
-  ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
@@ -18,24 +17,19 @@ export interface ViewDefinition<
   readonly viewName: ViewName;
   readonly isTemp?: boolean;
   readonly isIdempotent?: boolean;
-  readonly columns?: ColumnName[];
-  // deno-lint-ignore no-explicit-any
-  readonly selectStmt: ss.Select<any, any, EmitOptions, Context>;
 }
 
 export function isViewDefinition<
   TableName extends string,
-  ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
   o: unknown,
-): o is ViewDefinition<TableName, ColumnName, EmitOptions, Context> {
+): o is ViewDefinition<TableName, EmitOptions, Context> {
   const isViewDefn = safety.typeGuard<
-    ViewDefinition<TableName, ColumnName, EmitOptions, Context>
+    ViewDefinition<TableName, EmitOptions, Context>
   >(
     "viewName",
-    "selectStmt",
     "SQL",
   );
   return isViewDefn(o);
@@ -57,13 +51,74 @@ export interface ViewDefnOptions<
 
 export function viewDefinition<
   ViewName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  viewName: ViewName,
+  vdOptions?: ViewDefnOptions<ViewName, Any, EmitOptions, Context> & {
+    readonly onPropertyNotAxiomSqlDomain?: (
+      name: string,
+      axiom: Any,
+      domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+    ) => void;
+  },
+) {
+  return (
+    literals: TemplateStringsArray,
+    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+  ) => {
+    const ssPartial = ss.select<Any, EmitOptions, Context>({
+      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
+    });
+    const selectStmt = ssPartial(literals, ...expressions);
+    const { isTemp, isIdempotent = true } = vdOptions ?? {};
+    const viewDefn:
+      & ViewDefinition<ViewName, EmitOptions, Context>
+      & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
+        isValid: selectStmt.isValid,
+        viewName,
+        isTemp,
+        isIdempotent,
+        populateSqlTextLintIssues: (lintIssues, steOptions) =>
+          selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
+        SQL: (ctx, steOptions) => {
+          const rawSelectStmtSqlText = selectStmt.SQL(ctx, steOptions);
+          const viewSelectStmtSqlText = steOptions.indentation(
+            "create view select statement",
+            rawSelectStmtSqlText,
+          );
+          const ns = steOptions.namingStrategy(ctx, {
+            quoteIdentifiers: true,
+          });
+          const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
+            isIdempotent ? "IF NOT EXISTS " : ""
+          }${ns.viewName(viewName)} AS\n${viewSelectStmtSqlText}`;
+          return vdOptions?.before
+            ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
+              vdOptions.before(viewName, vdOptions),
+              create,
+            ]}`
+              .SQL(ctx, steOptions)
+            : create;
+        },
+      };
+    return {
+      ...viewDefn,
+      selectStmt,
+      drop: (options?: { ifExists?: boolean }) => dropView(viewName, options),
+    };
+  };
+}
+
+export function safeViewDefinition<
+  ViewName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
   ColumnName extends keyof TPropAxioms & string = keyof TPropAxioms & string,
 >(
   viewName: ViewName,
-  props?: TPropAxioms,
+  props: TPropAxioms,
   vdOptions?: ViewDefnOptions<ViewName, ColumnName, EmitOptions, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
@@ -77,9 +132,12 @@ export function viewDefinition<
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ) => {
     // deno-lint-ignore no-explicit-any
-    const ssPartial = ss.select<any, TPropAxioms, EmitOptions, Context>(props, {
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
+    const ssPartial = ss.safeSelect<any, TPropAxioms, EmitOptions, Context>(
+      props,
+      {
+        literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
+      },
+    );
     const selectStmt = ssPartial(literals, ...expressions);
     const sd = props ? d.sqlDomains(props, vdOptions) : undefined;
     const viewColumns = sd
@@ -87,14 +145,12 @@ export function viewDefinition<
       : undefined;
     const { isTemp, isIdempotent = true } = vdOptions ?? {};
     const viewDefn:
-      & ViewDefinition<ViewName, ColumnName, EmitOptions, Context>
+      & ViewDefinition<ViewName, EmitOptions, Context>
       & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
         isValid: selectStmt.isValid,
         viewName,
-        columns: viewColumns,
         isTemp,
         isIdempotent,
-        selectStmt,
         populateSqlTextLintIssues: (lintIssues, steOptions) =>
           selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
         SQL: (ctx, steOptions) => {
@@ -132,6 +188,7 @@ export function viewDefinition<
     return {
       ...sd,
       ...viewDefn,
+      selectStmt,
       drop: (options?: { ifExists?: boolean }) => dropView(viewName, options),
     };
   };

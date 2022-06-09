@@ -23,7 +23,7 @@ Deno.test("SQL assembler (SQLa) select statement", async (tc) => {
   });
 
   await tc.step("valid named SELECT statement with typed column names", () => {
-    const select = mod.select({
+    const select = mod.safeSelect({
       customer_name: d.text(),
       order_count: d.integerNullable(),
       city: d.text(),
@@ -32,7 +32,11 @@ Deno.test("SQL assembler (SQLa) select statement", async (tc) => {
         FROM customers`;
     ta.assert(select.isValid);
     ta.assertEquals(select.selectStmtName, "ss_name");
-    ta.assertEquals(select.columns, ["customer_name", "order_count", "city"]);
+    ta.assertEquals(select.domains.map((d) => d.identity), [
+      "customer_name",
+      "order_count",
+      "city",
+    ]);
     ta.assertEquals(
       select.SQL(undefined, emitOptions),
       uws(`

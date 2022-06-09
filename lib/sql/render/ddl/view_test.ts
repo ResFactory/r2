@@ -24,7 +24,7 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
   });
 
   await tc.step("idempotent view with type-safe columns specified", () => {
-    const view = mod.viewDefinition("synthetic_view", {
+    const view = mod.safeViewDefinition("synthetic_view", {
       this: d.text(),
       that: d.text(),
       the_other: d.integer(),
@@ -45,7 +45,7 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
   });
 
   await tc.step("temp view (non-idempotent)", () => {
-    const view = mod.viewDefinition("synthetic_view", undefined, {
+    const view = mod.viewDefinition("synthetic_view", {
       isIdempotent: false,
       isTemp: true,
     })`
@@ -63,7 +63,7 @@ Deno.test("SQL assembler (SQLa) views", async (tc) => {
   });
 
   await tc.step("drop first then create then drop", () => {
-    const view = mod.viewDefinition("synthetic_view", undefined, {
+    const view = mod.viewDefinition("synthetic_view", {
       isIdempotent: false,
       before: (viewName) => mod.dropView(viewName),
     })`

@@ -587,7 +587,7 @@ export function tableDefnViewWrapper<
       ) ??
         tableDefn.tableName,
   };
-  return vw.viewDefinition(viewName, props, options)`
+  return vw.safeViewDefinition(viewName, props, options)`
     SELECT ${selectColumnNamesSS}
       FROM ${tableNameSS}`;
 }
