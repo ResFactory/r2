@@ -2,55 +2,23 @@ import * as safety from "../../safety/mod.ts";
 import * as ax from "../../safety/axiom.ts";
 import * as tmpl from "./template/mod.ts";
 
+/**
+ * A `domain` is an Axiom-typed "data definition" valuable for many use cases:
+ * - defining a column of a table that may generate create table DDL
+ * - defining a column in a select clause
+ * - defining a column of a view that may generate create view DDL
+ * - defining an argument of a stored function or procedure
+ *
+ * A `domains` object groups multiple Axiom-typed "data definition" domains
+ * and treats them as a collection. Domains are abstract types valuable for
+ * these use cases:
+ * - defining a list of coumns in a table for DDL
+ * - defining a list of select clause columns in SQL statement
+ * - defining a list of arguments for a stored function
+ */
+
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
-
-interface DomainDefn {
-  [key: string]: Any;
-  length?: never;
-}
-
-type DomainIntersection<U> = (
-  U extends Any ? (k: U) => void : never
-) extends (k: infer I) => void ? I
-  : never;
-
-// istanbul ignore next
-const isObject = (obj: Any) => {
-  if (typeof obj === "object" && obj !== null) {
-    if (typeof Object.getPrototypeOf === "function") {
-      const prototype = Object.getPrototypeOf(obj);
-      return prototype === Object.prototype || prototype === null;
-    }
-
-    return Object.prototype.toString.call(obj) === "[object Object]";
-  }
-
-  return false;
-};
-
-const mergeArrays = true;
-export const mergeDomain = <T extends DomainDefn[]>(
-  ...objects: T
-): DomainIntersection<T[number]> =>
-  objects.reduce((result, current) => {
-    Object.keys(current).forEach((key) => {
-      if (Array.isArray(result[key]) && Array.isArray(current[key])) {
-        result[key] = mergeArrays
-          ? Array.from(new Set((result[key] as unknown[]).concat(current[key])))
-          : current[key];
-      } else if (isObject(result[key]) && isObject(current[key])) {
-        result[key] = mergeDomain(
-          result[key] as DomainDefn,
-          current[key] as DomainDefn,
-        );
-      } else {
-        result[key] = current[key];
-      }
-    });
-
-    return result;
-  }, {}) as Any;
 
 export type AxiomSqlDomain<
   TsValueType,
