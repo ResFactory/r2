@@ -1,18 +1,20 @@
 import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
-import * as d from "../../ddl/domain.ts";
+import * as d from "../../domain.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
 export type DomainName = string;
 
 export interface DomainDefinition<
   TsType,
-  Context,
   DN extends DomainName,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 > extends
   tmpl.SqlTextSupplier<Context, EmitOptions>,
-  d.DataDomainSupplier<TsType, EmitOptions, Context> {
+  d.AxiomSqlDomain<TsType, EmitOptions, Context> {
   readonly domainName: DN;
   readonly isIdempotent: boolean;
 }
@@ -24,16 +26,14 @@ export function isDomainDefinition<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
-): o is DomainDefinition<TsType, Context, DN, EmitOptions> {
+): o is DomainDefinition<TsType, DN, EmitOptions, Context> {
   const isSD = safety.typeGuard<
-    DomainDefinition<TsType, Context, DN, EmitOptions>
+    DomainDefinition<TsType, DN, EmitOptions, Context>
   >(
-    "tsType",
-    "sqlDataType",
     "domainName",
     "SQL",
   );
-  return isSD(o);
+  return d.isAxiomSqlDomain(o) && isSD(o);
 }
 
 export interface SchemaDefnOptions<
@@ -50,72 +50,59 @@ export interface SchemaDefnOptions<
   readonly humanFriendlyFmtIndent?: string;
 }
 
-export interface SchemaDefnFactory<
-  Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
-> {
-  pgDomainDefn: <TsType, DN extends DomainName>(
-    dd: d.DataDomainSupplier<TsType, EmitOptions, Context>,
-    domainName: DN,
-    domainDefnOptions?: SchemaDefnOptions<Context, DN, EmitOptions>,
-  ) =>
-    & DomainDefinition<TsType, Context, DN, EmitOptions>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>;
-}
-
-export function typicalDomainDefnFactory<
-  Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
->(): SchemaDefnFactory<Context, EmitOptions> {
-  return {
-    pgDomainDefn: (dd, domainName, ddOptions) => {
-      const { isIdempotent = false, humanFriendlyFmtIndent: hffi } =
-        ddOptions ??
-          {};
-      return {
-        ...dd,
-        isValid: true,
-        domainName: domainName,
-        isIdempotent,
-        populateSqlTextLintIssues: () => {},
-        SQL: (ctx, steOptions) => {
-          const identifier = domainName;
-          const asType = dd.sqlDataType.SQL(ctx, steOptions);
-          if (isIdempotent) {
-            if (ddOptions?.warnOnDuplicate) {
-              const [_, quotedWarning] = steOptions.quotedLiteral(
-                ddOptions.warnOnDuplicate(identifier, ctx, steOptions),
-              );
-              return hffi
-                ? uws(`
-                    BEGIN
-                    ${hffi}CREATE DOMAIN ${identifier} AS ${asType};
-                    EXCEPTION
-                    ${hffi}WHEN DUPLICATE_OBJECT THEN
-                    ${hffi}${hffi}RAISE NOTICE ${quotedWarning};
-                    END`)
-                : `BEGIN CREATE DOMAIN ${identifier} AS ${asType}; EXCEPTION WHEN DUPLICATE_OBJECT THEN RAISE NOTICE ${quotedWarning}; END`;
-            } else {
-              return hffi
-                ? uws(`
-                    BEGIN
-                    ${hffi}CREATE DOMAIN ${identifier} AS ${asType};
-                    EXCEPTION
-                    ${hffi}WHEN DUPLICATE_OBJECT THEN -- ignore error without warning
-                    END`)
-                : `BEGIN CREATE DOMAIN ${identifier} AS ${asType}; EXCEPTION WHEN DUPLICATE_OBJECT THEN /* ignore error without warning */ END`;
-            }
+export function pgDomainDefn<
+  TsType,
+  DN extends DomainName,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  dd: d.AxiomSqlDomain<TsType, EmitOptions, Context>,
+  domainName: DN,
+  ddOptions?: SchemaDefnOptions<Context, DN, EmitOptions>,
+) {
+  const { isIdempotent = false, humanFriendlyFmtIndent: hffi } = ddOptions ??
+    {};
+  const result:
+    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
+    & tmpl.SqlTextSupplier<Context, EmitOptions> = {
+      populateSqlTextLintIssues: () => {},
+      SQL: (ctx, steOptions) => {
+        const identifier = domainName;
+        const asType = dd.sqlDataType("PostgreSQL domain").SQL(ctx, steOptions);
+        if (isIdempotent) {
+          if (ddOptions?.warnOnDuplicate) {
+            const [_, quotedWarning] = steOptions.quotedLiteral(
+              ddOptions.warnOnDuplicate(identifier, ctx, steOptions),
+            );
+            return hffi
+              ? uws(`
+                  BEGIN
+                  ${hffi}CREATE DOMAIN ${identifier} AS ${asType};
+                  EXCEPTION
+                  ${hffi}WHEN DUPLICATE_OBJECT THEN
+                  ${hffi}${hffi}RAISE NOTICE ${quotedWarning};
+                  END`)
+              : `BEGIN CREATE DOMAIN ${identifier} AS ${asType}; EXCEPTION WHEN DUPLICATE_OBJECT THEN RAISE NOTICE ${quotedWarning}; END`;
           } else {
-            return `CREATE DOMAIN ${identifier} AS ${asType}`;
+            return hffi
+              ? uws(`
+                  BEGIN
+                  ${hffi}CREATE DOMAIN ${identifier} AS ${asType};
+                  EXCEPTION
+                  ${hffi}WHEN DUPLICATE_OBJECT THEN -- ignore error without warning
+                  END`)
+              : `BEGIN CREATE DOMAIN ${identifier} AS ${asType}; EXCEPTION WHEN DUPLICATE_OBJECT THEN /* ignore error without warning */ END`;
           }
-        },
-      };
-    },
+        } else {
+          return `CREATE DOMAIN ${identifier} AS ${asType}`;
+        }
+      },
+    };
+  return {
+    ...dd,
+    isValid: true,
+    domainName: domainName,
+    isIdempotent,
+    ...result,
   };
 }

@@ -1,24 +1,33 @@
 import { path, testingAsserts as ta } from "../deps-test.ts";
 import * as ws from "../../../text/whitespace.ts";
-import * as stf from "../ddl/table/test-fixtures.ts";
 import * as mod from "./sql.ts";
-import * as tbl from "../ddl/table/mod.ts";
+import * as tbl from "../ddl/table.ts";
 import * as vw from "../ddl/view.ts";
-import * as sqlite from "../dialect/sqlite/mod.ts";
+import * as d from "../domain.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
 
-interface SyntheticTmplContext extends stf.SyntheticStorageContext {
-  readonly vdf: vw.ViewDefnFactory<SyntheticTmplContext>;
+// deno-lint-ignore no-empty-interface
+interface SyntheticTmplContext {
 }
 
 Deno.test("SQL assembler (SQLa) template", () => {
-  const ctx: SyntheticTmplContext = {
-    tdfs: sqlite.sqliteTableDefnFactories<SyntheticTmplContext>(),
-    vdf: vw.typicalSqlViewDefnFactory<SyntheticTmplContext>(),
-  };
-  const schema = stf.syntheticTableDefns(ctx);
+  const ctx: SyntheticTmplContext = {};
+
+  const syntheticTable1Defn = tbl.tableDefnRowFactory("synthetic_table1", {
+    column_pk: tbl.autoIncPrimaryKey(d.integer()),
+    column_one_text: d.text(),
+    column_two_text_nullable: d.textNullable(),
+    column_unique: tbl.unique(d.text()),
+    ...tbl.housekeeping(),
+  });
+  const syntheticTable1ViewWrapper = tbl.tableDefnViewWrapper(
+    "synthetic_table1_view",
+    syntheticTable1Defn.tableName,
+    syntheticTable1Defn.axiomObjectDecl,
+  );
+
   const persist = (
     sts: mod.SqlTextSupplier<SyntheticTmplContext>,
     basename: string,
@@ -31,18 +40,18 @@ Deno.test("SQL assembler (SQLa) template", () => {
   };
 
   const tablesDeclared = new Set<
-    tbl.TableDefinition<SyntheticTmplContext, Any, Any, Any>
+    tbl.TableDefinition<Any, Any, Any>
   >();
   const viewsDeclared = new Set<
-    vw.ViewDefinition<SyntheticTmplContext, Any, Any, Any>
+    vw.ViewDefinition<Any, Any, Any, Any>
   >();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (tbl.isTableDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
+    if (tbl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (vw.isViewDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
+    if (vw.isViewDefinition<Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }
@@ -74,20 +83,12 @@ Deno.test("SQL assembler (SQLa) template", () => {
 
     ${mod.typicalSqlTextLintSummary}
 
-    ${schema.publHost.tableDefn}
-    ${persist(schema.publHost.tableDefn, "publ-host.sql")}
+    ${syntheticTable1Defn}
+    ${persist(syntheticTable1Defn, "publ-host.sql")}
 
-    ${schema.publHost.viewWrapper}
+    ${syntheticTable1ViewWrapper}
 
-    ${schema.publBuildEvent.tableDefn}
-
-    ${schema.publServerService.tableDefn}
-
-    ${schema.publServerStaticAccessLog.tableDefn}
-
-    ${schema.publServerErrorLog.tableDefn}
-
-    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
+    ${syntheticTable1Defn.insertDML({ column_one_text: "test", column_unique: "testHI" })}`;
 
   const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
   if (DDL.lintIssues?.length) {
@@ -95,7 +96,7 @@ Deno.test("SQL assembler (SQLa) template", () => {
   }
   ta.assertEquals(syntheticSQL, fixturePrime);
   ta.assertEquals(0, DDL.lintIssues?.length);
-  ta.assertEquals(tablesDeclared.size, 5);
+  ta.assertEquals(tablesDeclared.size, 1);
   ta.assertEquals(viewsDeclared.size, 1);
 });
 
@@ -120,65 +121,18 @@ const fixturePrime = ws.unindentWhitespace(`
 
   -- no SQL lint issues
 
-  CREATE TABLE IF NOT EXISTS "publ_host" (
-      "publ_host_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "host" TEXT NOT NULL,
-      "host_identity" JSON,
-      "mutation_count" INTEGER NOT NULL,
+  CREATE TABLE "synthetic_table1" (
+      "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "column_one_text" TEXT NOT NULL,
+      "column_two_text_nullable" TEXT,
+      "column_unique" TEXT NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE("host")
+      UNIQUE("column_unique")
   );
   -- encountered persistence request for 1_publ-host.sql
 
-  CREATE VIEW IF NOT EXISTS "publ_host_vw" AS
-      SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
-      FROM "publ_host";
+  CREATE VIEW IF NOT EXISTS "synthetic_table1_view"("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") AS
+      SELECT "column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
+        FROM "synthetic_table1";
 
-  CREATE TABLE IF NOT EXISTS "publ_build_event" (
-      "publ_build_event_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "publ_host_id" INTEGER NOT NULL,
-      "iteration_index" INTEGER NOT NULL,
-      "build_initiated_at" DATETIME NOT NULL,
-      "build_completed_at" DATETIME NOT NULL,
-      "build_duration_ms" INTEGER NOT NULL,
-      "resources_originated_count" INTEGER NOT NULL,
-      "resources_persisted_count" INTEGER NOT NULL,
-      "resources_memoized_count" INTEGER NOT NULL,
-      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY("publ_host_id") REFERENCES "publ_host"("publ_host_id")
-  );
-
-  CREATE TABLE IF NOT EXISTS "publ_server_service" (
-      "publ_server_service_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "service_started_at" DATETIME NOT NULL,
-      "listen_host" TEXT NOT NULL,
-      "listen_port" INTEGER NOT NULL,
-      "publish_url" TEXT NOT NULL,
-      "publ_build_event_id" INTEGER NOT NULL,
-      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY("publ_build_event_id") REFERENCES "publ_build_event"("publ_build_event_id")
-  );
-
-  CREATE TABLE IF NOT EXISTS "publ_server_static_access_log" (
-      "publ_server_static_access_log_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "status" INTEGER NOT NULL,
-      "asset_nature" TEXT NOT NULL,
-      "location_href" TEXT NOT NULL,
-      "filesys_target_path" TEXT NOT NULL,
-      "filesys_target_symlink" TEXT,
-      "publ_server_service_id" INTEGER NOT NULL,
-      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
-  );
-
-  CREATE TABLE IF NOT EXISTS "publ_server_error_log" (
-      "publ_server_error_log_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "location_href" TEXT NOT NULL,
-      "error_summary" TEXT NOT NULL,
-      "error_elaboration" JSON,
-      "publ_server_service_id" INTEGER NOT NULL,
-      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
-  );
-
-  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);`);
+  INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('test', NULL, 'testHI', NULL);`);

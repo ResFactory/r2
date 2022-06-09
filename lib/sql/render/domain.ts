@@ -71,7 +71,8 @@ export type AxiomSqlDomain<
     purpose:
       | "create table column"
       | "stored routine arg"
-      | "table foreign key ref",
+      | "table foreign key ref"
+      | "PostgreSQL domain",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",

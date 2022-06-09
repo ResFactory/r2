@@ -1,6 +1,6 @@
 import * as safety from "../../../safety/mod.ts";
 import * as tmpl from "../template/mod.ts";
-import * as d from "../ddl/domain.ts";
+import * as d from "../domain.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -35,13 +35,13 @@ export interface AnonymousRoutineDefn<
   readonly body: RoutineBody<Context, ANONYMOUS, EmitOptions>;
 }
 
+// deno-lint-ignore no-empty-interface
 export interface RoutineArgSupplier<
   Context,
   ArgumentName extends string,
   TsType,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends d.DataDomainSupplier<TsType, EmitOptions, Context> {
-  readonly argName: ArgumentName;
+> extends d.IdentifiableSqlDomain<TsType, EmitOptions, Context, ArgumentName> {
 }
 
 export interface NamedRoutineDefn<

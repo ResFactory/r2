@@ -1,16 +1,15 @@
 import { testingAsserts as ta } from "../../deps-test.ts";
-import * as d from "../../ddl/domain.ts";
+import * as d from "../../domain.ts";
 import * as mod from "./domain.ts";
 import * as tmpl from "../../template/mod.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
-  const sdf = mod.typicalDomainDefnFactory();
   const ctx = undefined;
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent domain declaration", () => {
-    const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+    const domain = mod.pgDomainDefn(d.text(), "custom_type_1", {
       isIdempotent: true,
     });
     ta.assertEquals(
@@ -20,7 +19,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
   });
 
   await tc.step("idempotent domain declaration with warning", () => {
-    const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+    const domain = mod.pgDomainDefn(d.text(), "custom_type_1", {
       isIdempotent: true,
       warnOnDuplicate: (identifier) =>
         `domain "${identifier}" already exists, skipping`,
@@ -34,7 +33,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
   await tc.step(
     "idempotent domain declaration with warning, human friendly format",
     () => {
-      const domain = sdf.pgDomainDefn(d.text(), "custom_type_1", {
+      const domain = mod.pgDomainDefn(d.text(), "custom_type_1", {
         isIdempotent: true,
         warnOnDuplicate: (identifier) =>
           `domain "${identifier}" already exists, skipping`,
@@ -54,7 +53,7 @@ Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
   );
 
   await tc.step("schema declaration (non-idempotent)", () => {
-    const view = sdf.pgDomainDefn(d.integer(), "custom_type_2");
+    const view = mod.pgDomainDefn(d.integer(), "custom_type_2");
     ta.assertEquals(
       view.SQL(ctx, emitOptions),
       `CREATE DOMAIN custom_type_2 AS INTEGER`,

@@ -12,7 +12,7 @@ type Any = any; // make it easy on linter
 interface SyntheticTmplContext {
 }
 
-Deno.test("SQL assembler (SQLa) template", () => {
+Deno.test("SQL assembler (SQLa) type-safe string template", () => {
   const ctx: SyntheticTmplContext = {};
   const schema = mdf.syntheticTableDefns<
     SyntheticTmplContext,
@@ -30,22 +30,22 @@ Deno.test("SQL assembler (SQLa) template", () => {
   };
 
   const tablesDeclared = new Set<
-    tbl.TableDefnition<
+    tbl.TableDefinition<
       Any,
       mod.SqlTextEmitOptions<SyntheticTmplContext>,
       SyntheticTmplContext
     >
   >();
   const viewsDeclared = new Set<
-    vw.ViewDefinition<SyntheticTmplContext, Any, Any, Any>
+    vw.ViewDefinition<Any, Any, Any, Any>
   >();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (tbl.isTableDefnition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (tbl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (vw.isViewDefinition<SyntheticTmplContext, Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>>(sts)) {
+    if (vw.isViewDefinition<Any, Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }

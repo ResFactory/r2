@@ -3,7 +3,8 @@ import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
 import * as tmpl from "../template/mod.ts";
 import * as tr from "../../../tabular/mod.ts";
-import * as ets from "../template/emittable-typescript.ts";
+import * as dml from "../dml/mod.ts";
+import * as vw from "./view.ts";
 
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
@@ -339,7 +340,7 @@ export function housekeeping<
   };
 }
 
-export type TableDefnition<
+export type TableDefinition<
   TableName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
@@ -347,15 +348,15 @@ export type TableDefnition<
   readonly tableName: TableName;
 };
 
-export function isTableDefnition<
+export function isTableDefinition<
   TableName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
   o: unknown,
-): o is TableDefnition<TableName, EmitOptions, Context> {
+): o is TableDefinition<TableName, EmitOptions, Context> {
   const isTD = safety.typeGuard<
-    TableDefnition<TableName, EmitOptions, Context>
+    TableDefinition<TableName, EmitOptions, Context>
   >("tableName", "SQL");
   return isTD(o);
 }
@@ -447,7 +448,7 @@ export function tableDefinition<
     };
   }
 
-  const result: TableDefnition<TableName, EmitOptions, Context> & {
+  const result: TableDefinition<TableName, EmitOptions, Context> & {
     primaryKey: PrimaryKeys;
     foreignKeyRef: ForeignKeyRefs;
   } = {
@@ -525,10 +526,9 @@ export function tableDefnRowFactory<
       rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
       options?: tr.TransformTabularRecordOptions<InsertableRecord>,
     ) => tr.transformTabularRecord(o, rowState, options),
-    insertDML: ets.typicalInsertStmtPreparer<
+    insertDML: dml.typicalInsertStmtPreparer<
       Context,
       TableName,
-      string,
       InsertableRecord,
       EntireRecord,
       EmitOptions
@@ -549,4 +549,47 @@ export function tableDefnRowFactory<
       },
     ),
   };
+}
+
+export function tableDefnViewWrapper<
+  ViewName extends string,
+  TableName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  viewName: ViewName,
+  tableName: TableName,
+  props: TPropAxioms,
+  options?: vw.ViewDefnOptions<
+    ViewName,
+    keyof TPropAxioms & string,
+    EmitOptions,
+    Context
+  >,
+) {
+  const tableDefn = tableDefinition(tableName, props);
+  const selectColumnNames = options?.viewColumns
+    ? options?.viewColumns
+    : tableDefn.domains.map((d) => d.identity);
+  const selectColumnNamesSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+    SQL: (ctx, steOptions) =>
+      selectColumnNames.map((cn) =>
+        steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+          .tableColumnName({
+            tableName: tableDefn.tableName,
+            columnName: cn,
+          })
+      ).join(", "),
+  };
+  const tableNameSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+    SQL: (ctx, steOptions) =>
+      steOptions.namingStrategy(ctx, { quoteIdentifiers: true }).tableName?.(
+        tableDefn.tableName,
+      ) ??
+        tableDefn.tableName,
+  };
+  return vw.viewDefinition(viewName, props, options)`
+    SELECT ${selectColumnNamesSS}
+      FROM ${tableNameSS}`;
 }
