@@ -2,6 +2,7 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./select.ts";
 import * as tmpl from "../template/mod.ts";
+import * as d from "../domain.ts";
 
 Deno.test("SQL assembler (SQLa) select statement", async (tc) => {
   const SQL = mod.select();
@@ -22,22 +23,21 @@ Deno.test("SQL assembler (SQLa) select statement", async (tc) => {
   });
 
   await tc.step("valid named SELECT statement with typed column names", () => {
-    const select = mod.select<
-      unknown,
-      "ss_name",
-      "CustomerName" | "City",
-      tmpl.SqlTextEmitOptions<unknown>
-    >({ selectStmtName: "ss_name", selectColumns: ["CustomerName", "City"] })`
-      SELECT CustomerName, City
-        FROM Customers`;
+    const select = mod.select({
+      customer_name: d.text(),
+      order_count: d.integerNullable(),
+      city: d.text(),
+    }, { selectStmtName: "ss_name" })`
+      SELECT customer_name, order_count, city
+        FROM customers`;
     ta.assert(select.isValid);
     ta.assertEquals(select.selectStmtName, "ss_name");
-    ta.assertEquals(select.columns, ["CustomerName", "City"]);
+    ta.assertEquals(select.columns, ["customer_name", "order_count", "city"]);
     ta.assertEquals(
       select.SQL(undefined, emitOptions),
       uws(`
-        SELECT CustomerName, City
-          FROM Customers`),
+        SELECT customer_name, order_count, city
+          FROM customers`),
     );
   });
 });

@@ -20,7 +20,7 @@ export interface ViewDefinition<
   readonly isIdempotent?: boolean;
   readonly columns?: ColumnName[];
   // deno-lint-ignore no-explicit-any
-  readonly selectStmt: ss.Select<Context, any, any, EmitOptions>;
+  readonly selectStmt: ss.Select<any, any, EmitOptions, Context>;
 }
 
 export function isViewDefinition<
@@ -77,10 +77,10 @@ export function viewDefinition<
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ) => {
     // deno-lint-ignore no-explicit-any
-    const partial = ss.select<Context, any, any, EmitOptions>({
+    const ssPartial = ss.select<any, TPropAxioms, EmitOptions, Context>(props, {
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
-    const selectStmt = partial(literals, ...expressions);
+    const selectStmt = ssPartial(literals, ...expressions);
     const sd = props ? d.sqlDomains(props, vdOptions) : undefined;
     const viewColumns = sd
       ? sd.domains.map((d) => d.identity as ColumnName)

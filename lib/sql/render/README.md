@@ -60,7 +60,6 @@ load into an RDBMS.
 
 ## TODO
 
-- Migrate SQL statements to Axiom
 - Migrate stored routines to Axiom
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)

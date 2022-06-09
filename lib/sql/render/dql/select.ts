@@ -1,7 +1,12 @@
 import * as safety from "../../../safety/mod.ts";
 import * as ws from "../../../text/whitespace.ts";
+import * as ax from "../../../safety/axiom.ts";
 import * as tmpl from "../template/mod.ts";
 import * as l from "../lint.ts";
+import * as d from "../domain.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 // TODO:
 // [ ] use https://github.com/oguimbal/pgsql-ast-parser or similar to parse SQL
@@ -12,10 +17,10 @@ import * as l from "../lint.ts";
 export type SelectNotFirstWordLintIssue = l.TemplateStringSqlLintIssue;
 
 export interface Select<
-  Context,
   SelectStmtName extends string,
   ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
   readonly selectStmt: tmpl.SqlTextSupplier<Context, EmitOptions>;
@@ -34,40 +39,44 @@ const firstWord = (text: string) => {
 };
 
 export function isSelect<
-  Context,
   SelectStmtName extends string,
   ColumnName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context,
 >(
   o: unknown,
-): o is Select<Context, SelectStmtName, ColumnName, EmitOptions> {
+): o is Select<SelectStmtName, ColumnName, EmitOptions, Context> {
   const isSS = safety.typeGuard<
-    Select<Context, SelectStmtName, ColumnName, EmitOptions>
+    Select<SelectStmtName, ColumnName, EmitOptions, Context>
   >("selectStmt", "SQL");
   return isSS(o);
 }
 
 export function select<
-  Context,
   SelectStmtName extends string,
-  ColumnName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  ColumnName extends keyof TPropAxioms & string = keyof TPropAxioms & string,
 >(
+  props?: TPropAxioms,
   ssOptions?: tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
     readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
-      & Select<Context, SelectStmtName, ColumnName, EmitOptions>
+      & Select<SelectStmtName, ColumnName, EmitOptions, Context>
       & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
     );
     readonly selectStmtName?: SelectStmtName;
-    readonly selectColumns?: ColumnName[];
+    readonly onPropertyNotAxiomSqlDomain?: (
+      name: string,
+      axiom: Any,
+      domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+    ) => void;
   },
 ) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
-  ):
-    & Select<Context, SelectStmtName, ColumnName, EmitOptions>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
+  ) => {
     let invalid: SelectNotFirstWordLintIssue | undefined;
     const candidateSQL = literals[0];
     const command = firstWord(candidateSQL);
@@ -86,19 +95,30 @@ export function select<
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const selectStmt = partial(literals, ...expressions);
-    const { selectColumns, selectStmtName } = ssOptions ?? {};
+    const { selectStmtName } = ssOptions ?? {};
+    const sd = props ? d.sqlDomains(props, ssOptions) : undefined;
+    const selectColumns = sd
+      ? sd.domains.map((d) => d.identity as ColumnName)
+      : undefined;
+
+    const result:
+      & Select<SelectStmtName, ColumnName, EmitOptions, Context>
+      & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
+        isValid: invalid === undefined,
+        columns: selectColumns,
+        selectStmtName: selectStmtName,
+        selectStmt,
+        SQL: invalid
+          ? ((_, steOptions) => steOptions.comments(invalid!.lintIssue))
+          : selectStmt.SQL,
+        populateSqlTextLintIssues: (lintIssues) => {
+          if (invalid) lintIssues.push(invalid);
+          if (selectStmt.lintIssues) lintIssues.push(...selectStmt.lintIssues);
+        },
+      };
     return {
-      isValid: invalid === undefined,
-      columns: selectColumns,
-      selectStmtName: selectStmtName,
-      selectStmt,
-      SQL: invalid
-        ? ((_, steOptions) => steOptions.comments(invalid!.lintIssue))
-        : selectStmt.SQL,
-      populateSqlTextLintIssues: (lintIssues) => {
-        if (invalid) lintIssues.push(invalid);
-        if (selectStmt.lintIssues) lintIssues.push(...selectStmt.lintIssues);
-      },
+      ...sd,
+      ...result,
     };
   };
 }
