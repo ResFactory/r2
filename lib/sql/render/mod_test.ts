@@ -77,13 +77,10 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
 
     ${mod.typicalSqlTextLintSummary}
 
-    ${schema.publHost}
-    ${persist(schema.publHost, "publ-host.sql")}
+    ${schema.publHost.tableDefn}
+    ${persist(schema.publHost.tableDefn, "publ-host.sql")}
 
-    -- CREATE VIEW IF NOT EXISTS "publ_host_vw" AS
-    --    SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
-    --    FROM "publ_host";
-    {TODO: schema.publHost}
+    ${schema.publHost.tableViewWrapper}
 
     ${schema.publBuildEvent}
 
@@ -93,7 +90,7 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
 
     ${schema.publServerErrorLog}
 
-    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 }, { isColumnEmittable: (name) => name == "created_at" ? false : true })}`;
+    ${schema.publHost.tableDefn.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 }, { isColumnEmittable: (name) => name == "created_at" ? false : true })}`;
 
   const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
   if (DDL.lintIssues?.length) {
@@ -102,7 +99,7 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
   ta.assertEquals(syntheticSQL, fixturePrime);
   ta.assertEquals(0, DDL.lintIssues?.length);
   ta.assertEquals(tablesDeclared.size, 5);
-  ta.assertEquals(viewsDeclared.size, 0); // TODO
+  ta.assertEquals(viewsDeclared.size, 1);
 });
 
 // deno-fmt-ignore
@@ -136,10 +133,9 @@ const fixturePrime = ws.unindentWhitespace(`
   );
   -- encountered persistence request for 1_publ-host.sql
 
-  -- CREATE VIEW IF NOT EXISTS "publ_host_vw" AS
-  --    SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
-  --    FROM "publ_host";
-  {TODO: schema.publHost}
+  CREATE VIEW IF NOT EXISTS "publ_host_vw"("publ_host_id", "host", "host_identity", "mutation_count", "created_at") AS
+      SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
+        FROM "publ_host";
 
   CREATE TABLE IF NOT EXISTS "publ_build_event" (
       "publ_build_event_id" INTEGER PRIMARY KEY AUTOINCREMENT,

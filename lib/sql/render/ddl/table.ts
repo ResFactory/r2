@@ -569,9 +569,7 @@ export function tableDefnViewWrapper<
   >,
 ) {
   const tableDefn = tableDefinition(tableName, props);
-  const selectColumnNames = options?.viewColumns
-    ? options?.viewColumns
-    : tableDefn.domains.map((d) => d.identity);
+  const selectColumnNames = tableDefn.domains.map((d) => d.identity);
   const selectColumnNamesSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
       selectColumnNames.map((cn) =>

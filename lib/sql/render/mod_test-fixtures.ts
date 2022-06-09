@@ -23,6 +23,11 @@ export function syntheticTableDefns<
     ...tbl.housekeeping(),
   }, tableDefnOptions);
   publHost.primaryKey.publ_host_id; // example of type-safe PK access
+  const publHostView = tbl.tableDefnViewWrapper(
+    "publ_host_vw",
+    publHost.tableName,
+    publHost.axiomObjectDecl,
+  );
 
   const publBuildEvent = tbl.tableDefnRowFactory("publ_build_event", {
     publ_build_event_id: primaryKey(),
@@ -76,7 +81,7 @@ export function syntheticTableDefns<
   }, tableDefnOptions);
 
   return {
-    publHost,
+    publHost: { tableDefn: publHost, tableViewWrapper: publHostView },
     publBuildEvent,
     publServerService,
     publServerStaticAccessLog,

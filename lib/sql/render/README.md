@@ -60,6 +60,8 @@ load into an RDBMS.
 
 ## TODO
 
+- Migrate SQL statements to Axiom
+- Migrate stored routines to Axiom
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)
   suggestions into SQLa renderers so that developers just have to give feature
