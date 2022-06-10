@@ -1,15 +1,15 @@
 import * as safety from "../../../safety/mod.ts";
 import * as tmpl from "../template/mod.ts";
-import * as d from "../domain.ts";
+import * as ax from "../../../safety/axiom.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 export type ANONYMOUS = "ANONYMOUS";
 
 export interface RoutineBody<
-  Context,
   BodyIdentity extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly identity?: BodyIdentity;
   readonly isValid: boolean;
@@ -17,53 +17,44 @@ export interface RoutineBody<
 }
 
 export interface RoutineDefinition<
-  Context,
   RoutineName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly isValid: boolean;
-  readonly body: RoutineBody<Context, RoutineName, EmitOptions>;
-  readonly isIdempotent: boolean;
+  readonly body: RoutineBody<RoutineName, EmitOptions, Context>;
 }
 
 export interface AnonymousRoutineDefn<
-  Context,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends RoutineDefinition<Context, ANONYMOUS, EmitOptions> {
+  Context = Any,
+> extends RoutineDefinition<ANONYMOUS, EmitOptions, Context> {
   readonly isAnonymousRoutine: boolean;
   readonly isValid: boolean;
-  readonly body: RoutineBody<Context, ANONYMOUS, EmitOptions>;
-}
-
-// deno-lint-ignore no-empty-interface
-export interface RoutineArgSupplier<
-  Context,
-  ArgumentName extends string,
-  TsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends d.IdentifiableSqlDomain<TsType, EmitOptions, Context, ArgumentName> {
+  readonly body: RoutineBody<ANONYMOUS, EmitOptions, Context>;
 }
 
 export interface NamedRoutineDefn<
-  Context,
   RoutineName extends string,
-  ArgumentName extends string,
+  ArgAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends RoutineDefinition<Context, RoutineName, EmitOptions> {
+  Context = Any,
+> extends RoutineDefinition<RoutineName, EmitOptions, Context> {
   readonly routineName: RoutineName;
   readonly isValid: boolean;
-  readonly body: RoutineBody<Context, RoutineName, EmitOptions>;
-  readonly args?: RoutineArgSupplier<Context, ArgumentName, Any, EmitOptions>[];
+  readonly body: RoutineBody<RoutineName, EmitOptions, Context>;
+  readonly argsDefn: ArgAxioms;
+  readonly isIdempotent: boolean;
 }
 
 export function isAnonymousRoutineDefn<
-  Context,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 >(
   o: unknown,
-): o is AnonymousRoutineDefn<Context, EmitOptions> {
+): o is AnonymousRoutineDefn<EmitOptions, Context> {
   const isViewDefn = safety.typeGuard<
-    AnonymousRoutineDefn<Context, EmitOptions>
+    AnonymousRoutineDefn<EmitOptions, Context>
   >(
     "isAnonymousRoutine",
     "body",
@@ -73,15 +64,15 @@ export function isAnonymousRoutineDefn<
 }
 
 export function isRoutineDefinition<
-  Context,
   RoutineName extends string,
-  ArgumentName extends string,
+  ArgAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 >(
   o: unknown,
-): o is NamedRoutineDefn<Context, RoutineName, ArgumentName, EmitOptions> {
+): o is NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context> {
   const isViewDefn = safety.typeGuard<
-    NamedRoutineDefn<Context, RoutineName, ArgumentName, EmitOptions>
+    NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
   >(
     "routineName",
     "body",

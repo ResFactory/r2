@@ -63,6 +63,10 @@ load into an RDBMS.
 - SAVEPOINT: Sets a savepoint within a transaction.
 - SET TRANSACTION: Specify characteristics for the transaction.
 
+## Architecture
+
+![Architecture](mod.drawio.svg)
+
 ## TODO
 
 - Add type-safe where criteria builder in DQL SELECT statements so that outbound
@@ -88,7 +92,6 @@ load into an RDBMS.
   - Only introduce high-value type-safety features into template expressions
     which would enhance readability or improve the SQL, not try to replace it or
     create another DSL. `SQLa` is about SQL assembly, not replacing SQL.
-- Migrate stored routines to Axiom
 - Implement dml/dto.ts for type-safe Axiom-based data transfer objects to/from
   camel-case JS objects and snake_case SQL-style records
 - Incorporate

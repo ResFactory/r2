@@ -3,37 +3,46 @@ import * as ws from "../../../text/whitespace.ts";
 import * as tmpl from "../template/mod.ts";
 import * as govn from "./governance.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 export function isBody<
-  Context,
   BodyIdentity extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 >(
   o: unknown,
-): o is govn.RoutineBody<Context, BodyIdentity, EmitOptions> {
+): o is govn.RoutineBody<BodyIdentity, EmitOptions, Context> {
   const isB = safety.typeGuard<
-    govn.RoutineBody<Context, BodyIdentity, EmitOptions>
+    govn.RoutineBody<BodyIdentity, EmitOptions, Context>
   >("content", "SQL");
   return isB(o);
 }
 
-export function body<
-  Context,
+export type BodyDefnOptions<
   BodyIdentity extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> = tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
+  readonly identity?: BodyIdentity;
+  readonly surround?: string | {
+    readonly pre: string;
+    readonly post: string;
+  } | ((SQL: string) => string);
+};
+
+export function body<
+  BodyIdentity extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
 >(
-  bOptions?: tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
-    readonly identity?: BodyIdentity;
-    readonly surround?: string | {
-      readonly pre: string;
-      readonly post: string;
-    } | ((SQL: string) => string);
-  },
+  bOptions?: BodyDefnOptions<BodyIdentity, EmitOptions, Context>,
 ) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ):
-    & govn.RoutineBody<Context, BodyIdentity, EmitOptions>
+    & govn.RoutineBody<BodyIdentity, EmitOptions, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
     const partial = tmpl.SQL<Context, EmitOptions>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
