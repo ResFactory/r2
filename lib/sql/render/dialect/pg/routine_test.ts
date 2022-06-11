@@ -28,6 +28,23 @@ Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
     );
   });
 
+  await tc.step(
+    "PL/pgSQL DO block with safe duplicate exception dismissal",
+    () => {
+      const doSafeDupe = mod.doIgnoreDuplicate()`
+        CREATE DOMAIN custom_type_1 AS TEXT;`;
+      ta.assertEquals(
+        doSafeDupe.SQL(ctx, emitOptions),
+        uws(`
+          DO $$ BEGIN
+            CREATE DOMAIN custom_type_1 AS TEXT;
+          EXCEPTION
+            WHEN duplicate_object THEN NULL
+          END; $$`),
+      );
+    },
+  );
+
   await tc.step("PL/pgSQL anonymous block (manual begin/end)", () => {
     const anonBlock = mod.anonymousPlPgSqlRoutine({ autoBeginEnd: false })`
       BEGIN
@@ -72,12 +89,15 @@ Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
     () => {
       const sp = mod.storedProcedure("synthetic_sp1", {
         arg1: d.text(),
+        arg2: mod.IN(d.integer()),
+        arg3: mod.OUT(d.bigint()),
+        arg4: mod.IN_OUT(d.date()),
       }, (name, args, bo) => mod.typedPlPgSqlBody(name, args, bo))`
       -- this is the stored procedure body`;
       ta.assertEquals(
         sp.SQL(ctx, emitOptions),
         uws(`
-        CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT) AS $$
+        CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT, IN "arg2" INTEGER, OUT "arg3" BIGINT, IN OUT "arg4" DATE) AS $$
         BEGIN
           -- this is the stored procedure body
         END;

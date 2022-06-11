@@ -70,10 +70,7 @@ load into an RDBMS.
 ## TODO
 
 - In PostgreSQL dialect:
-  - create TYPE, drop TYPE
-    (https://www.postgresql.org/docs/current/sql-createtype.html)
-  - stored routine IN / OUT arguments modifiers (create domain wrappers like
-    d.OUT(domain) d.IN(domain))
+  - array types (e.g. `xyz text[]`)
   - stored routine arguments default values
   - in body of any stored routine test template expressions:
     - CREATE TABLE

@@ -1,3 +1,4 @@
+import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as r from "../../pl/mod.ts";
 import * as ws from "../../../../text/whitespace.ts";
@@ -6,6 +7,66 @@ import * as d from "../../domain.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
+
+export type PgRoutineArgModifier<
+  ArgTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+> = d.AxiomSqlDomain<ArgTsType, EmitOptions, Context> & {
+  readonly pgRouteineArgModifier: "IN" | "OUT" | "IN OUT";
+};
+
+export function isPgRoutineArgModifer<
+  ColumnTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  o: unknown,
+): o is PgRoutineArgModifier<ColumnTsType, EmitOptions, Context> {
+  const isPRAM = safety.typeGuard<
+    PgRoutineArgModifier<ColumnTsType, EmitOptions, Context>
+  >("pgRouteineArgModifier");
+  return isPRAM(o);
+}
+
+export function IN<
+  ArgTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: d.AxiomSqlDomain<ArgTsType, EmitOptions, Context>,
+): PgRoutineArgModifier<ArgTsType, EmitOptions, Context> {
+  return {
+    ...axiom,
+    pgRouteineArgModifier: "IN",
+  };
+}
+
+export function OUT<
+  ArgTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: d.AxiomSqlDomain<ArgTsType, EmitOptions, Context>,
+): PgRoutineArgModifier<ArgTsType, EmitOptions, Context> {
+  return {
+    ...axiom,
+    pgRouteineArgModifier: "OUT",
+  };
+}
+
+export function IN_OUT<
+  ArgTsType,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: d.AxiomSqlDomain<ArgTsType, EmitOptions, Context>,
+): PgRoutineArgModifier<ArgTsType, EmitOptions, Context> {
+  return {
+    ...axiom,
+    pgRouteineArgModifier: "IN OUT",
+  };
+}
 
 export interface PgProceduralLang<
   Language extends string,
@@ -267,6 +328,55 @@ export function anonymousPlPgSqlRoutine<
   };
 }
 
+export function doIgnoreDuplicate<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(): (
+  literals: TemplateStringsArray,
+  ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+) =>
+  & r.AnonymousRoutineDefn<EmitOptions, Context>
+  & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> {
+  return (literals, ...expressions) => {
+    const contentPartial = tmpl.SQL<Context, EmitOptions>({
+      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
+    });
+    const content = contentPartial(literals, ...expressions);
+    const body:
+      & PgProceduralLangBody<
+        r.ANONYMOUS,
+        typeof plPgSqlIdentity,
+        EmitOptions,
+        Context
+      >
+      & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
+        isValid: true,
+        identity: "ANONYMOUS",
+        content,
+        SQL: (ctx, steOptions) => {
+          const indent = steOptions.indentation("create routine body");
+          return `BEGIN\n${indent}${
+            content.SQL(ctx, steOptions)
+          }\nEXCEPTION\n${indent}WHEN duplicate_object THEN NULL\nEND;`;
+        },
+        populateSqlTextLintIssues: () => {},
+        pgPL: plPgSqlLanguage(),
+      };
+    return {
+      isAnonymousRoutine: true,
+      body,
+      isValid: true,
+      populateSqlTextLintIssues: body.populateSqlTextLintIssues,
+      SQL: (ctx, steOptions) => {
+        return steOptions.indentation(
+          "create routine",
+          `DO $$ ${body.SQL(ctx, steOptions)} $$`,
+        );
+      },
+    };
+  };
+}
+
 export interface StoredRoutineDefnOptions<
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
@@ -325,6 +435,9 @@ export function storedProcedure<
     const argsSS = sd.domains.map((arg) => ({
       name: arg.identity,
       type: arg.sqlDataType("stored routine arg"),
+      modifier: isPgRoutineArgModifer(arg)
+        ? arg.pgRouteineArgModifier
+        : undefined,
     }));
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
@@ -340,7 +453,9 @@ export function storedProcedure<
           const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx, steOptions);
           const argsSQL = argsSS.map((arg) =>
-            `${ns.storedRoutineArg(arg.name)} ${arg.type.SQL(ctx, steOptions)}`
+            `${arg.modifier ? `${arg.modifier} ` : ""}${
+              ns.storedRoutineArg(arg.name)
+            } ${arg.type.SQL(ctx, steOptions)}`
           ).join(", ");
           const langSQL = body.pgPL.sqlPartial("after body definition").SQL(
             ctx,
@@ -413,6 +528,9 @@ export function storedFunction<
     const argsSS = argsSD.domains.map((arg) => ({
       name: arg.identity,
       type: arg.sqlDataType("stored routine arg"),
+      modifier: isPgRoutineArgModifer(arg)
+        ? arg.pgRouteineArgModifier
+        : undefined,
     }));
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
@@ -428,7 +546,9 @@ export function storedFunction<
           const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx, steOptions);
           const argsSQL = argsSS.map((arg) =>
-            `${ns.storedRoutineArg(arg.name)} ${arg.type.SQL(ctx, steOptions)}`
+            `${arg.modifier ? `${arg.modifier} ` : ""}${
+              ns.storedRoutineArg(arg.name)
+            } ${arg.type.SQL(ctx, steOptions)}`
           ).join(", ");
           let returnsSQL: string;
           if (typeof returns === "string") {
