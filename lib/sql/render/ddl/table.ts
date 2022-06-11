@@ -419,7 +419,7 @@ export function tableDefinition<
           : never
       >
     ]: TablePrimaryKeyColumnDefn<
-      ax.AxiomMappedPrimitive<TPropAxioms, Property>,
+      TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
       EmitOptions,
       Context
     >;
@@ -435,7 +435,7 @@ export function tableDefinition<
   // TsType through conditional types or can we infer it from ax.Axiom<?>
   type ForeignKeyRefs = {
     [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
-      ax.AxiomMappedPrimitive<TPropAxioms, Property>,
+      TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
       TableName,
       EmitOptions,
       Context
@@ -483,9 +483,26 @@ export function tableDefinition<
   };
 }
 
+export function typicalKeysTableDefinition<
+  TableName extends string,
+  TPropAxioms extends
+    & Record<string, ax.Axiom<Any>>
+    & Record<`${TableName}_id`, ax.Axiom<Any>>,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  tableName: TableName,
+  props: TPropAxioms,
+  tdOptions?: TableDefnOptions<EmitOptions, Context>,
+) {
+  return tableDefinition(tableName, props, tdOptions);
+}
+
 export function tableDefnRowFactory<
   TableName extends string,
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  TPropAxioms extends
+    & Record<string, ax.Axiom<Any>>
+    & Record<`${TableName}_id`, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
@@ -493,7 +510,7 @@ export function tableDefnRowFactory<
   props: TPropAxioms,
   tdrfOptions?: TableDefnOptions<EmitOptions, Context>,
 ) {
-  const tableDefn = tableDefinition(tableName, props, tdrfOptions);
+  const tableDefn = typicalKeysTableDefinition(tableName, props, tdrfOptions);
 
   type EntireRecord =
     & tr.UntypedTabularRecordObject

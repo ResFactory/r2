@@ -16,7 +16,7 @@ Deno.test("SQL assembler (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {};
 
   const syntheticTable1Defn = tbl.tableDefnRowFactory("synthetic_table1", {
-    column_pk: tbl.autoIncPrimaryKey(d.integer()),
+    synthetic_table1_id: tbl.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: tbl.unique(d.text()),
@@ -118,7 +118,7 @@ const fixturePrime = ws.unindentWhitespace(`
   -- no SQL lint issues
 
   CREATE TABLE "synthetic_table1" (
-      "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
       "column_one_text" TEXT NOT NULL,
       "column_two_text_nullable" TEXT,
       "column_unique" TEXT NOT NULL,
@@ -127,8 +127,8 @@ const fixturePrime = ws.unindentWhitespace(`
   );
   -- encountered persistence request for 1_publ-host.sql
 
-  CREATE VIEW IF NOT EXISTS "synthetic_table1_view"("column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") AS
-      SELECT "column_pk", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
+  CREATE VIEW IF NOT EXISTS "synthetic_table1_view"("synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") AS
+      SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
         FROM "synthetic_table1";
 
   INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('test', NULL, 'testHI', NULL);`);

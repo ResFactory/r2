@@ -38,6 +38,8 @@ export type AxiomSqlDomain<
     purpose:
       | "create table column"
       | "stored routine arg"
+      | "stored function returns scalar"
+      | "stored function returns table column"
       | "table foreign key ref"
       | "PostgreSQL domain",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
@@ -228,6 +230,38 @@ export function integerNullable<
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: true,
     referenceASD: () => integer(),
+    ...asdOptions,
+  };
+}
+
+export function bigint<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<bigint> = ax.$.bigint,
+  asdOptions?: Partial<AxiomSqlDomain<bigint, EmitOptions, Context>>,
+): AxiomSqlDomain<bigint, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `BIGINT` }),
+    isNullable: false,
+    referenceASD: () => bigint(),
+    ...asdOptions,
+  };
+}
+
+export function bigintNullable<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  axiom: ax.Axiom<bigint | undefined> = ax.$.bigint.optional(),
+  asdOptions?: Partial<AxiomSqlDomain<bigint, EmitOptions, Context>>,
+): AxiomSqlDomain<bigint | undefined, EmitOptions, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `BIGINT` }),
+    isNullable: true,
+    referenceASD: () => bigint(),
     ...asdOptions,
   };
 }

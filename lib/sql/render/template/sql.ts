@@ -16,6 +16,7 @@ export interface SqlObjectNamingStrategy {
   ) => string;
   readonly storedRoutineName: (name: string) => string;
   readonly storedRoutineArg: (name: string) => string;
+  readonly storedRoutineReturns: (name: string) => string;
 }
 
 export interface SqlObjectNamingStrategyOptions<Context> {
@@ -72,6 +73,7 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     viewColumnName: (vc) => `"${vc.columnName}"`,
     storedRoutineName: (name) => `"${name}"`,
     storedRoutineArg: (name) => `"${name}"`,
+    storedRoutineReturns: (name) => `"${name}"`,
   };
 
   const bareIdentifiersNS: SqlObjectNamingStrategy = {
@@ -82,6 +84,7 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     viewColumnName: (vc) => vc.columnName,
     storedRoutineName: (name) => name,
     storedRoutineArg: (name) => name,
+    storedRoutineReturns: (name) => name,
   };
 
   const namingStrategy: SqlObjectNamingStrategySupplier<Context> = (

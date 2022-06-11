@@ -7,21 +7,20 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.tableDefnRowFactory("synthetic_table1", {
-    column_pk: mod.autoIncPrimaryKey(d.integer()),
+    synthetic_table1_id: mod.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: mod.unique(d.text()),
     ...mod.housekeeping(),
   });
 
-  const syntheticTable2Defn = mod.tableDefinition(
+  const syntheticTable2Defn = mod.typicalKeysTableDefinition(
     "synthetic_table2",
     {
-      // TODO: ...mod.tableIdentity("synthetic_table2"),
-      column_pk: mod.autoIncPrimaryKey(d.integer()),
+      synthetic_table2_id: mod.autoIncPrimaryKey(d.integer()),
       column_fk_pk: mod.foreignKey(
         syntheticTable1Defn.tableName,
-        syntheticTable1Defn.axiomObjectDecl.column_pk,
+        syntheticTable1Defn.axiomObjectDecl.synthetic_table1_id,
       ),
       column_fk_text: mod.foreignKey(
         syntheticTable1Defn.tableName,
@@ -40,7 +39,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     ta.assert(syntheticTable1Defn.domains.length == 5);
     ta.assertEquals(
       [
-        "column_pk",
+        "synthetic_table1_id",
         "column_one_text",
         "column_two_text_nullable",
         "column_unique",
@@ -55,7 +54,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       syntheticTable1Defn.SQL(ctx, emitOptions),
       uws(`
         CREATE TABLE "synthetic_table1" (
-            "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_one_text" TEXT NOT NULL,
             "column_two_text_nullable" TEXT,
             "column_unique" TEXT NOT NULL,
@@ -72,7 +71,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     ta.assert(syntheticTable2Defn.domains.length == 3);
     ta.assertEquals(
       [
-        "column_pk",
+        "synthetic_table2_id",
         "column_fk_pk",
         "column_fk_text",
       ],
@@ -85,10 +84,10 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       syntheticTable2Defn.SQL(ctx, emitOptions),
       uws(`
         CREATE TABLE "synthetic_table2" (
-            "column_pk" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "synthetic_table2_id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_fk_pk" INTEGER NOT NULL,
             "column_fk_text" TEXT NOT NULL,
-            FOREIGN KEY("column_fk_pk") REFERENCES "synthetic_table1"("column_pk"),
+            FOREIGN KEY("column_fk_pk") REFERENCES "synthetic_table1"("synthetic_table1_id"),
             FOREIGN KEY("column_fk_text") REFERENCES "synthetic_table1"("column_one_text")
         )`),
     );
@@ -97,7 +96,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   await tc.step("typed table 1 Typescript objects", () => {
     type Synthetic1 = ax.AxiomType<typeof syntheticTable1Defn>;
     const synthetic1: Synthetic1 = {
-      column_pk: 1,
+      synthetic_table1_id: 1,
       column_one_text: "text",
       // TODO: figure out why removing this nullable text fails the test
       column_two_text_nullable: "TODO: should be nullable but test fails",
@@ -141,26 +140,26 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
         ),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
-      }') RETURNING "column_pk"`,
+      }') RETURNING "synthetic_table1_id"`,
     );
     ta.assertEquals(
       syntheticTable1Defn.insertDML(insertable, {
-        returning: { columns: ["column_pk"] },
-        onConflict: { SQL: () => `ON CONFLICT ("column_pk") IGNORE` },
+        returning: { columns: ["synthetic_table1_id"] },
+        onConflict: { SQL: () => `ON CONFLICT ("synthetic_table1_id") IGNORE` },
       }).SQL(
         ctx,
         emitOptions,
       ),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
-      }') ON CONFLICT ("column_pk") IGNORE RETURNING "column_pk"`,
+      }') ON CONFLICT ("synthetic_table1_id") IGNORE RETURNING "synthetic_table1_id"`,
     );
   });
 
   await tc.step("typed table 2 row values", () => {
     type Synthetic2 = ax.AxiomType<typeof syntheticTable2Defn>;
     const synthetic2: Synthetic2 = {
-      column_pk: 1,
+      synthetic_table2_id: 1,
       column_fk_pk: 1,
       column_fk_text: "text",
     };

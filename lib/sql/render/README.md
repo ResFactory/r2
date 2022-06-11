@@ -69,6 +69,17 @@ load into an RDBMS.
 
 ## TODO
 
+- In PostgreSQL dialect:
+  - create TYPE, drop TYPE
+    (https://www.postgresql.org/docs/current/sql-createtype.html)
+  - stored routine IN / OUT arguments modifiers (create domain wrappers like
+    d.OUT(domain) d.IN(domain))
+  - stored routine arguments default values
+  - in body of any stored routine test template expressions:
+    - CREATE TABLE
+    - SELECT
+    - etc.
+  - in language definition add STABLE and other type-safe modifiers
 - Add type-safe where criteria builder in DQL SELECT statements so that outbound
   select columns are properly typed but so are in-bound where criteria with
   proper bind-able parameters (using ? or :name strategies).
