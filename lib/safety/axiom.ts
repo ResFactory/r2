@@ -1,8 +1,8 @@
 // Extracted from https://github.com/tinysource/tinysource/tree/main/schema
 // and renamed to "Axiom" instead of "Schema" since schema is easily confused
-// with RDBMS Schema and SQL DDL.
+// with RDBMS Schema and SQL DDL. Big thanks to Chris for creating schema.ts!
 
-// Changes:
+// Changes: (reviewed with Chris on Jun 10, 2022)
 // - renamed Schema* to Axiom*
 // - changed AxiomObjectType to AxiomObjectTypeStrict and forced default strict
 // - added AxiomOptional type and and isAxiomOptional guard to ease reflection
@@ -10,9 +10,8 @@
 //   reflection capabilities (use isAxiomObjectProperty to test at build-time)
 // - added axiomObjectDecl and axiomObjectDeclPropNames to AxiomObject to ease
 //   reflection (consumers may need the original object declarations)
-// - added AxiomMappedPrimitive to improve reflection (TODO: ask Chris if this
-//   is the best way to implement
-// - added Date primitives (TODO: add test cases)
+// - added $.date axiom
+// - added isAxiom guard
 // - changed SmartPartial to organize required properties earlier than optional
 // - changed test cases to use Deno unit testing
 
@@ -91,15 +90,17 @@ type Axiom<TType> = {
   readonly test: (value: unknown, options?: AxiomOptions) => value is TType;
 };
 
-// ESSENTIAL TODO: do we need to "manually" compute the TsType through
-// conditional types or can we infer it from ax.Axiom<?>
-type AxiomMappedPrimitive<
-  TPropAxioms,
-  Property extends keyof TPropAxioms,
-  Else = any,
-> = TPropAxioms[Property] extends Axiom<string> ? string
-  : (TPropAxioms[Property] extends Axiom<number> ? number
-    : (TPropAxioms[Property] extends Axiom<bigint> ? bigint : Else));
+function isAxiom<TType>(o: unknown): o is Axiom<TType> {
+  if (
+    o && (typeof o === "object") &&
+      ("parse" in o && "test" in o && "optional" in o)
+      ? true
+      : false
+  ) {
+    return true;
+  }
+  return false;
+}
 
 type MutatableAxiomObjectProperty<PropertyName extends string> = {
   axiomObjectPropertyName: PropertyName;
@@ -384,11 +385,11 @@ export {
   $,
   type Axiom,
   type AxiomContext,
-  type AxiomMappedPrimitive,
   type AxiomObject,
   type AxiomObjectProperty,
   type AxiomOptions,
   type AxiomType,
+  isAxiom,
   isAxiomObjectProperty,
   isAxiomOptional,
 };
