@@ -20,14 +20,14 @@ export interface ViewDefinition<
 }
 
 export function isViewDefinition<
-  TableName extends string,
+  ViewName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
   o: unknown,
-): o is ViewDefinition<TableName, EmitOptions, Context> {
+): o is ViewDefinition<ViewName, EmitOptions, Context> {
   const isViewDefn = safety.typeGuard<
-    ViewDefinition<TableName, EmitOptions, Context>
+    ViewDefinition<ViewName, EmitOptions, Context>
   >(
     "viewName",
     "SQL",
