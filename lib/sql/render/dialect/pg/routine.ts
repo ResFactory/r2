@@ -393,6 +393,26 @@ export interface StoredProcedureDefnOptions<
 > extends StoredRoutineDefnOptions<EmitOptions, Context> {
 }
 
+export function routineArgsSQL<
+  Context,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+>(
+  domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context, Any>[],
+  ctx: Context,
+  steOptions: EmitOptions,
+) {
+  const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+  return domains.map((arg) =>
+    `${isPgRoutineArgModifer(arg) ? `${arg.pgRouteineArgModifier} ` : ""}${
+      ns.storedRoutineArg(arg.identity)
+    } ${arg.sqlDataType("stored routine arg").SQL(ctx, steOptions)}${
+      arg.sqlDefaultValue
+        ? ` = ${arg.sqlDefaultValue("stored routine arg").SQL(ctx, steOptions)}`
+        : ""
+    }`
+  ).join(", ");
+}
+
 export function storedProcedure<
   RoutineName extends string,
   ArgAxioms extends Record<string, ax.Axiom<Any>>,
@@ -431,14 +451,7 @@ export function storedProcedure<
     );
     const { isIdempotent = true, headerBodySeparator: hbSep = "$$" } =
       spOptions ?? {};
-    const sd = d.sqlDomains(argsDefn, spOptions);
-    const argsSS = sd.domains.map((arg) => ({
-      name: arg.identity,
-      type: arg.sqlDataType("stored routine arg"),
-      modifier: isPgRoutineArgModifer(arg)
-        ? arg.pgRouteineArgModifier
-        : undefined,
-    }));
+    const argsSD = d.sqlDomains(argsDefn, spOptions);
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
       & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
@@ -452,11 +465,7 @@ export function storedProcedure<
         SQL: (ctx, steOptions) => {
           const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx, steOptions);
-          const argsSQL = argsSS.map((arg) =>
-            `${arg.modifier ? `${arg.modifier} ` : ""}${
-              ns.storedRoutineArg(arg.name)
-            } ${arg.type.SQL(ctx, steOptions)}`
-          ).join(", ");
+          const argsSQL = routineArgsSQL(argsSD.domains, ctx, steOptions);
           const langSQL = body.pgPL.sqlPartial("after body definition").SQL(
             ctx,
             steOptions,
@@ -525,13 +534,6 @@ export function storedFunction<
     const { isIdempotent = true, headerBodySeparator: hbSep = "$$" } =
       sfOptions ?? {};
     const argsSD = d.sqlDomains(argsDefn, sfOptions);
-    const argsSS = argsSD.domains.map((arg) => ({
-      name: arg.identity,
-      type: arg.sqlDataType("stored routine arg"),
-      modifier: isPgRoutineArgModifer(arg)
-        ? arg.pgRouteineArgModifier
-        : undefined,
-    }));
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
       & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
@@ -545,11 +547,7 @@ export function storedFunction<
         SQL: (ctx, steOptions) => {
           const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx, steOptions);
-          const argsSQL = argsSS.map((arg) =>
-            `${arg.modifier ? `${arg.modifier} ` : ""}${
-              ns.storedRoutineArg(arg.name)
-            } ${arg.type.SQL(ctx, steOptions)}`
-          ).join(", ");
+          const argsSQL = routineArgsSQL(argsSD.domains, ctx, steOptions);
           let returnsSQL: string;
           if (typeof returns === "string") {
             returnsSQL = returns;

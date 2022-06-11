@@ -113,7 +113,9 @@ Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
         "Repeat",
         {
           fromDate: d.date(),
-          toDate: d.date(),
+          toDate: d.date(undefined, {
+            sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+          }),
         },
         { label: d.text(), cnt: d.bigint() },
         (name, args) => mod.typedPlSqlBody(name, args),
@@ -125,7 +127,7 @@ Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
       ta.assertEquals(
         sf.SQL(ctx, emitOptions),
         uws(`
-        CREATE OR REPLACE FUNCTION "Repeat"("fromDate" DATE, "toDate" DATE) RETURNS TABLE("label" TEXT, "cnt" BIGINT) AS $$
+        CREATE OR REPLACE FUNCTION "Repeat"("fromDate" DATE, "toDate" DATE = CURRENT_TIMESTAMP) RETURNS TABLE("label" TEXT, "cnt" BIGINT) AS $$
           SELECT label, count(*) AS Cnt
             FROM test
            WHERE date between fromDate and toDate

@@ -71,7 +71,6 @@ load into an RDBMS.
 
 - In PostgreSQL dialect:
   - array types (e.g. `xyz text[]`)
-  - stored routine arguments default values
   - in body of any stored routine test template expressions:
     - CREATE TABLE
     - SELECT
