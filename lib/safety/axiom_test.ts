@@ -52,6 +52,7 @@ Deno.test("type-safe data structures at build-time and runtime-testable", async 
     custom: [$.custom((value): value is string => typeof value === "string"), [
       "",
     ], [1, undefined]],
+    date: [$.date, [new Date()], []],
     enum: [$.enum("a", "b"), ["a", "b"], ["c", 1, undefined]],
     function: [$.function, [() => true, function () {}, class Foo {}], [
       1,
