@@ -15,6 +15,9 @@ Deno.test("type-safe data domains", async (tc) => {
     int: mod.integer(),
     int_nullable: mod.integerNullable(),
     int_custom: mod.integer($.number),
+    bigint: mod.bigint(),
+    bigint_nullable: mod.bigintNullable(),
+    bigint_custom: mod.bigint($.bigint),
     json: mod.jsonText(),
     json_custom: mod.jsonText($.string),
     json_nullable: mod.jsonTextNullable(),
@@ -29,6 +32,7 @@ Deno.test("type-safe data domains", async (tc) => {
     // mod.sqlDomains but OK for Axiom
     non_domain: $.string.optional(),
   };
+
   const syntheticDefn = $.object(syntheticDecl);
 
   // deno-lint-ignore require-await
@@ -46,6 +50,8 @@ Deno.test("type-safe data domains", async (tc) => {
       text_custom: "synthetic_custom",
       int: 0,
       int_custom: 1,
+      bigint: 0n,
+      bigint_custom: 1n,
       json: `{"synthetic": "yes"}`,
       json_custom: `{ "synthetic": "yes", "custom": true }`,
       date: new Date(),
@@ -92,11 +98,13 @@ Deno.test("type-safe data domains", async (tc) => {
     // hover over 'SyntheticDomains' to see fully typed object
     type SyntheticDomains = ax.AxiomType<typeof syntheticDomains>;
     // try typing in bad properties or invalid types
-    const _synthetic: SyntheticDomains = {
+    const synthetic: SyntheticDomains = {
       text: "synthetic",
       text_custom: "synthetic_custom",
       int: 0,
       int_custom: 1,
+      bigint: 0n,
+      bigint_custom: 1n,
       json: `{"synthetic": "yes"}`,
       json_custom: `{ "synthetic": "yes", "custom": true }`,
       date: new Date(),
@@ -105,5 +113,23 @@ Deno.test("type-safe data domains", async (tc) => {
       date_time_custom: new Date(),
       // bad: "hello"
     };
+
+    const expectType = <T>(_value: T) => {
+      // Do nothing, the TypeScript compiler handles this for us
+    };
+
+    // should see compile errors if any of these fail
+    expectType<string>(synthetic.text);
+    expectType<string>(synthetic.text_custom);
+    expectType<number>(synthetic.int);
+    expectType<number>(synthetic.int_custom);
+    expectType<bigint>(synthetic.bigint);
+    expectType<bigint>(synthetic.bigint_custom);
+    expectType<string>(synthetic.json);
+    expectType<string>(synthetic.json_custom);
+    expectType<Date>(synthetic.date);
+    expectType<Date>(synthetic.date_custom);
+    expectType<Date>(synthetic.date_time);
+    expectType<Date>(synthetic.date_time_custom);
   });
 });

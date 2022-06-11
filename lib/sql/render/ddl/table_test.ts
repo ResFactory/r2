@@ -71,6 +71,17 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
     );
   });
 
+  await tc.step("table 1 DML type-safety", () => {
+    const expectType = <T>(_value: T) => {
+      // Do nothing, the TypeScript compiler handles this for us
+    };
+    const row = syntheticTable1DefnRF.prepareInsertable({
+      columnOneText: "text",
+      columnUnique: "unique",
+    });
+    expectType<string>(row.column_one_text); // should see compile error if this doesn't work
+  });
+
   await tc.step("table 2 definition", () => {
     ta.assert(mod.isTableDefinition(syntheticTable2Defn));
     ta.assert(syntheticTable2Defn);
