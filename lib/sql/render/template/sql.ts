@@ -4,6 +4,19 @@ import * as c from "../../../text/contributions.ts";
 import * as l from "../lint.ts";
 import * as ws from "../../../text/whitespace.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
+export type SafeTemplateStringReturnType<
+  T extends (...args: Any) => Any,
+> = T extends (...args: Any) => infer R ? R
+  : Any;
+
+export type SafeTemplateString<Expressions, ReturnType> = (
+  literals: TemplateStringsArray,
+  ...expressions: Expressions[]
+) => ReturnType;
+
 export interface SqlObjectNamingStrategy {
   readonly schemaName: (schemaName: string) => string;
   readonly tableName: (tableName: string) => string;
@@ -13,6 +26,10 @@ export interface SqlObjectNamingStrategy {
   readonly viewName: (viewName: string) => string;
   readonly viewColumnName: (
     vc: { viewName: string; columnName: string },
+  ) => string;
+  readonly typeName: (typeName: string) => string;
+  readonly typeFieldName: (
+    vc: { typeName: string; fieldName: string },
   ) => string;
   readonly storedRoutineName: (name: string) => string;
   readonly storedRoutineArg: (name: string) => string;
@@ -41,6 +58,8 @@ export interface SqlTextEmitOptions<Context> {
       | "create table"
       | "define table column"
       | "create view"
+      | "create type"
+      | "define type field"
       | "create view select statement"
       | "create routine"
       | "create routine body",
@@ -71,6 +90,8 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     tableColumnName: (tc) => `"${tc.columnName}"`,
     viewName: (name) => `"${name}"`,
     viewColumnName: (vc) => `"${vc.columnName}"`,
+    typeName: (name) => `"${name}"`,
+    typeFieldName: (tf) => `"${tf.fieldName}"`,
     storedRoutineName: (name) => `"${name}"`,
     storedRoutineArg: (name) => `"${name}"`,
     storedRoutineReturns: (name) => `"${name}"`,
@@ -82,6 +103,8 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     tableColumnName: (tc) => tc.columnName,
     viewName: (name) => name,
     viewColumnName: (vc) => vc.columnName,
+    typeName: (name) => name,
+    typeFieldName: (tf) => tf.fieldName,
     storedRoutineName: (name) => name,
     storedRoutineArg: (name) => name,
     storedRoutineReturns: (name) => name,
@@ -116,6 +139,14 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
           break;
 
         case "create view select statement":
+          indent = "    ";
+          break;
+
+        case "create type":
+          indent = "";
+          break;
+
+        case "define type field":
           indent = "    ";
           break;
 

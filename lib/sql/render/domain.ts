@@ -40,6 +40,7 @@ export type AxiomSqlDomain<
       | "stored routine arg"
       | "stored function returns scalar"
       | "stored function returns table column"
+      | "type field"
       | "table foreign key ref"
       | "PostgreSQL domain",
   ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
