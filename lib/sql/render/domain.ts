@@ -298,6 +298,29 @@ export function jsonTextNullable<
   };
 }
 
+export interface SqlDomainsSupplier<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  TsValueType = Any,
+> {
+  domains: IdentifiableSqlDomain<
+    TsValueType,
+    EmitOptions,
+    Context
+  >[];
+}
+
+export function isSqlDomainsSupplier<
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  TsValueType = Any,
+>(o: unknown): o is SqlDomainsSupplier<EmitOptions, Context, TsValueType> {
+  const isSDS = safety.typeGuard<
+    SqlDomainsSupplier<EmitOptions, Context, TsValueType>
+  >("domains");
+  return isSDS(o);
+}
+
 export function sqlDomains<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -345,6 +368,7 @@ export function sqlDomains<
   // we let Typescript infer function return to allow generics to be more
   // easily passed to consumers (if we typed it to an interface we'd limit
   // the type-safety)
+  // ESSENTIAL: be sure it adheres to SqlDomainsSupplier contract
   return {
     ...axiom,
     domains,

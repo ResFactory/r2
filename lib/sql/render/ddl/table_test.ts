@@ -6,13 +6,20 @@ import * as ax from "../../../safety/axiom.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
-  const syntheticTable1Defn = mod.tableDefnRowFactory("synthetic_table1", {
-    synthetic_table1_id: mod.autoIncPrimaryKey(d.integer()),
-    column_one_text: d.text(),
-    column_two_text_nullable: d.textNullable(),
-    column_unique: mod.unique(d.text()),
-    ...mod.housekeeping(),
-  });
+  const syntheticTable1Defn = mod.typicalKeysTableDefinition(
+    "synthetic_table1",
+    {
+      synthetic_table1_id: mod.autoIncPrimaryKey(d.integer()),
+      column_one_text: d.text(),
+      column_two_text_nullable: d.textNullable(),
+      column_unique: mod.unique(d.text()),
+      ...mod.housekeeping(),
+    },
+  );
+  const syntheticTable1DefnRF = mod.tableDomainsRowFactory(
+    syntheticTable1Defn.tableName,
+    syntheticTable1Defn.axiomObjectDecl,
+  );
 
   const syntheticTable2Defn = mod.typicalKeysTableDefinition(
     "synthetic_table2",
@@ -111,20 +118,20 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
   });
 
   await tc.step("typed table 1 DML row values", () => {
-    const insertable = syntheticTable1Defn.prepareInsertable({
+    const insertable = syntheticTable1DefnRF.prepareInsertable({
       columnOneText: "text",
       columnUnique: "value",
       createdAt: new Date(),
     });
     ta.assert(insertable);
     ta.assertEquals(
-      syntheticTable1Defn.insertDML(insertable).SQL(ctx, emitOptions),
+      syntheticTable1DefnRF.insertDML(insertable).SQL(ctx, emitOptions),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }')`,
     );
     ta.assertEquals(
-      syntheticTable1Defn.insertDML(insertable, { returning: "*" }).SQL(
+      syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(
         ctx,
         emitOptions,
       ),
@@ -133,7 +140,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       }') RETURNING *`,
     );
     ta.assertEquals(
-      syntheticTable1Defn.insertDML(insertable, { returning: "primary-keys" })
+      syntheticTable1DefnRF.insertDML(insertable, { returning: "primary-keys" })
         .SQL(
           ctx,
           emitOptions,
@@ -143,7 +150,7 @@ Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
       }') RETURNING "synthetic_table1_id"`,
     );
     ta.assertEquals(
-      syntheticTable1Defn.insertDML(insertable, {
+      syntheticTable1DefnRF.insertDML(insertable, {
         returning: { columns: ["synthetic_table1_id"] },
         onConflict: { SQL: () => `ON CONFLICT ("synthetic_table1_id") IGNORE` },
       }).SQL(

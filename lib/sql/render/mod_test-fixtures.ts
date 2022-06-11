@@ -1,35 +1,57 @@
 // TODO: put these into mod.ts and use mod.* after migration
 import * as tbl from "./ddl/table.ts";
+import * as ax from "../../safety/axiom.ts";
 import * as d from "./domain.ts";
 import * as tmpl from "./template/mod.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 export function syntheticTableDefns<
   Context,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >() {
-  const tableDefnOptions: tbl.TableDefnOptions<EmitOptions, Context> = {
-    isIdempotent: true,
-  };
   const primaryKey = () =>
     tbl.autoIncPrimaryKey<number, EmitOptions, Context>(d.integer());
 
+  const table = <
+    TableName extends string,
+    TPropAxioms extends
+      & Record<string, ax.Axiom<Any>>
+      & Record<`${TableName}_id`, ax.Axiom<Any>>,
+  >(
+    tableName: TableName,
+    props: TPropAxioms,
+  ) => {
+    return {
+      ...tbl.tableDefinition(tableName, props, {
+        isIdempotent: true,
+      }),
+      ...tbl.tableDomainsRowFactory(tableName, props),
+      view: tbl.tableDomainsViewWrapper(
+        `${tableName}_vw`,
+        tableName,
+        props,
+      ),
+    };
+  };
+
   // TODO: new view wrapper for publHost
 
-  const publHost = tbl.tableDefnRowFactory("publ_host", {
+  const publHost = table("publ_host", {
     publ_host_id: primaryKey(),
     host: tbl.unique(d.text()),
     host_identity: d.jsonTextNullable(),
     mutation_count: d.integer(),
     ...tbl.housekeeping(),
-  }, tableDefnOptions);
-  publHost.primaryKey.publ_host_id; // example of type-safe PK access
-  const publHostView = tbl.tableDefnViewWrapper(
-    "publ_host_vw",
-    publHost.tableName,
-    publHost.axiomObjectDecl,
-  );
+  });
+  if (!publHost.primaryKey.publ_host_id.isPrimaryKey) {
+    // for testing purposes only, publHost.primaryKey.publ_host_id.isPrimaryKey
+    // should not cause compiler error
+    throw new Error(`PK access, and all other properties should be type-safe`);
+  }
 
-  const publBuildEvent = tbl.tableDefnRowFactory("publ_build_event", {
+  const publBuildEvent = table("publ_build_event", {
     publ_build_event_id: primaryKey(),
     publ_host_id: publHost.foreignKeyRef.publ_host_id(),
     iteration_index: d.integer(),
@@ -40,9 +62,9 @@ export function syntheticTableDefns<
     resources_persisted_count: d.integer(),
     resources_memoized_count: d.integer(),
     ...tbl.housekeeping(),
-  }, tableDefnOptions);
+  });
 
-  const publServerService = tbl.tableDefnRowFactory("publ_server_service", {
+  const publServerService = table("publ_server_service", {
     publ_server_service_id: primaryKey(),
     service_started_at: d.dateTime(),
     listen_host: d.text(),
@@ -50,10 +72,10 @@ export function syntheticTableDefns<
     publish_url: d.text(),
     publ_build_event_id: publBuildEvent.foreignKeyRef.publ_build_event_id(),
     ...tbl.housekeeping(),
-  }, tableDefnOptions);
+  });
 
   // -- TODO: add indexes to improve query performance
-  const publServerStaticAccessLog = tbl.tableDefnRowFactory(
+  const publServerStaticAccessLog = table(
     "publ_server_static_access_log",
     {
       publ_server_static_access_log_id: primaryKey(),
@@ -66,11 +88,10 @@ export function syntheticTableDefns<
         .publ_server_service_id(),
       ...tbl.housekeeping(),
     },
-    tableDefnOptions,
   );
 
   // -- TODO: add indexes to improve query performance
-  const publServerErrorLog = tbl.tableDefnRowFactory("publ_server_error_log", {
+  const publServerErrorLog = table("publ_server_error_log", {
     publ_server_error_log_id: primaryKey(),
     location_href: d.text(),
     error_summary: d.text(),
@@ -78,10 +99,10 @@ export function syntheticTableDefns<
     publ_server_service_id: publServerService.foreignKeyRef
       .publ_server_service_id(),
     ...tbl.housekeeping(),
-  }, tableDefnOptions);
+  });
 
   return {
-    publHost: { tableDefn: publHost, tableViewWrapper: publHostView },
+    publHost,
     publBuildEvent,
     publServerService,
     publServerStaticAccessLog,

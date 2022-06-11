@@ -3,6 +3,7 @@ import * as ws from "../../../text/whitespace.ts";
 import * as mod from "./sql.ts";
 import * as tbl from "../ddl/table.ts";
 import * as vw from "../ddl/view.ts";
+import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -12,17 +13,32 @@ type Any = any; // make it easy on linter
 interface SyntheticTmplContext {
 }
 
+const table = <
+  TableName extends string,
+  TPropAxioms extends
+    & Record<string, ax.Axiom<Any>>
+    & Record<`${TableName}_id`, ax.Axiom<Any>>,
+>(
+  tableName: TableName,
+  props: TPropAxioms,
+) => {
+  return {
+    ...tbl.tableDefinition(tableName, props),
+    ...tbl.tableDomainsRowFactory(tableName, props),
+  };
+};
+
 Deno.test("SQL assembler (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {};
 
-  const syntheticTable1Defn = tbl.tableDefnRowFactory("synthetic_table1", {
+  const syntheticTable1Defn = table("synthetic_table1", {
     synthetic_table1_id: tbl.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: tbl.unique(d.text()),
     ...tbl.housekeeping(),
   });
-  const syntheticTable1ViewWrapper = tbl.tableDefnViewWrapper(
+  const syntheticTable1ViewWrapper = tbl.tableDomainsViewWrapper(
     "synthetic_table1_view",
     syntheticTable1Defn.tableName,
     syntheticTable1Defn.axiomObjectDecl,

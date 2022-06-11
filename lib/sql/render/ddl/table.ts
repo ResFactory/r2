@@ -498,11 +498,9 @@ export function typicalKeysTableDefinition<
   return tableDefinition(tableName, props, tdOptions);
 }
 
-export function tableDefnRowFactory<
+export function tableDomainsRowFactory<
   TableName extends string,
-  TPropAxioms extends
-    & Record<string, ax.Axiom<Any>>
-    & Record<`${TableName}_id`, ax.Axiom<Any>>,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 >(
@@ -510,11 +508,11 @@ export function tableDefnRowFactory<
   props: TPropAxioms,
   tdrfOptions?: TableDefnOptions<EmitOptions, Context>,
 ) {
-  const tableDefn = typicalKeysTableDefinition(tableName, props, tdrfOptions);
+  const sd = d.sqlDomains(props, tdrfOptions);
 
   type EntireRecord =
     & tr.UntypedTabularRecordObject
-    & ax.AxiomType<typeof tableDefn>;
+    & ax.AxiomType<typeof sd>;
   type ExcludeFromInsert = {
     [
       Property in keyof TPropAxioms as Extract<
@@ -537,7 +535,6 @@ export function tableDefnRowFactory<
   // be more effective but we want other parts of the `result` to be as strongly
   // typed as possible
   return {
-    ...tableDefn,
     prepareInsertable: (
       o: InsertableObject,
       rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
@@ -553,11 +550,11 @@ export function tableDefnRowFactory<
       tableName,
       (group) => {
         if (group === "primary-keys") {
-          return tableDefn.domains.filter((d) =>
+          return sd.domains.filter((d) =>
             isTablePrimaryKeyColumnDefn(d) ? true : false
           ).map((d) => d.identity) as InsertableColumnName[];
         }
-        return tableDefn.domains.filter((d) =>
+        return sd.domains.filter((d) =>
           isTableColumnInsertDmlExclusionSupplier(d) &&
             d.isExcludedFromInsertDML
             ? false
@@ -568,7 +565,7 @@ export function tableDefnRowFactory<
   };
 }
 
-export function tableDefnViewWrapper<
+export function tableDomainsViewWrapper<
   ViewName extends string,
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
@@ -578,21 +575,29 @@ export function tableDefnViewWrapper<
   viewName: ViewName,
   tableName: TableName,
   props: TPropAxioms,
-  options?: vw.ViewDefnOptions<
-    ViewName,
-    keyof TPropAxioms & string,
-    EmitOptions,
-    Context
-  >,
+  tdvwOptions?:
+    & vw.ViewDefnOptions<
+      ViewName,
+      keyof TPropAxioms & string,
+      EmitOptions,
+      Context
+    >
+    & {
+      readonly onPropertyNotAxiomSqlDomain?: (
+        name: string,
+        axiom: ax.Axiom<Any>,
+        domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+      ) => void;
+    },
 ) {
-  const tableDefn = tableDefinition(tableName, props);
-  const selectColumnNames = tableDefn.domains.map((d) => d.identity);
+  const sd = d.sqlDomains(props, tdvwOptions);
+  const selectColumnNames = sd.domains.map((d) => d.identity);
   const selectColumnNamesSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
       selectColumnNames.map((cn) =>
         steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
           .tableColumnName({
-            tableName: tableDefn.tableName,
+            tableName,
             columnName: cn,
           })
       ).join(", "),
@@ -600,11 +605,11 @@ export function tableDefnViewWrapper<
   const tableNameSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
     SQL: (ctx, steOptions) =>
       steOptions.namingStrategy(ctx, { quoteIdentifiers: true }).tableName?.(
-        tableDefn.tableName,
+        tableName,
       ) ??
-        tableDefn.tableName,
+        tableName,
   };
-  return vw.safeViewDefinition(viewName, props, options)`
+  return vw.safeViewDefinition(viewName, props, tdvwOptions)`
     SELECT ${selectColumnNamesSS}
       FROM ${tableNameSS}`;
 }

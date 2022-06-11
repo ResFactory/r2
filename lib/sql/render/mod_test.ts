@@ -75,10 +75,10 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
 
     ${mod.typicalSqlTextLintSummary}
 
-    ${schema.publHost.tableDefn}
-    ${persist(schema.publHost.tableDefn, "publ-host.sql")}
+    ${schema.publHost}
+    ${persist(schema.publHost, "publ-host.sql")}
 
-    ${schema.publHost.tableViewWrapper}
+    ${schema.publHost.view}
 
     ${schema.publBuildEvent}
 
@@ -88,7 +88,7 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
 
     ${schema.publServerErrorLog}
 
-    ${schema.publHost.tableDefn.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 }, { isColumnEmittable: (name) => name == "created_at" ? false : true })}`;
+    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 }, { isColumnEmittable: (name) => name == "created_at" ? false : true })}`;
 
   const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
   if (DDL.lintIssues?.length) {
