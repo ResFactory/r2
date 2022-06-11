@@ -7,7 +7,7 @@ export type PostgresExtension = string;
 
 export interface ExtensionDefinition<
   Context,
-  SchemaName extends sp.SqlSpace,
+  SchemaName extends sp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
@@ -19,7 +19,7 @@ export interface ExtensionDefinition<
 
 export function isExtensionDefinition<
   Context,
-  SchemaName extends sp.SqlSpace,
+  SchemaName extends sp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
@@ -36,7 +36,7 @@ export function isExtensionDefinition<
 
 export interface ExtensionDefnOptions<
   Context,
-  SchemaName extends sp.SqlSpace,
+  SchemaName extends sp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
@@ -51,7 +51,7 @@ export interface ExtensionDefnFactory<
     >,
 > {
   pgExtensionDefn: <
-    SchemaName extends sp.SqlSpace,
+    SchemaName extends sp.SqlNamespace,
     ExtensionName extends PostgresExtension,
   >(
     schema: sch.SchemaDefinition<Context, SchemaName, EmitOptions>,
@@ -88,7 +88,7 @@ export function typicalPgExtensionDefnFactory<
             isIdempotent ? "IF NOT EXISTS " : ""
           }${extension} SCHEMA ${
             steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
-              .schemaName(schema.sqlSpace)
+              .schemaName(schema.sqlNamespace)
           }`;
         },
       };

@@ -1,32 +1,32 @@
 import * as safety from "../../safety/mod.ts";
 
-export type SqlSpace = string;
+export type SqlNamespace = string;
 
-export interface SqlSpaceSupplier {
-  readonly sqlSpace: SqlSpace;
+export interface SqlNamespaceSupplier {
+  readonly sqlNamespace: SqlNamespace;
 }
 
-export interface TemplateStringSqlSpace extends SqlSpaceSupplier {
+export interface TemplateStringSqlSpace extends SqlNamespaceSupplier {
   readonly templateLiterals: TemplateStringsArray;
   readonly templateExprs: unknown[];
 }
 
 export function templateStringSqlSpace(
-  sqlSpace: string,
+  sqlNamespace: string,
   templateLiterals: TemplateStringsArray,
   templateExprs: unknown[],
 ): TemplateStringSqlSpace {
   return {
-    sqlSpace,
+    sqlNamespace,
     templateLiterals,
     templateExprs,
   };
 }
 
-export const isSqlSpaceSupplier = safety.typeGuard<SqlSpaceSupplier>(
-  "sqlSpace",
+export const isSqlSpaceSupplier = safety.typeGuard<SqlNamespaceSupplier>(
+  "sqlNamespace",
 );
 
 export const isTemplateStringSqlSpace = safety.typeGuard<
   TemplateStringSqlSpace
->("sqlSpace", "templateLiterals", "templateExprs");
+>("sqlNamespace", "templateLiterals", "templateExprs");
