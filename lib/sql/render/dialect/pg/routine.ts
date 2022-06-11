@@ -286,19 +286,23 @@ export interface StoredProcedureDefnOptions<
 export function storedProcedure<
   RoutineName extends string,
   ArgAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
->(
-  routineName: RoutineName,
-  argsDefn: ArgAxioms,
-  bodyTemplate: (
+  BodyTemplateSupplier extends (
     routineName: RoutineName,
     argsDefn: ArgAxioms,
     spOptions?: StoredProcedureDefnOptions<EmitOptions, Context>,
-  ) => (
-    literals: TemplateStringsArray,
-    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
-  ) => Any,
+  ) => tmpl.SafeTemplateString<
+    tmpl.SqlPartialExpression<Context, EmitOptions>,
+    Any
+  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  BodyTemplateReturnType extends tmpl.SafeTemplateStringReturnType<
+    BodyTemplateSupplier
+  > = tmpl.SafeTemplateStringReturnType<BodyTemplateSupplier>,
+>(
+  routineName: RoutineName,
+  argsDefn: ArgAxioms,
+  bodyTemplate: BodyTemplateSupplier,
   spOptions?: StoredProcedureDefnOptions<EmitOptions, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
@@ -368,21 +372,25 @@ export function storedFunction<
     | Record<string, ax.Axiom<Any>> // TABLE
     | "RECORD"
     | string, // arbitrary SQL
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
->(
-  routineName: RoutineName,
-  argsDefn: ArgAxioms,
-  returns: Returns,
-  bodyTemplate: (
+  BodyTemplateSupplier extends (
     routineName: RoutineName,
     argsDefn: ArgAxioms,
     returns: Returns,
     spOptions?: StoredFunctionDefnOptions<EmitOptions, Context>,
-  ) => (
-    literals: TemplateStringsArray,
-    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
-  ) => Any,
+  ) => tmpl.SafeTemplateString<
+    tmpl.SqlPartialExpression<Context, EmitOptions>,
+    Any
+  >,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+  BodyTemplateReturnType extends tmpl.SafeTemplateStringReturnType<
+    BodyTemplateSupplier
+  > = tmpl.SafeTemplateStringReturnType<BodyTemplateSupplier>,
+>(
+  routineName: RoutineName,
+  argsDefn: ArgAxioms,
+  returns: Returns,
+  bodyTemplate: BodyTemplateSupplier,
   sfOptions?: StoredFunctionDefnOptions<EmitOptions, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
