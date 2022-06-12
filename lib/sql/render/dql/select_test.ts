@@ -4,7 +4,7 @@ import * as mod from "./select.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
-Deno.test("SQL assembler (SQLa) select statement", async (tc) => {
+Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
   const SQL = mod.select();
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 

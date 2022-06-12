@@ -4,7 +4,7 @@ import * as tmpl from "../../template/mod.ts";
 
 type SchemaName = "synthetic_schema1" | "synthetic_schema2";
 
-Deno.test("SQL assembler (SQLa) schema", async (tc) => {
+Deno.test("SQL Aide (SQLa) schema", async (tc) => {
   const ctx = undefined;
   const pgSDF = mod.typicalPostgresSchemaSearchPathDefnFactory();
   const emitOptions = tmpl.typicalSqlTextEmitOptions();

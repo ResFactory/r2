@@ -5,7 +5,7 @@ import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 import * as d from "../../domain.ts";
 import * as ty from "../../ddl/type.ts";
 
-Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
+Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   const ctx = undefined;
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 

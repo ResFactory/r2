@@ -10,7 +10,7 @@ type Any = any; // make it easy on linter
 interface SyntheticTmplContext {
 }
 
-Deno.test("SQL assembler (SQLa) type-safe string template", () => {
+Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   const ctx: SyntheticTmplContext = {};
   const schema = mdf.syntheticTableDefns<
     SyntheticTmplContext,

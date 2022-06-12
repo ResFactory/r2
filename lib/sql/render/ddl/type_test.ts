@@ -4,7 +4,7 @@ import * as mod from "./type.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
-Deno.test("SQL assembler (SQLa) types", async (tc) => {
+Deno.test("SQL Aide (SQLa) types", async (tc) => {
   const ctx = undefined;
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 

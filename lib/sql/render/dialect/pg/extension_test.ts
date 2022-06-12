@@ -3,7 +3,7 @@ import * as mod from "./extension.ts";
 import * as sch from "../../ddl/schema.ts";
 import * as tmpl from "../../template/mod.ts";
 
-Deno.test("SQL assembler (SQLa) PostgreSQL extension", async (tc) => {
+Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
   const sdf = sch.typicalSqlSchemaDefnFactory();
   const edf = mod.typicalPgExtensionDefnFactory();
   const ctx = undefined;

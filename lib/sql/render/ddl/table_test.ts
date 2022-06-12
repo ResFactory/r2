@@ -5,7 +5,7 @@ import * as d from "../domain.ts";
 import * as ax from "../../../safety/axiom.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
-Deno.test("SQL assembler (SQLa) custom table", async (tc) => {
+Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.typicalKeysTableDefinition(
     "synthetic_table1",
     {

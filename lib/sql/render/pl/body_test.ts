@@ -3,7 +3,7 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./body.ts";
 import * as tmpl from "../template/mod.ts";
 
-Deno.test("SQL assembler (SQLa) programming language body", async (tc) => {
+Deno.test("SQL Aide (SQLa) programming language body", async (tc) => {
   const rawBodySQL = mod.body();
   const indent = (text: string, indent = "  ") =>
     text.replaceAll(/^/gm, `${indent}`);

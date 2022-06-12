@@ -4,7 +4,7 @@ import * as mod from "./domain.ts";
 import * as tmpl from "../../template/mod.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 
-Deno.test("SQL assembler (SQLa) custom data type (domain)", async (tc) => {
+Deno.test("SQL Aide (SQLa) custom data type (domain)", async (tc) => {
   const ctx = undefined;
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 

@@ -27,7 +27,7 @@ const table = <
   };
 };
 
-Deno.test("SQL assembler (SQLa) template", () => {
+Deno.test("SQL Aide (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {};
 
   const syntheticTable1Defn = table("synthetic_table1", {
