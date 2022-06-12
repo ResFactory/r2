@@ -1,11 +1,11 @@
 import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as sch from "../../ddl/schema.ts";
-import * as sp from "../../space.ts";
+import * as nsp from "../../namespace.ts";
 
 export interface PostgresSchemaSearchPathDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
   readonly searchPath: SchemaName[];
@@ -13,7 +13,7 @@ export interface PostgresSchemaSearchPathDefinition<
 
 export function isPostgresSchemaSearchPathDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
@@ -30,7 +30,7 @@ export function isPostgresSchemaSearchPathDefinition<
 // deno-lint-ignore no-empty-interface
 export interface PostgresSchemaSearchPathDefnOptions<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
 }
@@ -42,7 +42,7 @@ export interface PostgresSchemaSearchPathDefnFactory<
       Context
     >,
 > extends sch.SchemaDefnFactory<Context, EmitOptions> {
-  pgSearchPath: <SchemaName extends sp.SqlNamespace>(
+  pgSearchPath: <SchemaName extends nsp.SqlNamespace>(
     searchPath: sch.SchemaDefinition<Context, SchemaName, EmitOptions>[],
     spDefnOptions?: PostgresSchemaSearchPathDefnOptions<
       Context,

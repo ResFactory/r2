@@ -1,12 +1,12 @@
 import * as safety from "../../../safety/mod.ts";
 import * as tmpl from "../template/mod.ts";
-import * as sp from "../space.ts";
+import * as nsp from "../namespace.ts";
 
 export interface SchemaDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions>, sp.SqlNamespaceSupplier {
+> extends tmpl.SqlTextSupplier<Context, EmitOptions>, nsp.SqlNamespaceSupplier {
   readonly isValid: boolean;
   readonly sqlNamespace: SchemaName;
   readonly isIdempotent: boolean;
@@ -14,7 +14,7 @@ export interface SchemaDefinition<
 
 export function isSchemaDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
   o: unknown,
@@ -30,7 +30,7 @@ export function isSchemaDefinition<
 
 export interface SchemaDefnOptions<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
   readonly isIdempotent?: boolean;
@@ -43,7 +43,7 @@ export interface SchemaDefnFactory<
       Context
     >,
 > {
-  sqlSchemaDefn: <SchemaName extends sp.SqlNamespace>(
+  sqlSchemaDefn: <SchemaName extends nsp.SqlNamespace>(
     schemaName: SchemaName,
     schemaDefnOptions?: SchemaDefnOptions<Context, SchemaName, EmitOptions>,
   ) =>

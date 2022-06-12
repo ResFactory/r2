@@ -1,13 +1,13 @@
 import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as sch from "../../ddl/schema.ts";
-import * as sp from "../../space.ts";
+import * as nsp from "../../namespace.ts";
 
 export type PostgresExtension = string;
 
 export interface ExtensionDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > extends tmpl.SqlTextSupplier<Context, EmitOptions> {
@@ -19,7 +19,7 @@ export interface ExtensionDefinition<
 
 export function isExtensionDefinition<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 >(
@@ -36,7 +36,7 @@ export function isExtensionDefinition<
 
 export interface ExtensionDefnOptions<
   Context,
-  SchemaName extends sp.SqlNamespace,
+  SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
 > {
@@ -51,7 +51,7 @@ export interface ExtensionDefnFactory<
     >,
 > {
   pgExtensionDefn: <
-    SchemaName extends sp.SqlNamespace,
+    SchemaName extends nsp.SqlNamespace,
     ExtensionName extends PostgresExtension,
   >(
     schema: sch.SchemaDefinition<Context, SchemaName, EmitOptions>,
