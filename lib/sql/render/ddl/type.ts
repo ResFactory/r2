@@ -84,8 +84,7 @@ export function sqlTypeDefinition<
         ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
           vdOptions.before(typeName, vdOptions),
           create,
-        ]}`
-          .SQL(ctx, steOptions)
+        ]}`.SQL(ctx, steOptions)
         : create;
     },
   };

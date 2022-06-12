@@ -3,6 +3,7 @@ import * as mod from "./routine.ts";
 import * as tmpl from "../../template/mod.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 import * as d from "../../domain.ts";
+import * as ty from "../../ddl/type.ts";
 
 Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
   const ctx = undefined;
@@ -38,6 +39,29 @@ Deno.test("SQL assembler (SQLa) anonymous stored routine", async (tc) => {
         uws(`
           DO $$ BEGIN
             CREATE DOMAIN custom_type_1 AS TEXT;
+          EXCEPTION
+            WHEN duplicate_object THEN NULL
+          END; $$`),
+      );
+    },
+  );
+
+  await tc.step(
+    "PL/pgSQL DO block with safe duplicate exception dismissal via SqlTextSupplier",
+    () => {
+      const synTypeDefn = ty.sqlTypeDefinition("synthetic_type", {
+        text: d.text(),
+        int: d.integer(),
+      });
+      const doSafeDupe = mod.doIgnoreDuplicate()`${synTypeDefn}`;
+      ta.assertEquals(
+        doSafeDupe.SQL(ctx, emitOptions),
+        uws(`
+          DO $$ BEGIN
+            CREATE TYPE "synthetic_type" AS (
+                "text" TEXT,
+                "int" INTEGER
+            );
           EXCEPTION
             WHEN duplicate_object THEN NULL
           END; $$`),

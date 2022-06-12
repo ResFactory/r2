@@ -1,9 +1,17 @@
 import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as r from "../../pl/mod.ts";
-import * as ws from "../../../../text/whitespace.ts";
 import * as ax from "../../../../safety/axiom.ts";
 import * as d from "../../domain.ts";
+
+export function routineSqlTextSupplierOptions<
+  Context,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+>(
+  inherit?: Partial<tmpl.SqlTextSupplierOptions<Context, EmitOptions>>,
+): tmpl.SqlTextSupplierOptions<Context, EmitOptions> {
+  return tmpl.typicalSqlTextSupplierOptions(inherit);
+}
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -135,9 +143,9 @@ export function untypedPlSqlBody<
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ) => {
-    const contentPartial = tmpl.SQL<Context, EmitOptions>({
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
+    const contentPartial = tmpl.SQL<Context, EmitOptions>(
+      routineSqlTextSupplierOptions(),
+    );
     const content = contentPartial(literals, ...expressions);
     const result:
       & PgProceduralLangBody<
@@ -172,9 +180,9 @@ export function untypedPlPgSqlBody<
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
   ) => {
-    const contentPartial = tmpl.SQL<Context, EmitOptions>({
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
+    const contentPartial = tmpl.SQL<Context, EmitOptions>(
+      routineSqlTextSupplierOptions(),
+    );
     const content = contentPartial(literals, ...expressions);
     const { autoBeginEnd = true } = bOptions ?? {};
     const result:
@@ -338,9 +346,9 @@ export function doIgnoreDuplicate<
   & r.AnonymousRoutineDefn<EmitOptions, Context>
   & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> {
   return (literals, ...expressions) => {
-    const contentPartial = tmpl.SQL<Context, EmitOptions>({
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
+    const contentPartial = tmpl.SQL<Context, EmitOptions>(
+      routineSqlTextSupplierOptions(),
+    );
     const content = contentPartial(literals, ...expressions);
     const body:
       & PgProceduralLangBody<
@@ -355,8 +363,11 @@ export function doIgnoreDuplicate<
         content,
         SQL: (ctx, steOptions) => {
           const indent = steOptions.indentation("create routine body");
-          return `BEGIN\n${indent}${
-            content.SQL(ctx, steOptions)
+          return `BEGIN\n${
+            steOptions.indentation(
+              "create routine body",
+              content.SQL(ctx, steOptions),
+            )
           }\nEXCEPTION\n${indent}WHEN duplicate_object THEN NULL\nEND;`;
         },
         populateSqlTextLintIssues: () => {},
