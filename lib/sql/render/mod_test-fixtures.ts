@@ -1,8 +1,5 @@
-// TODO: put these into mod.ts and use mod.* after migration
-import * as tbl from "./ddl/table.ts";
 import * as ax from "../../safety/axiom.ts";
-import * as d from "./domain.ts";
-import * as tmpl from "./template/mod.ts";
+import * as mod from "./mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -13,11 +10,22 @@ const expectType = <T>(_value: T) => {
 
 export function syntheticTableDefns<
   Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  EmitOptions extends mod.SqlTextEmitOptions<Context>,
 >() {
   const primaryKey = () =>
-    tbl.autoIncPrimaryKey<number, EmitOptions, Context>(d.integer());
+    mod.autoIncPrimaryKey<number, EmitOptions, Context>(mod.integer());
 
+  /**
+   * All of our tables will follow a specific format, namely that they will have
+   * a single primary key with the same name as the table with _id appended and
+   * common "houskeeping" columns like created_at.
+   * TODO: figure out how to automatically add ...housekeeping() to the end of
+   * each table (it's easy to add at the start of each table, but we want them
+   * at the end after all the "content" columns).
+   * @param tableName
+   * @param props
+   * @returns
+   */
   const table = <
     TableName extends string,
     TPropAxioms extends
@@ -28,11 +36,11 @@ export function syntheticTableDefns<
     props: TPropAxioms,
   ) => {
     return {
-      ...tbl.tableDefinition(tableName, props, {
+      ...mod.tableDefinition(tableName, props, {
         isIdempotent: true,
       }),
-      ...tbl.tableDomainsRowFactory(tableName, props),
-      view: tbl.tableDomainsViewWrapper(
+      ...mod.tableDomainsRowFactory(tableName, props),
+      view: mod.tableDomainsViewWrapper(
         `${tableName}_vw`,
         tableName,
         props,
@@ -42,53 +50,33 @@ export function syntheticTableDefns<
 
   const publHost = table("publ_host", {
     publ_host_id: primaryKey(),
-    host: tbl.unique(d.text()),
-    host_identity: d.jsonTextNullable(),
-    mutation_count: d.integer(),
-    ...tbl.housekeeping(),
+    host: mod.unique(mod.text()),
+    host_identity: mod.jsonTextNullable(),
+    mutation_count: mod.integer(),
+    ...mod.housekeeping(),
   });
-  // for testing purposes only, publHost.primaryKey.publ_host_id.isPrimaryKey
-  // should not cause compiler error; expectType is not required for non-test
-  // or production use cases
-  expectType<
-    tbl.TablePrimaryKeyColumnDefn<number, tmpl.SqlTextEmitOptions<Any>, Any>
-  >(publHost.primaryKey.publ_host_id);
 
   const publBuildEvent = table("publ_build_event", {
     publ_build_event_id: primaryKey(),
     publ_host_id: publHost.foreignKeyRef.publ_host_id(),
-    iteration_index: d.integer(),
-    build_initiated_at: d.dateTime(),
-    build_completed_at: d.dateTime(),
-    build_duration_ms: d.integer(),
-    resources_originated_count: d.integer(),
-    resources_persisted_count: d.integer(),
-    resources_memoized_count: d.integer(),
-    ...tbl.housekeeping(),
+    iteration_index: mod.integer(),
+    build_initiated_at: mod.dateTime(),
+    build_completed_at: mod.dateTime(),
+    build_duration_ms: mod.integer(),
+    resources_originated_count: mod.integer(),
+    resources_persisted_count: mod.integer(),
+    resources_memoized_count: mod.integer(),
+    ...mod.housekeeping(),
   });
-  // this is added for testing purposes to make sure Axiom/Domain is creating
-  // proper type-safe objects, otherwise will result in Typescript compile error;
-  // expectType calls are not required for non-test or production use cases
-  expectType<
-    tbl.TablePrimaryKeyColumnDefn<number, tmpl.SqlTextEmitOptions<Any>, Any>
-  >(publBuildEvent.primaryKey.publ_build_event_id);
-  expectType<
-    tbl.TableForeignKeyColumnDefn<
-      number,
-      "publ_host",
-      tmpl.SqlTextEmitOptions<Any>,
-      Any
-    >
-  >(publBuildEvent.axiomObjectDecl.publ_host_id);
 
   const publServerService = table("publ_server_service", {
     publ_server_service_id: primaryKey(),
-    service_started_at: d.dateTime(),
-    listen_host: d.text(),
-    listen_port: d.integer(),
-    publish_url: d.text(),
+    service_started_at: mod.dateTime(),
+    listen_host: mod.text(),
+    listen_port: mod.integer(),
+    publish_url: mod.text(),
     publ_build_event_id: publBuildEvent.foreignKeyRef.publ_build_event_id(),
-    ...tbl.housekeeping(),
+    ...mod.housekeeping(),
   });
 
   // -- TODO: add indexes to improve query performance
@@ -96,27 +84,49 @@ export function syntheticTableDefns<
     "publ_server_static_access_log",
     {
       publ_server_static_access_log_id: primaryKey(),
-      status: d.integer(),
-      asset_nature: d.text(),
-      location_href: d.text(),
-      filesys_target_path: d.text(),
-      filesys_target_symlink: d.textNullable(),
+      status: mod.integer(),
+      asset_nature: mod.text(),
+      location_href: mod.text(),
+      filesys_target_path: mod.text(),
+      filesys_target_symlink: mod.textNullable(),
       publ_server_service_id: publServerService.foreignKeyRef
         .publ_server_service_id(),
-      ...tbl.housekeeping(),
+      ...mod.housekeeping(),
     },
   );
 
   // -- TODO: add indexes to improve query performance
   const publServerErrorLog = table("publ_server_error_log", {
     publ_server_error_log_id: primaryKey(),
-    location_href: d.text(),
-    error_summary: d.text(),
-    error_elaboration: d.jsonTextNullable(),
+    location_href: mod.text(),
+    error_summary: mod.text(),
+    error_elaboration: mod.jsonTextNullable(),
     publ_server_service_id: publServerService.foreignKeyRef
       .publ_server_service_id(),
-    ...tbl.housekeeping(),
+    ...mod.housekeeping(),
   });
+
+  // this is added for testing purposes to make sure Axiom/Domain is creating
+  // proper type-safe objects, otherwise will result in Typescript compile error;
+  // expectType calls are not required for non-test or production use cases
+  type tablePK = mod.TablePrimaryKeyColumnDefn<
+    number,
+    mod.SqlTextEmitOptions<Any>,
+    Any
+  >;
+  expectType<tablePK>(publHost.primaryKey.publ_host_id);
+  expectType<
+    mod.AxiomSqlDomain<Date | undefined, mod.SqlTextEmitOptions<Any>, Any>
+  >(publHost.axiomObjectDecl.created_at);
+  expectType<tablePK>(publBuildEvent.primaryKey.publ_build_event_id);
+  expectType<
+    mod.TableForeignKeyColumnDefn<
+      number,
+      "publ_host",
+      mod.SqlTextEmitOptions<Any>,
+      Any
+    >
+  >(publBuildEvent.axiomObjectDecl.publ_host_id);
 
   return {
     publHost,

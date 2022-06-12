@@ -1,3 +1,4 @@
+export * from "./domain.ts";
 export * from "./ddl/table.ts";
 export * from "./ddl/view.ts";
 export * from "./ddl/schema.ts";

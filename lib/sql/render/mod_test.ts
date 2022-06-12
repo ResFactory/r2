@@ -1,9 +1,7 @@
 import { path, testingAsserts as ta } from "./deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as mdf from "./mod_test-fixtures.ts";
-import * as mod from "./template/sql.ts";
-import * as tbl from "./ddl/table.ts";
-import * as vw from "./ddl/view.ts";
+import * as mod from "./mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
@@ -30,20 +28,20 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
   };
 
   const tablesDeclared = new Set<
-    tbl.TableDefinition<
+    mod.TableDefinition<
       Any,
       mod.SqlTextEmitOptions<SyntheticTmplContext>,
       SyntheticTmplContext
     >
   >();
-  const viewsDeclared = new Set<vw.ViewDefinition<Any, Any, Any>>();
+  const viewsDeclared = new Set<mod.ViewDefinition<Any, Any, Any>>();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (tbl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (mod.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (vw.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (mod.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }
