@@ -19,45 +19,50 @@ does not rewrite SQL or attempt to remove SQL knowledge.
 
 ## SQL rendering module organization
 
-This SQL rendering library is meant to provide type-safe SQL code generation to
-help prepare and reliably load SQL into multiple RDBMS dialects. The library is
-not meant to replace or hide SQL, it's meant to make SQL easier to prepare and
-load into an RDBMS.
+This SQL Aide (`SQLa`) library provides type-safe code generation for the
+following types of SQL language constructs.
+
+[Status symbols](https://xit.jotaen.net/):
+
+- [x] Ready for use
+- [@] Partially complete
+- [ ] Planned, not started yet
+- [~] Not planned but could be convinced to add
 
 ### DDL (Data Definition Language)
 
-- CREATE: This command is used to create the database or its objects (like
-  table, index, function, views, store procedure, and triggers).
-- DROP: This command is used to delete objects from the database.
-- ALTER: This is used to alter the structure of the database.
-- TRUNCATE: This is used to remove all records from a table, including all
-  spaces allocated for the records are removed.
-- COMMENT: This is used to add comments to the data dictionary.
+- [x] CREATE: This command is used to create the database or its objects (like
+      table, index, function, views, store procedure, and triggers).
+- [x] DROP: This command is used to delete objects from the database.
+- [ ] ALTER: This is used to alter the structure of the database.
+- [ ] TRUNCATE: This is used to remove all records from a table, including all
+      spaces allocated for the records are removed.
+- [ ] COMMENT: This is used to add comments to the data dictionary.
 - RENAME: This is used to rename an object existing in the database.
 
 ### DQL (Data Query Language)
 
-- SELECT: It is used to retrieve data from the database.
+- [@] SELECT: It is used to retrieve data from the database.
 
 ### DML(Data Manipulation Language)
 
-- INSERT : It is used to insert data into a table.
-- UPDATE: It is used to update existing data within a table.
-- DELETE : It is used to delete records from a database table.
-- LOCK: Table control concurrency.
-- CALL: Call a PL/SQL or JAVA subprogram.
-- EXPLAIN PLAN: It describes the access path to data.
+- [x] INSERT : It is used to insert data into a table.
+- [ ] UPDATE: It is used to update existing data within a table.
+- [ ] DELETE : It is used to delete records from a database table.
+- [ ] CALL: Call a PL/SQL or JAVA subprogram.
+- [ ] EXPLAIN PLAN: It describes the access path to data.
+- [~] LOCK: Table control concurrency.
 
 ### PL (Procedural or Programming Language)
 
-- BODY defines PL (stored function or stored procedure) body
-- CONTRACT defines the header, parameter, etcs.
+- [x] BODY defines PL (stored function or stored procedure) body
+- [x] CONTRACT defines the header, parameter, etcs.
 
 ### DCL (Data Control Language)
 
-- GRANT: This command gives users access privileges to the database.
-- REVOKE: This command withdraws the user’s access privileges given by using the
-  GRANT command.
+- [ ] GRANT: This command gives users access privileges to the database.
+- [ ] REVOKE: This command withdraws the user’s access privileges given by using
+      the GRANT command.
 
 ### TCL (Transaction Control Language)
 
@@ -72,6 +77,10 @@ load into an RDBMS.
 
 ## TODO
 
+- Create CALL SqlTextSupplier as a new stored routine object property similar to
+  how a InsertStatementPreparer works. Just like DML is tied to a table, CALL
+  should be tied to stored routine header(s) so that there's full type- safety
+  integrated into the call.
 - In PostgreSQL dialect:
   - array types (e.g. `xyz text[]`) as domains and Axiom(s)
   - in language definition add STABLE and other type-safe modifiers
