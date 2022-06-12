@@ -7,6 +7,10 @@ import * as tmpl from "./template/mod.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+const expectType = <T>(_value: T) => {
+  // Do nothing, the TypeScript compiler handles this for us
+};
+
 export function syntheticTableDefns<
   Context,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
@@ -36,8 +40,6 @@ export function syntheticTableDefns<
     };
   };
 
-  // TODO: new view wrapper for publHost
-
   const publHost = table("publ_host", {
     publ_host_id: primaryKey(),
     host: tbl.unique(d.text()),
@@ -45,11 +47,12 @@ export function syntheticTableDefns<
     mutation_count: d.integer(),
     ...tbl.housekeeping(),
   });
-  if (!publHost.primaryKey.publ_host_id.isPrimaryKey) {
-    // for testing purposes only, publHost.primaryKey.publ_host_id.isPrimaryKey
-    // should not cause compiler error
-    throw new Error(`PK access, and all other properties should be type-safe`);
-  }
+  // for testing purposes only, publHost.primaryKey.publ_host_id.isPrimaryKey
+  // should not cause compiler error; expectType is not required for non-test
+  // or production use cases
+  expectType<
+    tbl.TablePrimaryKeyColumnDefn<number, tmpl.SqlTextEmitOptions<Any>, Any>
+  >(publHost.primaryKey.publ_host_id);
 
   const publBuildEvent = table("publ_build_event", {
     publ_build_event_id: primaryKey(),
@@ -63,6 +66,20 @@ export function syntheticTableDefns<
     resources_memoized_count: d.integer(),
     ...tbl.housekeeping(),
   });
+  // this is added for testing purposes to make sure Axiom/Domain is creating
+  // proper type-safe objects, otherwise will result in Typescript compile error;
+  // expectType calls are not required for non-test or production use cases
+  expectType<
+    tbl.TablePrimaryKeyColumnDefn<number, tmpl.SqlTextEmitOptions<Any>, Any>
+  >(publBuildEvent.primaryKey.publ_build_event_id);
+  expectType<
+    tbl.TableForeignKeyColumnDefn<
+      number,
+      "publ_host",
+      tmpl.SqlTextEmitOptions<Any>,
+      Any
+    >
+  >(publBuildEvent.axiomObjectDecl.publ_host_id);
 
   const publServerService = table("publ_server_service", {
     publ_server_service_id: primaryKey(),
