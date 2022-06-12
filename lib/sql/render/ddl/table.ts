@@ -7,7 +7,7 @@ import * as dml from "../dml/mod.ts";
 import * as vw from "./view.ts";
 
 // deno-lint-ignore no-explicit-any
-export type Any = any; // make it easier on Deno linting
+type Any = any; // make it easier on Deno linting
 
 export type TablePrimaryKeyColumnDefn<
   ColumnTsType,
