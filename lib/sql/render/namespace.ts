@@ -23,10 +23,10 @@ export function templateStringSqlSpace(
   };
 }
 
-export const isSqlSpaceSupplier = safety.typeGuard<SqlNamespaceSupplier>(
+export const isSqlNamespaceSupplier = safety.typeGuard<SqlNamespaceSupplier>(
   "sqlNamespace",
 );
 
-export const isTemplateStringSqlSpace = safety.typeGuard<
+export const isTemplateStringSqlNamespace = safety.typeGuard<
   TemplateStringSqlSpace
 >("sqlNamespace", "templateLiterals", "templateExprs");

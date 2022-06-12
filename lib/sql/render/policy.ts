@@ -34,10 +34,10 @@ export function templateStringSqlPolicy(
   };
 }
 
-export const isSqlSpaceSupplier = safety.typeGuard<SqlPolicySupplier>(
+export const isSqlPolicySupplier = safety.typeGuard<SqlPolicySupplier>(
   "sqlPolicy",
 );
 
-export const isTemplateStringSqlSpace = safety.typeGuard<
+export const isTemplateStringSqlPolicy = safety.typeGuard<
   TemplateStringSqlPolicy
 >("sqlPolicy", "templateLiterals", "templateExprs");
