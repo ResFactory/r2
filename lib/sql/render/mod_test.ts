@@ -86,7 +86,7 @@ Deno.test("SQL assembler (SQLa) type-safe string template", () => {
 
     ${schema.publServerErrorLog}
 
-    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 }, { isColumnEmittable: (name) => name == "created_at" ? false : true })}`;
+    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
 
   const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
   if (DDL.lintIssues?.length) {

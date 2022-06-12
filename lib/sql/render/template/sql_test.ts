@@ -1,8 +1,7 @@
 import { path, testingAsserts as ta } from "../deps-test.ts";
 import * as ws from "../../../text/whitespace.ts";
 import * as mod from "./sql.ts";
-import * as tbl from "../ddl/table.ts";
-import * as vw from "../ddl/view.ts";
+import * as ddl from "../ddl/mod.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
 
@@ -23,8 +22,8 @@ const table = <
   props: TPropAxioms,
 ) => {
   return {
-    ...tbl.tableDefinition(tableName, props),
-    ...tbl.tableDomainsRowFactory(tableName, props),
+    ...ddl.tableDefinition(tableName, props),
+    ...ddl.tableDomainsRowFactory(tableName, props),
   };
 };
 
@@ -32,13 +31,13 @@ Deno.test("SQL assembler (SQLa) template", () => {
   const ctx: SyntheticTmplContext = {};
 
   const syntheticTable1Defn = table("synthetic_table1", {
-    synthetic_table1_id: tbl.autoIncPrimaryKey(d.integer()),
+    synthetic_table1_id: ddl.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
-    column_unique: tbl.unique(d.text()),
-    ...tbl.housekeeping(),
+    column_unique: ddl.unique(d.text()),
+    ...ddl.housekeeping(),
   });
-  const syntheticTable1ViewWrapper = tbl.tableDomainsViewWrapper(
+  const syntheticTable1ViewWrapper = ddl.tableDomainsViewWrapper(
     "synthetic_table1_view",
     syntheticTable1Defn.tableName,
     syntheticTable1Defn.axiomObjectDecl,
@@ -55,15 +54,15 @@ Deno.test("SQL assembler (SQLa) template", () => {
     return result;
   };
 
-  const tablesDeclared = new Set<tbl.TableDefinition<Any, Any, Any>>();
-  const viewsDeclared = new Set<vw.ViewDefinition<Any, Any, Any>>();
+  const tablesDeclared = new Set<ddl.TableDefinition<Any, Any, Any>>();
+  const viewsDeclared = new Set<ddl.ViewDefinition<Any, Any, Any>>();
 
   // deno-fmt-ignore
   const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (tbl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (ddl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (vw.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (ddl.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }

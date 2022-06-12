@@ -16,62 +16,76 @@ export type InsertStmtReturning<
     readonly exprs?: ReturnableColumnExpr[];
   }>;
 
-export interface InsertStmtPreparer<
+export interface InsertStmtPreparerOptions<
   Context,
   TableName extends string,
   InsertableRecord,
   ReturnableRecord,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   InsertableColumnName extends keyof InsertableRecord = keyof InsertableRecord,
-  ReturnableColumnName extends keyof ReturnableRecord = keyof ReturnableRecord,
-  ReturnableColumnExpr extends (keyof ReturnableRecord | string) =
-    (keyof ReturnableRecord | string),
 > {
-  (ir: InsertableRecord, options?: {
-    readonly isColumnEmittable?: (
-      columnName: keyof InsertableRecord,
-      record: InsertableRecord,
-      tableName: TableName,
-    ) => boolean;
-    readonly emitColumn?: (
-      columnName: keyof InsertableRecord,
-      record: InsertableRecord,
-      tableName: TableName,
-      ns: tmpl.SqlObjectNamingStrategy,
-      eo?: EmitOptions,
+  readonly isColumnEmittable?: (
+    columnName: keyof InsertableRecord,
+    record: InsertableRecord,
+    tableName: TableName,
+  ) => boolean;
+  readonly emitColumn?: (
+    columnName: keyof InsertableRecord,
+    record: InsertableRecord,
+    tableName: TableName,
+    ns: tmpl.SqlObjectNamingStrategy,
+    eo?: EmitOptions,
+    ctx?: Context,
+  ) =>
+    | [columNameSqlText: string, value: unknown, valueSqlText: string]
+    | undefined;
+  readonly where?:
+    | tmpl.SqlTextSupplier<Context, EmitOptions>
+    | ((
       ctx?: Context,
-    ) =>
-      | [columNameSqlText: string, value: unknown, valueSqlText: string]
-      | undefined;
-    readonly where?:
-      | tmpl.SqlTextSupplier<Context, EmitOptions>
-      | ((
-        ctx?: Context,
-        eo?: EmitOptions,
-      ) => tmpl.SqlTextSupplier<Context, EmitOptions>);
-    readonly onConflict?:
-      | tmpl.SqlTextSupplier<Context, EmitOptions>
-      | ((
-        ctx?: Context,
-        eo?: EmitOptions,
-      ) => tmpl.SqlTextSupplier<Context, EmitOptions>);
-    readonly returning?:
-      | InsertStmtReturning<ReturnableRecord>
-      | ((
-        ctx?: Context,
-        eo?: EmitOptions,
-      ) => InsertStmtReturning<ReturnableRecord>);
-    readonly transformSQL?: (
-      suggested: string,
-      tableName: TableName,
-      record: InsertableRecord,
-      names: InsertableColumnName[],
-      values: [value: unknown, sqlText: string][],
-      ns: tmpl.SqlObjectNamingStrategy,
       eo?: EmitOptions,
+    ) => tmpl.SqlTextSupplier<Context, EmitOptions>);
+  readonly onConflict?:
+    | tmpl.SqlTextSupplier<Context, EmitOptions>
+    | ((
       ctx?: Context,
-    ) => string;
-  }): tmpl.SqlTextSupplier<Context, EmitOptions>;
+      eo?: EmitOptions,
+    ) => tmpl.SqlTextSupplier<Context, EmitOptions>);
+  readonly returning?:
+    | InsertStmtReturning<ReturnableRecord>
+    | ((
+      ctx?: Context,
+      eo?: EmitOptions,
+    ) => InsertStmtReturning<ReturnableRecord>);
+  readonly transformSQL?: (
+    suggested: string,
+    tableName: TableName,
+    record: InsertableRecord,
+    names: InsertableColumnName[],
+    values: [value: unknown, sqlText: string][],
+    ns: tmpl.SqlObjectNamingStrategy,
+    eo?: EmitOptions,
+    ctx?: Context,
+  ) => string;
+}
+
+export interface InsertStmtPreparer<
+  Context,
+  TableName extends string,
+  InsertableRecord,
+  ReturnableRecord,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+> {
+  (
+    ir: InsertableRecord,
+    options?: InsertStmtPreparerOptions<
+      Context,
+      TableName,
+      InsertableRecord,
+      ReturnableRecord,
+      EmitOptions
+    >,
+  ): tmpl.SqlTextSupplier<Context, EmitOptions>;
 }
 
 export function typicalInsertStmtPreparer<
@@ -81,11 +95,16 @@ export function typicalInsertStmtPreparer<
   ReturnableRecord,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   InsertableColumnName extends keyof InsertableRecord = keyof InsertableRecord,
-  ReturnableColumnExpr extends (keyof ReturnableRecord | string) =
-    (keyof ReturnableRecord | string),
 >(
   tableName: TableName,
   candidateColumns: (group?: "all" | "primary-keys") => InsertableColumnName[],
+  defaultIspOptions?: InsertStmtPreparerOptions<
+    Context,
+    TableName,
+    InsertableRecord,
+    ReturnableRecord,
+    EmitOptions
+  >,
 ): InsertStmtPreparer<
   Context,
   TableName,
@@ -93,7 +112,7 @@ export function typicalInsertStmtPreparer<
   ReturnableRecord,
   EmitOptions
 > {
-  return (ir, pisOptions) => {
+  return (ir, ispOptions = defaultIspOptions) => {
     return {
       SQL: (ctx, eo) => {
         const {
@@ -102,7 +121,7 @@ export function typicalInsertStmtPreparer<
           returning: returningArg,
           where,
           onConflict,
-        } = pisOptions ?? {};
+        } = ispOptions ?? {};
         const ns = eo.namingStrategy(ctx ?? ({} as Context), {
           quoteIdentifiers: true,
         });
@@ -180,8 +199,8 @@ export function typicalInsertStmtPreparer<
         // deno-fmt-ignore
         const SQL = `INSERT INTO ${ns.tableName(tableName)} (${names.map(n => ns.tableColumnName({ tableName, columnName: String(n) })).join(", ")}) VALUES (${values.map((value) => value[1]).join(", ")
           })${sqlText(where)}${sqlText(onConflict)}${returningSQL}`;
-        return pisOptions?.transformSQL
-          ? pisOptions?.transformSQL(
+        return ispOptions?.transformSQL
+          ? ispOptions?.transformSQL(
             SQL,
             tableName,
             ir,

@@ -506,7 +506,15 @@ export function tableDomainsRowFactory<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdrfOptions?: TableDefnOptions<EmitOptions, Context>,
+  tdrfOptions?: TableDefnOptions<EmitOptions, Context> & {
+    defaultIspOptions?: dml.InsertStmtPreparerOptions<
+      Context,
+      TableName,
+      Any,
+      Any,
+      EmitOptions
+    >;
+  },
 ) {
   const sd = d.sqlDomains(props, tdrfOptions);
 
@@ -561,6 +569,7 @@ export function tableDomainsRowFactory<
             : true
         ).map((d) => d.identity) as InsertableColumnName[];
       },
+      tdrfOptions?.defaultIspOptions,
     ),
   };
 }

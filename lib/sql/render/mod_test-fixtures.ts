@@ -11,7 +11,7 @@ const expectType = <T>(_value: T) => {
 export function syntheticTableDefns<
   Context,
   EmitOptions extends mod.SqlTextEmitOptions<Context>,
->() {
+  >() {
   const primaryKey = () =>
     mod.autoIncPrimaryKey<number, EmitOptions, Context>(mod.integer());
 
@@ -29,22 +29,32 @@ export function syntheticTableDefns<
   const table = <
     TableName extends string,
     TPropAxioms extends
-      & Record<string, ax.Axiom<Any>>
-      & Record<`${TableName}_id`, ax.Axiom<Any>>,
-  >(
-    tableName: TableName,
-    props: TPropAxioms,
+    & Record<string, ax.Axiom<Any>>
+    & Record<`${TableName}_id`, ax.Axiom<Any>>,
+    >(
+      tableName: TableName,
+      props: TPropAxioms,
   ) => {
+    // "created_at" is considered "housekeeping" with a default so don't
+    // emit it as part of the insert DML statement
+    const defaultIspOptions: mod.InsertStmtPreparerOptions<
+      Context,
+      TableName,
+      Any,
+      Any,
+      EmitOptions
+    > = { isColumnEmittable: (name) => name == "created_at" ? false : true };
     return {
       ...mod.tableDefinition(tableName, props, {
         isIdempotent: true,
       }),
-      ...mod.tableDomainsRowFactory(tableName, props),
+      ...mod.tableDomainsRowFactory(tableName, props, { defaultIspOptions }),
       view: mod.tableDomainsViewWrapper(
         `${tableName}_vw`,
         tableName,
         props,
       ),
+      defaultIspOptions // in case others need to wrap the call
     };
   };
 
