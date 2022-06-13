@@ -404,7 +404,7 @@ export interface StoredProcedureDefnOptions<
 export function routineArgsSQL<
   Context extends tmpl.SqlEmitContext,
 >(domains: d.IdentifiableSqlDomain<Any, Context, Any>[], ctx: Context) {
-  const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+  const ns = ctx.sqlNamingStrategy(ctx, {
     quoteIdentifiers: true,
   });
   return domains.map((arg) =>
@@ -468,7 +468,7 @@ export function storedProcedure<
           body.populateSqlTextLintIssues(lintIssues, steOptions),
         SQL: (ctx) => {
           const { sqlTextEmitOptions: steOptions } = ctx;
-          const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+          const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx);
           const argsSQL = routineArgsSQL(argsSD.domains, ctx);
           const langSQL = body.pgPL.sqlPartial("after body definition").SQL(
@@ -506,7 +506,7 @@ export function dropStoredProcedure<
   const { ifExists = true } = dvOptions ?? {};
   return {
     SQL: (ctx) => {
-      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       return `DROP PROCEDURE ${ifExists ? "IF EXISTS " : ""}${
@@ -580,7 +580,7 @@ export function storedFunction<
           body.populateSqlTextLintIssues(lintIssues, steOptions),
         SQL: (ctx) => {
           const { sqlTextEmitOptions: steOptions } = ctx;
-          const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+          const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
           const bodySqlText = body.SQL(ctx);
           const argsSQL = routineArgsSQL(argsSD.domains, ctx);
           let returnsSQL: string;
@@ -636,7 +636,7 @@ export function dropStoredFunction<
   const { ifExists = true } = dvOptions ?? {};
   return {
     SQL: (ctx) => {
-      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       return `DROP FUNCTION ${ifExists ? "IF EXISTS " : ""}${

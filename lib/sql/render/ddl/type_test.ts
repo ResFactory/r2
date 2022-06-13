@@ -5,10 +5,7 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) types", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("create SQL type", () => {
     const type = mod.sqlTypeDefinition("synthetic_type", {

@@ -41,10 +41,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     },
   );
 
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("table 1 definition", () => {
     ta.assert(mod.isTableDefinition(syntheticTable1Defn));

@@ -57,7 +57,7 @@ export function sqlTypeDefinition<
     typeName,
     SQL: (ctx) => {
       const { sqlTextEmitOptions: steOptions } = ctx;
-      const ns = steOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       const ctfi = steOptions.indentation("define type field");
@@ -98,7 +98,7 @@ export function dropType<
   const { ifExists = true } = dvOptions ?? {};
   return {
     SQL: (ctx) => {
-      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       return `DROP TYPE ${ifExists ? "IF EXISTS " : ""}${

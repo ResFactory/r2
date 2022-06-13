@@ -4,10 +4,7 @@ import * as mod from "./body.ts";
 import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) programming language body", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
   const rawBodySQL = mod.body(ctx);
   const indent = (text: string, indent = "  ") =>
     text.replaceAll(/^/gm, `${indent}`);

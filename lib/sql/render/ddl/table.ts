@@ -170,7 +170,7 @@ export function foreignKey<
         const unique: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
             ? ((ctx) => {
-              const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+              const ns = ctx.sqlNamingStrategy(ctx, {
                 quoteIdentifiers: true,
               });
               const tn = ns.tableName;
@@ -225,7 +225,7 @@ export function unique<
         const unique: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
             ? ((ctx) => {
-              const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+              const ns = ctx.sqlNamingStrategy(ctx, {
                 quoteIdentifiers: true,
               });
               return `UNIQUE(${
@@ -259,7 +259,7 @@ export function typicalTableColumnDefnSQL<
 ): tmpl.RenderedSqlText<Context> {
   return (ctx) => {
     const { sqlTextEmitOptions: steOptions } = ctx;
-    const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+    const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
     const columnName = ns.tableColumnName({
       tableName,
       columnName: isd.identity,
@@ -423,7 +423,7 @@ export function tableDefinition<
     tableName,
     SQL: (ctx) => {
       const { sqlTextEmitOptions: steOptions } = ctx;
-      const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+      const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
       const indent = steOptions.indentation("define table column");
       const afterCDs =
         tdOptions?.sqlPartial?.("after all column definitions") ?? [];
@@ -566,7 +566,7 @@ export function tableDomainsViewWrapper<
   const selectColumnNames = sd.domains.map((d) => d.identity);
   const select: tmpl.SqlTextSupplier<Context> = {
     SQL: (ctx) => {
-      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       return `SELECT ${

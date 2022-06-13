@@ -85,7 +85,7 @@ export function viewDefinition<
             "create view select statement",
             rawSelectStmtSqlText,
           );
-          const ns = steOptions.namingStrategy(ctx, {
+          const ns = ctx.sqlNamingStrategy(ctx, {
             quoteIdentifiers: true,
           });
           const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
@@ -151,7 +151,7 @@ export function safeViewDefinitionCustom<
           "create view select statement",
           rawSelectStmtSqlText,
         );
-        const ns = steOptions.namingStrategy(ctx, {
+        const ns = ctx.sqlNamingStrategy(ctx, {
           quoteIdentifiers: true,
         });
         const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
@@ -230,7 +230,7 @@ export function dropView<
   const { ifExists = true } = dvOptions ?? {};
   return {
     SQL: (ctx) => {
-      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+      const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
       });
       return `DROP VIEW ${ifExists ? "IF EXISTS " : ""}${

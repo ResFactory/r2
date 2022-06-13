@@ -112,7 +112,7 @@ export function typicalInsertStmtPreparer<
           onConflict,
         } = ispOptions ?? {};
         const { sqlTextEmitOptions: eo } = ctx;
-        const ns = eo.namingStrategy(ctx, {
+        const ns = ctx.sqlNamingStrategy(ctx, {
           quoteIdentifiers: true,
         });
         const names: InsertableColumnName[] = [];

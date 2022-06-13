@@ -10,11 +10,10 @@ type Any = any; // make it easy on linter
 interface SyntheticTmplContext extends mod.SqlEmitContext {
 }
 
+const stContext = (): SyntheticTmplContext => mod.typicalSqlEmitContext();
+
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
-  const ctx: SyntheticTmplContext = {
-    sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
-    embeddedSQL: mod.SQL,
-  };
+  const ctx = stContext();
   const schema = mdf.syntheticTableDefns<SyntheticTmplContext>();
   const persist = (
     sts: mod.SqlTextSupplier<SyntheticTmplContext>,

@@ -3,10 +3,7 @@ import * as mod from "./schema.ts";
 import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) schema", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("idempotent schema declaration", () => {
     const view = mod.sqlSchemaDefn("synthetic_schema1", {

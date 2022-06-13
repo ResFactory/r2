@@ -12,6 +12,8 @@ type Any = any; // make it easy on linter
 interface SyntheticTmplContext extends mod.SqlEmitContext {
 }
 
+const stContext = (): SyntheticTmplContext => mod.typicalSqlEmitContext();
+
 const table = <
   TableName extends string,
   TPropAxioms extends
@@ -69,10 +71,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
     }
   }
 
-  const ctx: SyntheticTmplContext = {
-    sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
-    embeddedSQL: mod.SQL,
-  };
+  const ctx = stContext();
 
   // deno-fmt-ignore
   const DDL = mod.SQL<SyntheticTmplContext>(mod.typicalSqlTextSupplierOptions({

@@ -5,10 +5,7 @@ import * as tmpl from "../../template/mod.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 
 Deno.test("SQL Aide (SQLa) custom data type (domain)", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("idempotent domain declaration", () => {
     const domain = mod.pgDomainDefn(d.text(), "custom_type_1", {

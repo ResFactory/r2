@@ -66,7 +66,7 @@ export function pgExtensionDefn<
         return `CREATE EXTENSION ${
           isIdempotent ? "IF NOT EXISTS " : ""
         }${extension} SCHEMA ${
-          ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+          ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true })
             .schemaName(schema.sqlNamespace)
         }`;
       },

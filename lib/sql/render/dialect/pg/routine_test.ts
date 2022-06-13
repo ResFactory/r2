@@ -6,10 +6,7 @@ import * as d from "../../domain.ts";
 import * as ty from "../../ddl/type.ts";
 
 Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("PL/pgSQL anonymous block (auto begin/end)", () => {
     const autoBeginEndAnonBlock = mod.anonymousPlPgSqlRoutine(ctx)`

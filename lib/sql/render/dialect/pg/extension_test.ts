@@ -4,10 +4,7 @@ import * as sch from "../../ddl/schema.ts";
 import * as tmpl from "../../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
 
   await tc.step("idempotent extension declaration", () => {
     const extn = mod.pgExtensionDefn(

@@ -5,10 +5,7 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-    embeddedSQL: tmpl.SQL,
-  };
+  const ctx = tmpl.typicalSqlEmitContext();
   const SQL = mod.select(ctx);
 
   await tc.step("invalid SELECT statement (misspelled token)", () => {

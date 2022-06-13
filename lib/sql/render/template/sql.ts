@@ -76,8 +76,11 @@ export interface SqlNamingStrategy {
   ): SqlObjectNamingStrategy;
 }
 
+export interface SqlNamingStrategySupplier {
+  readonly sqlNamingStrategy: SqlNamingStrategy;
+}
+
 export interface SqlTextEmitOptions {
-  readonly namingStrategy: SqlNamingStrategy;
   readonly quotedLiteral: (value: unknown) => [value: unknown, quoted: string];
   readonly comments: (text: string, indent?: string) => string;
   readonly indentation: (
@@ -106,8 +109,21 @@ export interface EmbeddedSqlSupplier {
   ) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier>;
 }
 
-export interface SqlEmitContext extends EmbeddedSqlSupplier {
+export interface SqlEmitContext
+  extends EmbeddedSqlSupplier, SqlNamingStrategySupplier {
   readonly sqlTextEmitOptions: SqlTextEmitOptions;
+}
+
+export function typicalSqlEmitContext(
+  inherit?: Partial<SqlEmitContext>,
+): SqlEmitContext {
+  const result: SqlEmitContext = {
+    embeddedSQL: SQL,
+    sqlNamingStrategy: typicalSqlNamingStrategy(),
+    sqlTextEmitOptions: typicalSqlTextEmitOptions(),
+    ...inherit,
+  };
+  return result;
 }
 
 export function typicalQuotedSqlLiteral(
@@ -187,7 +203,6 @@ export function typicalSqlNamingStrategy(): SqlNamingStrategy {
 
 export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   return {
-    namingStrategy: typicalSqlNamingStrategy(),
     quotedLiteral: typicalQuotedSqlLiteral,
     comments: (text, indent = "") => text.replaceAll(/^/gm, `${indent}-- `),
     indentation: (nature, content) => {
