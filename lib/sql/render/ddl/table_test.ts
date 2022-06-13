@@ -20,6 +20,11 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     syntheticTable1Defn.tableName,
     syntheticTable1Defn.axiomObjectDecl,
   );
+  const syntheticTable1DefnVW = mod.tableDomainsViewWrapper(
+    `${syntheticTable1Defn.tableName}_vw`,
+    syntheticTable1Defn.tableName,
+    syntheticTable1Defn.axiomObjectDecl,
+  );
 
   const syntheticTable2Defn = mod.typicalKeysTableDefinition(
     "synthetic_table2",
@@ -38,6 +43,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
 
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("table 1 definition", () => {
@@ -81,6 +87,16 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       columnUnique: "unique",
     });
     expectType<string>(row.column_one_text); // should see compile error if this doesn't work
+  });
+
+  await tc.step("table 1 wrapper view", () => {
+    ta.assertEquals(
+      syntheticTable1DefnVW.SQL(ctx),
+      uws(`
+        CREATE VIEW IF NOT EXISTS "synthetic_table1_vw"("synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") AS
+            SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
+              FROM "synthetic_table1"`),
+    );
   });
 
   await tc.step("table 2 definition", () => {

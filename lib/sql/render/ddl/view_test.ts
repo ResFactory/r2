@@ -7,6 +7,7 @@ import * as d from "../domain.ts";
 Deno.test("SQL Aide (SQLa) views", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("idempotent view with columns inferred from select", () => {

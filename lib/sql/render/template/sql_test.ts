@@ -71,6 +71,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
 
   const ctx: SyntheticTmplContext = {
     sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
+    embeddedSQL: mod.SQL,
   };
 
   // deno-fmt-ignore

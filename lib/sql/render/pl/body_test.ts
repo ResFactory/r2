@@ -4,19 +4,20 @@ import * as mod from "./body.ts";
 import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) programming language body", async (tc) => {
-  const rawBodySQL = mod.body();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
+  };
+  const rawBodySQL = mod.body(ctx);
   const indent = (text: string, indent = "  ") =>
     text.replaceAll(/^/gm, `${indent}`);
   const surroundDo = (content: string) => `DO \$\$\n${content}\n$$`;
   const surroundBeginEnd = (content: string) =>
     indent(`BEGIN\n${indent(content)}\nEND`);
-  const surroundDoBESQL = mod.body({
+  const surroundDoBESQL = mod.body(ctx, {
     identity: "synthetic",
     surround: (SQL) => surroundDo(surroundBeginEnd(SQL)),
   });
-  const ctx: tmpl.SqlEmitContext = {
-    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
-  };
 
   await tc.step("valid, untyped, PL raw body with no auto-surround", () => {
     const body = rawBodySQL`

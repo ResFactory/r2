@@ -94,7 +94,19 @@ export interface SqlTextEmitOptions {
   ) => string;
 }
 
-export interface SqlEmitContext {
+export interface EmbeddedSqlSupplier {
+  readonly embeddedSQL: <
+    Context extends SqlEmitContext,
+    Expressions extends SqlPartialExpression<Context> = SqlPartialExpression<
+      Context
+    >,
+  >(stsOptions?: SqlTextSupplierOptions<Context>) => (
+    literals: TemplateStringsArray,
+    ...expressions: Expressions[]
+  ) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier>;
+}
+
+export interface SqlEmitContext extends EmbeddedSqlSupplier {
   readonly sqlTextEmitOptions: SqlTextEmitOptions;
 }
 
@@ -473,7 +485,9 @@ export function SQL<
     Context
   >,
 >(
-  stsOptions = typicalSqlTextSupplierOptions<Context>(),
+  stsOptions: SqlTextSupplierOptions<Context> = typicalSqlTextSupplierOptions<
+    Context
+  >(),
 ): (
   literals: TemplateStringsArray,
   ...expressions: Expressions[]

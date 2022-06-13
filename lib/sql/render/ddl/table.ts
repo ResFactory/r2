@@ -5,6 +5,7 @@ import * as tmpl from "../template/mod.ts";
 import * as tr from "../../../tabular/mod.ts";
 import * as dml from "../dml/mod.ts";
 import * as vw from "./view.ts";
+import * as ss from "../dql/select.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easier on Deno linting
@@ -563,25 +564,27 @@ export function tableDomainsViewWrapper<
 ) {
   const sd = d.sqlDomains(props, tdvwOptions);
   const selectColumnNames = sd.domains.map((d) => d.identity);
-  const selectColumnNamesSS: tmpl.SqlTextSupplier<Context> = {
-    SQL: (ctx) =>
-      selectColumnNames.map((cn) =>
-        ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
-          .tableColumnName({
+  const select: tmpl.SqlTextSupplier<Context> = {
+    SQL: (ctx) => {
+      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+        quoteIdentifiers: true,
+      });
+      return `SELECT ${
+        selectColumnNames.map((cn) =>
+          ns.tableColumnName({
             tableName,
             columnName: cn,
           })
-      ).join(", "),
+        ).join(", ")
+      }\n  FROM ${ns.tableName(tableName)}`;
+    },
   };
-  const tableNameSS: tmpl.SqlTextSupplier<Context> = {
-    SQL: (ctx) =>
-      ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
-        .tableName?.(
-          tableName,
-        ) ??
-        tableName,
+  const selectStmt: ss.Select<ViewName, Context> = {
+    isValid: true,
+    selectStmt: select,
+    ...select,
   };
-  return vw.safeViewDefinition(viewName, props, tdvwOptions)`
-    SELECT ${selectColumnNamesSS}
-      FROM ${tableNameSS}`;
+  // views use render/dql/select.ts Select statements and they must
+  // start with the literal word SELECT; TODO: fix this?
+  return vw.safeViewDefinitionCustom(viewName, props, selectStmt, tdvwOptions);
 }

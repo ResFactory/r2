@@ -1,6 +1,5 @@
 import * as safety from "../../../safety/mod.ts";
 import * as ax from "../../../safety/axiom.ts";
-import * as ws from "../../../text/whitespace.ts";
 import * as tmpl from "../template/mod.ts";
 import * as ss from "../dql/select.ts";
 import * as d from "../domain.ts";
@@ -51,23 +50,25 @@ export function viewDefinition<
   Context extends tmpl.SqlEmitContext,
 >(
   viewName: ViewName,
-  vdOptions?: ViewDefnOptions<ViewName, Any, Context> & {
-    readonly onPropertyNotAxiomSqlDomain?: (
-      name: string,
-      axiom: Any,
-      domains: d.IdentifiableSqlDomain<Any, Context>[],
-    ) => void;
-  },
+  vdOptions?:
+    & ViewDefnOptions<ViewName, Any, Context>
+    & Partial<tmpl.EmbeddedSqlSupplier>
+    & {
+      readonly onPropertyNotAxiomSqlDomain?: (
+        name: string,
+        axiom: Any,
+        domains: d.IdentifiableSqlDomain<Any, Context>[],
+      ) => void;
+    },
 ) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
-    const ssPartial = ss.select<Any, Context>({
-      literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-    });
+    const { isTemp, isIdempotent = true, embeddedSQL = tmpl.SQL } = vdOptions ??
+      {};
+    const ssPartial = ss.select<Any, Context>({ embeddedSQL });
     const selectStmt = ssPartial(literals, ...expressions);
-    const { isTemp, isIdempotent = true } = vdOptions ?? {};
     const viewDefn:
       & ViewDefinition<ViewName, Context>
       & tmpl.SqlTextLintIssuesSupplier<Context> = {
@@ -91,7 +92,7 @@ export function viewDefinition<
             isIdempotent ? "IF NOT EXISTS " : ""
           }${ns.viewName(viewName)} AS\n${viewSelectStmtSqlText}`;
           return vdOptions?.before
-            ? tmpl.SQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>()`${[
               vdOptions.before(viewName, vdOptions),
               create,
             ]}`
@@ -107,6 +108,82 @@ export function viewDefinition<
   };
 }
 
+export function safeViewDefinitionCustom<
+  ViewName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+  ColumnName extends keyof TPropAxioms & string = keyof TPropAxioms & string,
+>(
+  viewName: ViewName,
+  props: TPropAxioms,
+  selectStmt:
+    & ss.Select<Any, Context>
+    & Partial<tmpl.SqlTextLintIssuesSupplier<Context>>,
+  vdOptions?:
+    & ViewDefnOptions<ViewName, ColumnName, Context>
+    & Partial<tmpl.EmbeddedSqlSupplier>
+    & {
+      readonly onPropertyNotAxiomSqlDomain?: (
+        name: string,
+        axiom: Any,
+        domains: d.IdentifiableSqlDomain<Any, Context>[],
+      ) => void;
+    },
+) {
+  const { isTemp, isIdempotent = true } = vdOptions ?? {};
+  const sd = props ? d.sqlDomains(props, vdOptions) : undefined;
+  const viewColumns = sd
+    ? sd.domains.map((d) => d.identity as ColumnName)
+    : undefined;
+  const viewDefn:
+    & ViewDefinition<ViewName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      isValid: selectStmt.isValid,
+      viewName,
+      isTemp,
+      isIdempotent,
+      populateSqlTextLintIssues: (lintIssues, steOptions) =>
+        selectStmt.populateSqlTextLintIssues?.(lintIssues, steOptions),
+      SQL: (ctx) => {
+        const { sqlTextEmitOptions: steOptions } = ctx;
+        const rawSelectStmtSqlText = selectStmt.SQL(ctx);
+        const viewSelectStmtSqlText = steOptions.indentation(
+          "create view select statement",
+          rawSelectStmtSqlText,
+        );
+        const ns = steOptions.namingStrategy(ctx, {
+          quoteIdentifiers: true,
+        });
+        const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
+          isIdempotent ? "IF NOT EXISTS " : ""
+        }${ns.viewName(viewName)}${
+          viewColumns
+            ? `(${
+              viewColumns.map((cn) =>
+                ns.viewColumnName({
+                  viewName,
+                  columnName: cn,
+                })
+              ).join(", ")
+            })`
+            : ""
+        } AS\n${viewSelectStmtSqlText}`;
+        return vdOptions?.before
+          ? ctx.embeddedSQL<Context>()`${[
+            vdOptions.before(viewName, vdOptions),
+            create,
+          ]}`.SQL(ctx)
+          : create;
+      },
+    };
+  return {
+    ...sd,
+    ...viewDefn,
+    selectStmt,
+    drop: (options?: { ifExists?: boolean }) => dropView(viewName, options),
+  };
+}
+
 export function safeViewDefinition<
   ViewName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
@@ -115,79 +192,31 @@ export function safeViewDefinition<
 >(
   viewName: ViewName,
   props: TPropAxioms,
-  vdOptions?: ViewDefnOptions<ViewName, ColumnName, Context> & {
-    readonly onPropertyNotAxiomSqlDomain?: (
-      name: string,
-      axiom: Any,
-      domains: d.IdentifiableSqlDomain<Any, Context>[],
-    ) => void;
-  },
+  vdOptions?:
+    & ViewDefnOptions<ViewName, ColumnName, Context>
+    & Partial<tmpl.EmbeddedSqlSupplier>
+    & {
+      readonly onPropertyNotAxiomSqlDomain?: (
+        name: string,
+        axiom: Any,
+        domains: d.IdentifiableSqlDomain<Any, Context>[],
+      ) => void;
+    },
 ) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
-    // deno-lint-ignore no-explicit-any
-    const ssPartial = ss.safeSelect<any, TPropAxioms, Context>(
+    const { embeddedSQL = tmpl.SQL } = vdOptions ?? {};
+    const selectStmt = ss.safeSelect<Any, TPropAxioms, Context>(props, {
+      embeddedSQL,
+    });
+    return safeViewDefinitionCustom(
+      viewName,
       props,
-      {
-        literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-      },
+      selectStmt(literals, ...expressions),
+      vdOptions,
     );
-    const selectStmt = ssPartial(literals, ...expressions);
-    const sd = props ? d.sqlDomains(props, vdOptions) : undefined;
-    const viewColumns = sd
-      ? sd.domains.map((d) => d.identity as ColumnName)
-      : undefined;
-    const { isTemp, isIdempotent = true } = vdOptions ?? {};
-    const viewDefn:
-      & ViewDefinition<ViewName, Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
-        isValid: selectStmt.isValid,
-        viewName,
-        isTemp,
-        isIdempotent,
-        populateSqlTextLintIssues: (lintIssues, steOptions) =>
-          selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
-        SQL: (ctx) => {
-          const { sqlTextEmitOptions: steOptions } = ctx;
-          const rawSelectStmtSqlText = selectStmt.SQL(ctx);
-          const viewSelectStmtSqlText = steOptions.indentation(
-            "create view select statement",
-            rawSelectStmtSqlText,
-          );
-          const ns = steOptions.namingStrategy(ctx, {
-            quoteIdentifiers: true,
-          });
-          const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
-            isIdempotent ? "IF NOT EXISTS " : ""
-          }${ns.viewName(viewName)}${
-            viewColumns
-              ? `(${
-                viewColumns.map((cn) =>
-                  ns.viewColumnName({
-                    viewName,
-                    columnName: cn,
-                  })
-                ).join(", ")
-              })`
-              : ""
-          } AS\n${viewSelectStmtSqlText}`;
-          return vdOptions?.before
-            ? tmpl.SQL<Context>()`${[
-              vdOptions.before(viewName, vdOptions),
-              create,
-            ]}`
-              .SQL(ctx)
-            : create;
-        },
-      };
-    return {
-      ...sd,
-      ...viewDefn,
-      selectStmt,
-      drop: (options?: { ifExists?: boolean }) => dropView(viewName, options),
-    };
   };
 }
 

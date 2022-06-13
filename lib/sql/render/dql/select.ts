@@ -1,5 +1,4 @@
 import * as safety from "../../../safety/mod.ts";
-import * as ws from "../../../text/whitespace.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as tmpl from "../template/mod.ts";
 import * as l from "../lint.ts";
@@ -68,6 +67,7 @@ export function selectTemplateResult<
   Context extends tmpl.SqlEmitContext,
 >(
   literals: TemplateStringsArray,
+  ess: tmpl.EmbeddedSqlSupplier,
   ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) {
@@ -85,10 +85,7 @@ export function selectTemplateResult<
     }
   }
 
-  const partial = tmpl.SQL<Context>({
-    literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
-  });
-  const selectStmt = partial(literals, ...expressions);
+  const selectStmt = ess.embeddedSQL<Context>()(literals, ...expressions);
   const { selectStmtName } = ssOptions ?? {};
 
   const result:
@@ -111,12 +108,15 @@ export function selectTemplateResult<
 export function select<
   SelectStmtName extends string,
   Context extends tmpl.SqlEmitContext,
->(ssOptions?: SelectTemplateOptions<SelectStmtName, Context>) {
+>(
+  ess: tmpl.EmbeddedSqlSupplier,
+  ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
+) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
-    return selectTemplateResult(literals, ssOptions, ...expressions);
+    return selectTemplateResult(literals, ess, ssOptions, ...expressions);
   };
 }
 
@@ -126,6 +126,7 @@ export function safeSelect<
   Context extends tmpl.SqlEmitContext,
 >(
   props: TPropAxioms,
+  ess: tmpl.EmbeddedSqlSupplier,
   ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
 ) {
   return (
@@ -134,7 +135,7 @@ export function safeSelect<
   ) => {
     return {
       ...d.sqlDomains(props, ssOptions),
-      ...selectTemplateResult(literals, ssOptions, ...expressions),
+      ...selectTemplateResult(literals, ess, ssOptions, ...expressions),
     };
   };
 }

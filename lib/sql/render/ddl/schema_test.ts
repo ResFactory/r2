@@ -5,6 +5,7 @@ import * as tmpl from "../template/mod.ts";
 Deno.test("SQL Aide (SQLa) schema", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("idempotent schema declaration", () => {

@@ -13,6 +13,7 @@ interface SyntheticTmplContext extends mod.SqlEmitContext {
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   const ctx: SyntheticTmplContext = {
     sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
+    embeddedSQL: mod.SQL,
   };
   const schema = mdf.syntheticTableDefns<SyntheticTmplContext>();
   const persist = (

@@ -33,6 +33,7 @@ export function body<
   BodyIdentity extends string,
   Context extends tmpl.SqlEmitContext,
 >(
+  ess: tmpl.EmbeddedSqlSupplier,
   bOptions?: BodyDefnOptions<BodyIdentity, Context>,
 ) {
   return (
@@ -41,7 +42,7 @@ export function body<
   ):
     & govn.RoutineBody<BodyIdentity, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context> => {
-    const partial = tmpl.SQL<Context>({
+    const partial = ess.embeddedSQL<Context>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const content = partial(literals, ...expressions);

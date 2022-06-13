@@ -7,6 +7,7 @@ import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 Deno.test("SQL Aide (SQLa) custom data type (domain)", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("idempotent domain declaration", () => {

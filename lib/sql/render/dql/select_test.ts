@@ -5,10 +5,11 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
-  const SQL = mod.select();
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
+  const SQL = mod.select(ctx);
 
   await tc.step("invalid SELECT statement (misspelled token)", () => {
     const select = SQL`
@@ -25,11 +26,15 @@ Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
   });
 
   await tc.step("valid named SELECT statement with typed column names", () => {
-    const select = mod.safeSelect({
-      customer_name: d.text(),
-      order_count: d.integerNullable(),
-      city: d.text(),
-    }, { selectStmtName: "ss_name" })`
+    const select = mod.safeSelect(
+      {
+        customer_name: d.text(),
+        order_count: d.integerNullable(),
+        city: d.text(),
+      },
+      ctx,
+      { selectStmtName: "ss_name" },
+    )`
       SELECT customer_name, order_count, city
         FROM customers`;
     ta.assert(select.isValid);

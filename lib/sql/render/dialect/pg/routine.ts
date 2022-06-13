@@ -126,12 +126,12 @@ export interface PgProceduralLangBody<
 export function untypedPlSqlBody<
   BodyIdentity extends string,
   Context extends tmpl.SqlEmitContext,
->(identity: BodyIdentity) {
+>(identity: BodyIdentity, ess: tmpl.EmbeddedSqlSupplier) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
-    const contentPartial = tmpl.SQL<Context>(
+    const contentPartial = ess.embeddedSQL<Context>(
       routineSqlTextSupplierOptions(),
     );
     const content = contentPartial(literals, ...expressions);
@@ -161,12 +161,16 @@ export function untypedPlSqlBody<
 export function untypedPlPgSqlBody<
   BodyIdentity extends string,
   Context extends tmpl.SqlEmitContext,
->(identity: BodyIdentity, bOptions?: { readonly autoBeginEnd?: boolean }) {
+>(
+  identity: BodyIdentity,
+  ess: tmpl.EmbeddedSqlSupplier,
+  bOptions?: { readonly autoBeginEnd?: boolean },
+) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
-    const contentPartial = tmpl.SQL<Context>(
+    const contentPartial = ess.embeddedSQL<Context>(
       routineSqlTextSupplierOptions(),
     );
     const content = contentPartial(literals, ...expressions);
@@ -205,6 +209,7 @@ export function typedPlSqlBody<
 >(
   identity: BodyIdentity,
   argDefns: ArgAxioms,
+  ess: tmpl.EmbeddedSqlSupplier,
 ) {
   return (
     literals: TemplateStringsArray,
@@ -212,6 +217,7 @@ export function typedPlSqlBody<
   ) => {
     const untypedBody = untypedPlSqlBody<BodyIdentity, Context>(
       identity,
+      ess,
     );
     return {
       ...argDefns,
@@ -227,6 +233,7 @@ export function typedPlPgSqlBody<
 >(
   identity: BodyIdentity,
   argDefns: ArgAxioms,
+  ess: tmpl.EmbeddedSqlSupplier,
   bOptions?: { readonly autoBeginEnd?: boolean },
 ) {
   return (
@@ -235,6 +242,7 @@ export function typedPlPgSqlBody<
   ) => {
     const untypedBody = untypedPlPgSqlBody<BodyIdentity, Context>(
       identity,
+      ess,
       bOptions,
     );
     return {
@@ -276,7 +284,7 @@ export function typicalPgProcLangBodySqlTextSupplier<
 
 export function anonymousPlSqlRoutine<
   Context extends tmpl.SqlEmitContext,
->(): (
+>(ess: tmpl.EmbeddedSqlSupplier): (
   literals: TemplateStringsArray,
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
@@ -285,6 +293,7 @@ export function anonymousPlSqlRoutine<
   return (literals, ...expressions) => {
     const body = untypedPlSqlBody<r.ANONYMOUS, Context>(
       "ANONYMOUS",
+      ess,
     )(literals, ...expressions);
     return {
       isValid: body.isValid,
@@ -297,7 +306,10 @@ export function anonymousPlSqlRoutine<
 
 export function anonymousPlPgSqlRoutine<
   Context extends tmpl.SqlEmitContext,
->(rdOptions?: { readonly autoBeginEnd: boolean }): (
+>(
+  ess: tmpl.EmbeddedSqlSupplier,
+  rdOptions?: { readonly autoBeginEnd: boolean },
+): (
   literals: TemplateStringsArray,
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
@@ -306,6 +318,7 @@ export function anonymousPlPgSqlRoutine<
   return (literals, ...expressions) => {
     const body = untypedPlPgSqlBody<r.ANONYMOUS, Context>(
       "ANONYMOUS",
+      ess,
       rdOptions,
     )(literals, ...expressions);
     return {
@@ -319,14 +332,14 @@ export function anonymousPlPgSqlRoutine<
 
 export function doIgnoreDuplicate<
   Context extends tmpl.SqlEmitContext,
->(): (
+>(ess: tmpl.EmbeddedSqlSupplier): (
   literals: TemplateStringsArray,
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
   & r.AnonymousRoutineDefn<Context>
   & tmpl.SqlTextLintIssuesSupplier<Context> {
   return (literals, ...expressions) => {
-    const contentPartial = tmpl.SQL<Context>(
+    const contentPartial = ess.embeddedSQL<Context>(
       routineSqlTextSupplierOptions(),
     );
     const content = contentPartial(literals, ...expressions);
@@ -468,7 +481,7 @@ export function storedProcedure<
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} PROCEDURE ${ns.storedRoutineName(routineName)}(${argsSQL}) AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
           return spOptions?.before
-            ? tmpl.SQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>()`${[
               spOptions.before(routineName, spOptions),
               sqlText,
             ]}`.SQL(ctx)
@@ -598,7 +611,7 @@ export function storedFunction<
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} FUNCTION ${ns.storedRoutineName(routineName)}(${argsSQL}) RETURNS ${returnsSQL} AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
           return sfOptions?.before
-            ? tmpl.SQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>()`${[
               sfOptions.before(routineName, sfOptions),
               sqlText,
             ]}`.SQL(ctx)

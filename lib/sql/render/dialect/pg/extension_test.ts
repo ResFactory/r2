@@ -6,6 +6,7 @@ import * as tmpl from "../../template/mod.ts";
 Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("idempotent extension declaration", () => {

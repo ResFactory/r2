@@ -77,8 +77,6 @@ following types of SQL language constructs.
 
 ## TODO
 
-- [ ] In *.before() and other SQL template wrappers, use ctx.SQL() instead of
-      tmpl.SQL()
 - [ ] Use legacy `state.observableQR` strategy for defining and using schemas
 - [ ] Create CALL SqlTextSupplier as a new stored routine object property
       similar to how a InsertStatementPreparer works. Just like DML is tied to a

@@ -8,10 +8,11 @@ import * as ty from "../../ddl/type.ts";
 Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("PL/pgSQL anonymous block (auto begin/end)", () => {
-    const autoBeginEndAnonBlock = mod.anonymousPlPgSqlRoutine()`
+    const autoBeginEndAnonBlock = mod.anonymousPlPgSqlRoutine(ctx)`
         CREATE DOMAIN custom_type_1 AS TEXT;
       EXCEPTION
         WHEN DUPLICATE_OBJECT THEN
@@ -33,7 +34,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   await tc.step(
     "PL/pgSQL DO block with safe duplicate exception dismissal",
     () => {
-      const doSafeDupe = mod.doIgnoreDuplicate()`
+      const doSafeDupe = mod.doIgnoreDuplicate(ctx)`
         CREATE DOMAIN custom_type_1 AS TEXT;`;
       ta.assertEquals(
         doSafeDupe.SQL(ctx),
@@ -54,7 +55,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         text: d.text(),
         int: d.integer(),
       });
-      const doSafeDupe = mod.doIgnoreDuplicate()`${synTypeDefn}`;
+      const doSafeDupe = mod.doIgnoreDuplicate(ctx)`${synTypeDefn}`;
       ta.assertEquals(
         doSafeDupe.SQL(ctx),
         uws(`
@@ -71,7 +72,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   );
 
   await tc.step("PL/pgSQL anonymous block (manual begin/end)", () => {
-    const anonBlock = mod.anonymousPlPgSqlRoutine({ autoBeginEnd: false })`
+    const anonBlock = mod.anonymousPlPgSqlRoutine(ctx, { autoBeginEnd: false })`
       BEGIN
         CREATE DOMAIN custom_type_1 AS TEXT;
       EXCEPTION
@@ -97,7 +98,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
     () => {
       const sp = mod.storedProcedure("synthetic_sp1", {
         arg1: d.text(),
-      }, (name, args) => mod.typedPlSqlBody(name, args))`
+      }, (name, args) => mod.typedPlSqlBody(name, args, ctx))`
       -- this is the stored procedure body`;
       ta.assertEquals(
         sp.SQL(ctx),
@@ -120,7 +121,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           arg3: mod.OUT(d.bigint()),
           arg4: mod.IN_OUT(d.date()),
         },
-        (name, args, bo) => mod.typedPlPgSqlBody(name, args, bo),
+        (name, args, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
         { before: (name) => mod.dropStoredProcedure(name) },
       )`
       -- this is the stored procedure body`;
@@ -149,7 +150,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           }),
         },
         { label: d.text(), cnt: d.bigint() },
-        (name, args) => mod.typedPlSqlBody(name, args),
+        (name, args) => mod.typedPlSqlBody(name, args, ctx),
       )`
         SELECT label, count(*) AS Cnt
           FROM test
@@ -182,7 +183,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           toDate: d.date(),
         },
         { label: d.text(), cnt: d.bigint() },
-        (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, bo),
+        (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
       )`
         RETURN query
           SELECT label, count(*) AS Cnt
@@ -215,7 +216,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           b: d.text(),
         },
         "RECORD",
-        (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, bo),
+        (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
         { autoBeginEnd: false, isIdempotent: false },
       )`
         DECLARE

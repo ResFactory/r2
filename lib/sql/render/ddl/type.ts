@@ -74,7 +74,7 @@ export function sqlTypeDefinition<
         }\n)`,
       );
       return vdOptions?.before
-        ? tmpl.SQL<Context>()`${[
+        ? ctx.embeddedSQL<Context>()`${[
           vdOptions.before(typeName, vdOptions),
           create,
         ]}`.SQL(ctx)

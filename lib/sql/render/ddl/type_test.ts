@@ -7,6 +7,7 @@ import * as d from "../domain.ts";
 Deno.test("SQL Aide (SQLa) types", async (tc) => {
   const ctx: tmpl.SqlEmitContext = {
     sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+    embeddedSQL: tmpl.SQL,
   };
 
   await tc.step("create SQL type", () => {
