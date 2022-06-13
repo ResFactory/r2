@@ -583,6 +583,7 @@ export function tableDomainsViewWrapper<
     isValid: true,
     selectStmt: select,
     ...select,
+    ...sd,
   };
   // views use render/dql/select.ts Select statements and they must
   // start with the literal word SELECT; TODO: fix this?
