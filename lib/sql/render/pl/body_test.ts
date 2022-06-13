@@ -14,7 +14,9 @@ Deno.test("SQL Aide (SQLa) programming language body", async (tc) => {
     identity: "synthetic",
     surround: (SQL) => surroundDo(surroundBeginEnd(SQL)),
   });
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("valid, untyped, PL raw body with no auto-surround", () => {
     const body = rawBodySQL`
@@ -39,7 +41,7 @@ Deno.test("SQL Aide (SQLa) programming language body", async (tc) => {
     ta.assert(body.isValid);
     ta.assertEquals(body.identity, "synthetic");
     ta.assertEquals(
-      body.SQL(undefined, emitOptions),
+      body.SQL(ctx),
       uws(`
         DO $$
           BEGIN

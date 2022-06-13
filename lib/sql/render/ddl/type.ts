@@ -8,61 +8,55 @@ type Any = any;
 
 export interface SqlTypeDefinition<
   TypeName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly typeName: TypeName;
 }
 
 export function isSqlTypeDefinition<
   TypeName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is SqlTypeDefinition<TypeName, EmitOptions, Context> {
+): o is SqlTypeDefinition<TypeName, Context> {
   const isViewDefn = safety.typeGuard<
-    SqlTypeDefinition<TypeName, EmitOptions, Context>
-  >(
-    "typeName",
-    "SQL",
-  );
+    SqlTypeDefinition<TypeName, Context>
+  >("typeName", "SQL");
   return isViewDefn(o);
 }
 
 export interface SqlTypeDefnOptions<
   TypeName extends string,
   FieldName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends tmpl.SqlTextSupplierOptions<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplierOptions<Context> {
   readonly before?: (
     viewName: TypeName,
-    vdOptions: SqlTypeDefnOptions<TypeName, FieldName, EmitOptions, Context>,
-  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
+    vdOptions: SqlTypeDefnOptions<TypeName, FieldName, Context>,
+  ) => tmpl.SqlTextSupplier<Context>;
 }
 
 export function sqlTypeDefinition<
   TypeName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   ColumnName extends keyof TPropAxioms & string = keyof TPropAxioms & string,
 >(
   typeName: TypeName,
   props: TPropAxioms,
-  vdOptions?: SqlTypeDefnOptions<TypeName, ColumnName, EmitOptions, Context> & {
+  vdOptions?: SqlTypeDefnOptions<TypeName, ColumnName, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
       axiom: Any,
-      domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+      domains: d.IdentifiableSqlDomain<Any, Context>[],
     ) => void;
   },
 ) {
   const sd = d.sqlDomains(props, vdOptions);
-  const typeDefn: SqlTypeDefinition<TypeName, EmitOptions, Context> = {
+  const typeDefn: SqlTypeDefinition<TypeName, Context> = {
     typeName,
-    SQL: (ctx, steOptions) => {
+    SQL: (ctx) => {
+      const { sqlTextEmitOptions: steOptions } = ctx;
       const ns = steOptions.namingStrategy(ctx, {
         quoteIdentifiers: true,
       });
@@ -75,16 +69,15 @@ export function sqlTypeDefinition<
           ) => (`${ns.typeFieldName({ typeName, fieldName: r.identity })} ${
             r.sqlDataType("type field").SQL(
               ctx,
-              steOptions,
             )
           }`)).join(`,\n${ctfi}`)
         }\n)`,
       );
       return vdOptions?.before
-        ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
+        ? tmpl.SQL<Context>()`${[
           vdOptions.before(typeName, vdOptions),
           create,
-        ]}`.SQL(ctx, steOptions)
+        ]}`.SQL(ctx)
         : create;
     },
   };
@@ -97,16 +90,17 @@ export function sqlTypeDefinition<
 
 export function dropType<
   ViewName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   viewName: ViewName,
   dvOptions?: { ifExists?: boolean },
-): tmpl.SqlTextSupplier<Context, EmitOptions> {
+): tmpl.SqlTextSupplier<Context> {
   const { ifExists = true } = dvOptions ?? {};
   return {
-    SQL: (ctx, steOptions) => {
-      const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+    SQL: (ctx) => {
+      const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
+        quoteIdentifiers: true,
+      });
       return `DROP TYPE ${ifExists ? "IF EXISTS " : ""}${
         ns.viewName(viewName)
       }`;

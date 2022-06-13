@@ -5,8 +5,9 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) views", async (tc) => {
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("idempotent view with columns inferred from select", () => {
     const view = mod.viewDefinition("synthetic_view")`
@@ -14,7 +15,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
         FROM table
        WHERE something = 'true'`;
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       uws(`
          CREATE VIEW IF NOT EXISTS "synthetic_view" AS
              SELECT this, that, the_other
@@ -35,7 +36,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
     // view.axiomObjectDecl?.the_other
 
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       uws(`
          CREATE VIEW IF NOT EXISTS "synthetic_view"("this", "that", "the_other") AS
              SELECT this, that, the_other
@@ -53,7 +54,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
         FROM table
        WHERE something = 'true'`;
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       uws(`
          CREATE TEMP VIEW "synthetic_view" AS
              SELECT this, that, the_other
@@ -71,7 +72,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
         FROM table
        WHERE something = 'true'`;
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       uws(`
          DROP VIEW IF EXISTS "synthetic_view";
          CREATE VIEW "synthetic_view" AS
@@ -81,11 +82,11 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
     );
 
     ta.assertEquals(
-      view.drop().SQL(ctx, emitOptions),
+      view.drop().SQL(ctx),
       `DROP VIEW IF EXISTS "synthetic_view"`,
     );
     ta.assertEquals(
-      view.drop({ ifExists: false }).SQL(ctx, emitOptions),
+      view.drop({ ifExists: false }).SQL(ctx),
       `DROP VIEW "synthetic_view"`,
     );
   });

@@ -4,29 +4,29 @@ import * as sch from "../../ddl/schema.ts";
 import * as tmpl from "../../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
-  const edf = mod.typicalPgExtensionDefnFactory();
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("idempotent extension declaration", () => {
-    const extn = edf.pgExtensionDefn(
+    const extn = mod.pgExtensionDefn(
       sch.sqlSchemaDefn("synthetic_schema"),
       "synthetic_extension",
     );
     ta.assertEquals(
-      extn.SQL(ctx, emitOptions),
+      extn.SQL(ctx),
       `CREATE EXTENSION IF NOT EXISTS synthetic_extension SCHEMA "synthetic_schema"`,
     );
   });
 
   await tc.step("non-idempotent extension declaration", () => {
-    const extn = edf.pgExtensionDefn(
+    const extn = mod.pgExtensionDefn(
       sch.sqlSchemaDefn("synthetic_schema"),
       "synthetic_extension",
       { isIdempotent: false },
     );
     ta.assertEquals(
-      extn.SQL(ctx, emitOptions),
+      extn.SQL(ctx),
       `CREATE EXTENSION synthetic_extension SCHEMA "synthetic_schema"`,
     );
   });

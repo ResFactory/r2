@@ -6,10 +6,9 @@ import * as nsp from "../namespace.ts";
 type Any = any;
 
 export interface SchemaDefinition<
-  Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions>, nsp.SqlNamespaceSupplier {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context>, nsp.SqlNamespaceSupplier {
   readonly isValid: boolean;
   readonly sqlNamespace: SchemaName;
   readonly isIdempotent: boolean;
@@ -17,14 +16,13 @@ export interface SchemaDefinition<
 }
 
 export function isSchemaDefinition<
-  Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is SchemaDefinition<Context, SchemaName, EmitOptions> {
+): o is SchemaDefinition<SchemaName, Context> {
   const isSD = safety.typeGuard<
-    SchemaDefinition<Context, SchemaName, EmitOptions>
+    SchemaDefinition<SchemaName, Context>
   >(
     "sqlNamespace",
     "SQL",
@@ -33,33 +31,30 @@ export function isSchemaDefinition<
 }
 
 export interface SchemaDefnOptions<
-  Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 > {
   readonly isIdempotent?: boolean;
 }
 
 export function sqlSchemaDefn<
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   schemaName: SchemaName,
-  schemaDefnOptions?: SchemaDefnOptions<Context, SchemaName, EmitOptions>,
+  schemaDefnOptions?: SchemaDefnOptions<SchemaName, Context>,
 ) {
   const { isIdempotent = false } = schemaDefnOptions ?? {};
   const result:
-    & SchemaDefinition<Context, SchemaName, EmitOptions>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
+    & SchemaDefinition<SchemaName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context> = {
       isValid: true,
       sqlNamespace: schemaName,
       isIdempotent,
       populateSqlTextLintIssues: () => {},
-      SQL: (ctx, steOptions) => {
-        return `CREATE SCHEMA ${
-          isIdempotent ? "IF NOT EXISTS " : ""
-        }${steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+      SQL: (ctx) => {
+        return `CREATE SCHEMA ${isIdempotent ? "IF NOT EXISTS " : ""}${ctx
+          .sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
           .schemaName?.(schemaName)}`;
       },
       schemaQualifier: tmpl.qualifyName(schemaName),

@@ -8,22 +8,20 @@ type Any = any;
 
 export function isBody<
   BodyIdentity extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is govn.RoutineBody<BodyIdentity, EmitOptions, Context> {
+): o is govn.RoutineBody<BodyIdentity, Context> {
   const isB = safety.typeGuard<
-    govn.RoutineBody<BodyIdentity, EmitOptions, Context>
+    govn.RoutineBody<BodyIdentity, Context>
   >("content", "SQL");
   return isB(o);
 }
 
 export type BodyDefnOptions<
   BodyIdentity extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
+  Context extends tmpl.SqlEmitContext,
+> = tmpl.SqlTextSupplierOptions<Context> & {
   readonly identity?: BodyIdentity;
   readonly surround?: string | {
     readonly pre: string;
@@ -33,18 +31,17 @@ export type BodyDefnOptions<
 
 export function body<
   BodyIdentity extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
-  bOptions?: BodyDefnOptions<BodyIdentity, EmitOptions, Context>,
+  bOptions?: BodyDefnOptions<BodyIdentity, Context>,
 ) {
   return (
     literals: TemplateStringsArray,
-    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+    ...expressions: tmpl.SqlPartialExpression<Context>[]
   ):
-    & govn.RoutineBody<BodyIdentity, EmitOptions, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> => {
-    const partial = tmpl.SQL<Context, EmitOptions>({
+    & govn.RoutineBody<BodyIdentity, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context> => {
+    const partial = tmpl.SQL<Context>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });
     const content = partial(literals, ...expressions);
@@ -54,16 +51,14 @@ export function body<
       identity,
       content,
       SQL: surround
-        ? ((ctx, steOptions) => {
+        ? ((ctx) => {
           switch (typeof surround) {
             case "string":
-              return `${surround}${content.SQL(ctx, steOptions)}${surround}`;
+              return `${surround}${content.SQL(ctx)}${surround}`;
             case "function":
-              return surround(content.SQL(ctx, steOptions));
+              return surround(content.SQL(ctx));
             default:
-              return `${surround.pre}${
-                content.SQL(ctx, steOptions)
-              }${surround.post}`;
+              return `${surround.pre}${content.SQL(ctx)}${surround.post}`;
           }
         })
         : content.SQL,

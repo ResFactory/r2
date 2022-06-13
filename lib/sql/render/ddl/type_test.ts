@@ -5,8 +5,9 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) types", async (tc) => {
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("create SQL type", () => {
     const type = mod.sqlTypeDefinition("synthetic_type", {
@@ -14,7 +15,7 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
       int: d.integer(),
     });
     ta.assertEquals(
-      type.SQL(ctx, emitOptions),
+      type.SQL(ctx),
       uws(`
          CREATE TYPE "synthetic_type" AS (
              "text" TEXT,
@@ -31,7 +32,7 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
       before: (typeName) => mod.dropType(typeName),
     });
     ta.assertEquals(
-      type.SQL(ctx, emitOptions),
+      type.SQL(ctx),
       uws(`
          DROP TYPE IF EXISTS "synthetic_type";
          CREATE TYPE "synthetic_type" AS (
@@ -41,11 +42,11 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
     );
 
     ta.assertEquals(
-      type.drop().SQL(ctx, emitOptions),
+      type.drop().SQL(ctx),
       `DROP TYPE IF EXISTS "synthetic_type"`,
     );
     ta.assertEquals(
-      type.drop({ ifExists: false }).SQL(ctx, emitOptions),
+      type.drop({ ifExists: false }).SQL(ctx),
       `DROP TYPE "synthetic_type"`,
     );
   });

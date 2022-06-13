@@ -6,15 +6,15 @@ import * as nsp from "../../namespace.ts";
 export interface PostgresSchemaSearchPathDefinition<
   Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly searchPath: SchemaName[];
 }
 
 export function isPostgresSchemaSearchPathDefinition<
   Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
 ): o is PostgresSchemaSearchPathDefinition<Context, SchemaName, EmitOptions> {
@@ -31,17 +31,16 @@ export function isPostgresSchemaSearchPathDefinition<
 export interface PostgresSchemaSearchPathDefnOptions<
   Context,
   SchemaName extends nsp.SqlNamespace,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 > {
 }
 
 export interface PostgresSchemaSearchPathDefnFactory<
   Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
-> extends sch.SchemaDefnFactory<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext = tmpl.SqlTextEmitOptions<
+    Context
+  >,
+> extends sch.SchemaDefnFactory<Context> {
   pgSearchPath: <SchemaName extends nsp.SqlNamespace>(
     searchPath: sch.SchemaDefinition<Context, SchemaName, EmitOptions>[],
     spDefnOptions?: PostgresSchemaSearchPathDefnOptions<
@@ -51,23 +50,22 @@ export interface PostgresSchemaSearchPathDefnFactory<
     >,
   ) =>
     & PostgresSchemaSearchPathDefinition<Context, SchemaName, EmitOptions>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>;
+    & tmpl.SqlTextLintIssuesSupplier<Context>;
 }
 
 export function typicalPostgresSchemaSearchPathDefnFactory<
   Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
->(): PostgresSchemaSearchPathDefnFactory<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext = tmpl.SqlTextEmitOptions<
+    Context
+  >,
+>(): PostgresSchemaSearchPathDefnFactory<Context> {
   return {
     ...sch.typicalSqlSchemaDefnFactory(),
     pgSearchPath: (searchPath) => {
       return {
         searchPath: searchPath.map((s) => s.sqlNamespace),
         populateSqlTextLintIssues: () => {},
-        SQL: (ctx, steOptions) => {
+        SQL: (ctx) => {
           return `SET search_path TO ${
             searchPath.map((schema) =>
               steOptions.namingStrategy(ctx, { quoteIdentifiers: true })

@@ -9,7 +9,7 @@ import * as d from "../domain.ts";
 type Any = any; // make it easy on linter
 
 // deno-lint-ignore no-empty-interface
-interface SyntheticTmplContext {
+interface SyntheticTmplContext extends mod.SqlEmitContext {
 }
 
 const table = <
@@ -28,8 +28,6 @@ const table = <
 };
 
 Deno.test("SQL Aide (SQLa) template", () => {
-  const ctx: SyntheticTmplContext = {};
-
   const syntheticTable1Defn = table("synthetic_table1", {
     synthetic_table1_id: ddl.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
@@ -54,18 +52,26 @@ Deno.test("SQL Aide (SQLa) template", () => {
     return result;
   };
 
-  const tablesDeclared = new Set<ddl.TableDefinition<Any, Any, Any>>();
-  const viewsDeclared = new Set<ddl.ViewDefinition<Any, Any, Any>>();
+  const tablesDeclared = new Set<
+    ddl.TableDefinition<Any, SyntheticTmplContext>
+  >();
+  const viewsDeclared = new Set<
+    ddl.ViewDefinition<Any, SyntheticTmplContext>
+  >();
 
   // deno-fmt-ignore
-  const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (ddl.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+  const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext>) => {
+    if (ddl.isTableDefinition<Any, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (ddl.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (ddl.isViewDefinition<Any, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }
+
+  const ctx: SyntheticTmplContext = {
+    sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
+  };
 
   // deno-fmt-ignore
   const DDL = mod.SQL<SyntheticTmplContext>(mod.typicalSqlTextSupplierOptions({
@@ -101,7 +107,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
 
     ${syntheticTable1Defn.insertDML({ column_one_text: "test", column_unique: "testHI" })}`;
 
-  const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
+  const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {
     console.dir(DDL.lintIssues);
   }

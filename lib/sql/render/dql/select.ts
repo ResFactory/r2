@@ -18,11 +18,10 @@ export type SelectNotFirstWordLintIssue = l.TemplateStringSqlLintIssue;
 
 export interface Select<
   SelectStmtName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly isValid: boolean;
-  readonly selectStmt: tmpl.SqlTextSupplier<Context, EmitOptions>;
+  readonly selectStmt: tmpl.SqlTextSupplier<Context>;
   readonly selectStmtName?: SelectStmtName;
 }
 
@@ -38,42 +37,39 @@ const firstWord = (text: string) => {
 
 export function isSelect<
   SelectStmtName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is Select<SelectStmtName, EmitOptions, Context> {
+): o is Select<SelectStmtName, Context> {
   const isSS = safety.typeGuard<
-    Select<SelectStmtName, EmitOptions, Context>
+    Select<SelectStmtName, Context>
   >("selectStmt", "SQL");
   return isSS(o);
 }
 
 export type SelectTemplateOptions<
   SelectStmtName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = tmpl.SqlTextSupplierOptions<Context, EmitOptions> & {
+  Context extends tmpl.SqlEmitContext,
+> = tmpl.SqlTextSupplierOptions<Context> & {
   readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
-    & Select<SelectStmtName, EmitOptions, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
+    & Select<SelectStmtName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context>
   );
   readonly selectStmtName?: SelectStmtName;
   readonly onPropertyNotAxiomSqlDomain?: (
     name: string,
     axiom: Any,
-    domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+    domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
 };
 
 export function selectTemplateResult<
   SelectStmtName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   literals: TemplateStringsArray,
-  ssOptions?: SelectTemplateOptions<SelectStmtName, EmitOptions, Context>,
-  ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+  ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
+  ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) {
   let invalid: SelectNotFirstWordLintIssue | undefined;
   const candidateSQL = literals[0];
@@ -89,20 +85,20 @@ export function selectTemplateResult<
     }
   }
 
-  const partial = tmpl.SQL<Context, EmitOptions>({
+  const partial = tmpl.SQL<Context>({
     literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
   });
   const selectStmt = partial(literals, ...expressions);
   const { selectStmtName } = ssOptions ?? {};
 
   const result:
-    & Select<SelectStmtName, EmitOptions, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions> = {
+    & Select<SelectStmtName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context> = {
       isValid: invalid === undefined,
       selectStmtName: selectStmtName,
       selectStmt,
       SQL: invalid
-        ? ((_, steOptions) => steOptions.comments(invalid!.lintIssue))
+        ? ((ctx) => ctx.sqlTextEmitOptions.comments(invalid!.lintIssue))
         : selectStmt.SQL,
       populateSqlTextLintIssues: (lintIssues) => {
         if (invalid) lintIssues.push(invalid);
@@ -114,12 +110,11 @@ export function selectTemplateResult<
 
 export function select<
   SelectStmtName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
->(ssOptions?: SelectTemplateOptions<SelectStmtName, EmitOptions, Context>) {
+  Context extends tmpl.SqlEmitContext,
+>(ssOptions?: SelectTemplateOptions<SelectStmtName, Context>) {
   return (
     literals: TemplateStringsArray,
-    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+    ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
     return selectTemplateResult(literals, ssOptions, ...expressions);
   };
@@ -128,15 +123,14 @@ export function select<
 export function safeSelect<
   SelectStmtName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   props: TPropAxioms,
-  ssOptions?: SelectTemplateOptions<SelectStmtName, EmitOptions, Context>,
+  ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
 ) {
   return (
     literals: TemplateStringsArray,
-    ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
+    ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
     return {
       ...d.sqlDomains(props, ssOptions),

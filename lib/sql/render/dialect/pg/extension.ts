@@ -6,27 +6,25 @@ import * as nsp from "../../namespace.ts";
 export type PostgresExtension = string;
 
 export interface ExtensionDefinition<
-  Context,
   SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly isValid: boolean;
   readonly extension: ExtensionName;
   readonly isIdempotent: boolean;
-  readonly schema: sch.SchemaDefinition<Context, SchemaName, EmitOptions>;
+  readonly schema: sch.SchemaDefinition<SchemaName, Context>;
 }
 
 export function isExtensionDefinition<
-  Context,
   SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is ExtensionDefinition<Context, SchemaName, ExtensionName, EmitOptions> {
+): o is ExtensionDefinition<SchemaName, ExtensionName, Context> {
   const isSD = safety.typeGuard<
-    ExtensionDefinition<Context, SchemaName, ExtensionName, EmitOptions>
+    ExtensionDefinition<SchemaName, ExtensionName, Context>
   >(
     "extension",
     "SQL",
@@ -35,63 +33,43 @@ export function isExtensionDefinition<
 }
 
 export interface ExtensionDefnOptions<
-  Context,
   SchemaName extends nsp.SqlNamespace,
   ExtensionName extends PostgresExtension,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 > {
   readonly isIdempotent?: boolean;
 }
 
-export interface ExtensionDefnFactory<
-  Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
-> {
-  pgExtensionDefn: <
-    SchemaName extends nsp.SqlNamespace,
-    ExtensionName extends PostgresExtension,
-  >(
-    schema: sch.SchemaDefinition<Context, SchemaName, EmitOptions>,
-    extension: ExtensionName,
-    edOptions?: ExtensionDefnOptions<
-      Context,
-      SchemaName,
-      ExtensionName,
-      EmitOptions
-    >,
-  ) =>
-    & ExtensionDefinition<Context, SchemaName, ExtensionName, EmitOptions>
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>;
-}
-
-export function typicalPgExtensionDefnFactory<
-  Context,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context> =
-    tmpl.SqlTextEmitOptions<
-      Context
-    >,
->(): ExtensionDefnFactory<Context, EmitOptions> {
-  return {
-    pgExtensionDefn: (schema, extension, edOptions) => {
-      const { isIdempotent = true } = edOptions ?? {};
-      return {
-        isValid: true,
-        schema,
-        extension,
-        isIdempotent,
-        populateSqlTextLintIssues: () => {},
-        SQL: (ctx, steOptions) => {
-          return `CREATE EXTENSION ${
-            isIdempotent ? "IF NOT EXISTS " : ""
-          }${extension} SCHEMA ${
-            steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
-              .schemaName(schema.sqlNamespace)
-          }`;
-        },
-      };
-    },
-  };
+export function pgExtensionDefn<
+  SchemaName extends nsp.SqlNamespace,
+  ExtensionName extends PostgresExtension,
+  Context extends tmpl.SqlEmitContext,
+>(
+  schema: sch.SchemaDefinition<SchemaName, Context>,
+  extension: ExtensionName,
+  edOptions?: ExtensionDefnOptions<
+    SchemaName,
+    ExtensionName,
+    Context
+  >,
+) {
+  const { isIdempotent = true } = edOptions ?? {};
+  const result:
+    & ExtensionDefinition<SchemaName, ExtensionName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      isValid: true,
+      schema,
+      extension,
+      isIdempotent,
+      populateSqlTextLintIssues: () => {},
+      SQL: (ctx) => {
+        return `CREATE EXTENSION ${
+          isIdempotent ? "IF NOT EXISTS " : ""
+        }${extension} SCHEMA ${
+          ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+            .schemaName(schema.sqlNamespace)
+        }`;
+      },
+    };
+  return result;
 }

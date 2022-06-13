@@ -3,15 +3,16 @@ import * as mod from "./schema.ts";
 import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) schema", async (tc) => {
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("idempotent schema declaration", () => {
     const view = mod.sqlSchemaDefn("synthetic_schema1", {
       isIdempotent: true,
     });
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       `CREATE SCHEMA IF NOT EXISTS "synthetic_schema1"`,
     );
   });
@@ -19,7 +20,7 @@ Deno.test("SQL Aide (SQLa) schema", async (tc) => {
   await tc.step("schema declaration (non-idempotent)", () => {
     const view = mod.sqlSchemaDefn("synthetic_schema2");
     ta.assertEquals(
-      view.SQL(ctx, emitOptions),
+      view.SQL(ctx),
       `CREATE SCHEMA "synthetic_schema2"`,
     );
   });

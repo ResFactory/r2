@@ -31,8 +31,7 @@ export type Any = any; // make it easier on Deno linting
 
 export type AxiomSqlDomain<
   TsValueType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 > = ax.Axiom<TsValueType> & {
   readonly sqlDataType: (
     purpose:
@@ -43,19 +42,18 @@ export type AxiomSqlDomain<
       | "type field"
       | "table foreign key ref"
       | "PostgreSQL domain",
-  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
+  ) => tmpl.SqlTextSupplier<Context>;
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",
-  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
+  ) => tmpl.SqlTextSupplier<Context>;
   readonly sqlPartial?: (
     destination:
       | "create table, full column defn"
       | "create table, column defn decorators"
       | "create table, after all column definitions",
-  ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
+  ) => tmpl.SqlTextSupplier<Context>[] | undefined;
   readonly referenceASD: () => AxiomSqlDomain<
     TsValueType,
-    EmitOptions,
     Context
   >;
   readonly isNullable: boolean;
@@ -63,57 +61,52 @@ export type AxiomSqlDomain<
 
 export function isAxiomSqlDomain<
   TsValueType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
->(o: unknown): o is AxiomSqlDomain<TsValueType, EmitOptions, Context> {
+  Context extends tmpl.SqlEmitContext,
+>(o: unknown): o is AxiomSqlDomain<TsValueType, Context> {
   const isASD = safety.typeGuard<
-    AxiomSqlDomain<TsValueType, EmitOptions, Context>
+    AxiomSqlDomain<TsValueType, Context>
   >("sqlDataType");
   return isASD(o);
 }
 
 export type IdentifiableSqlDomain<
   TsValueType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   DomainIdentity extends string = string,
 > =
-  & AxiomSqlDomain<TsValueType, EmitOptions, Context>
+  & AxiomSqlDomain<TsValueType, Context>
   & {
     readonly reference: <ForeignIdentity>(
       options?: {
         readonly foreignIdentity?: ForeignIdentity;
       },
-    ) => Omit<IdentifiableSqlDomain<Any, EmitOptions, Context>, "reference">;
+    ) => Omit<IdentifiableSqlDomain<Any, Context>, "reference">;
     readonly identity: DomainIdentity;
   };
 
 export function isIdentifiableSqlDomain<
   TsValueType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   DomainIdentity extends string = string,
 >(
   o: unknown,
 ): o is IdentifiableSqlDomain<
   TsValueType,
-  EmitOptions,
   Context,
   DomainIdentity
 > {
   const isISD = safety.typeGuard<
-    IdentifiableSqlDomain<TsValueType, EmitOptions, Context, DomainIdentity>
+    IdentifiableSqlDomain<TsValueType, Context, DomainIdentity>
   >("identity");
   return isAxiomSqlDomain(o) && isISD(o);
 }
 
 export function textNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<string | undefined> = ax.$.string,
-  asdOptions?: Partial<AxiomSqlDomain<string, EmitOptions, Context>>,
-): AxiomSqlDomain<string | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
@@ -124,12 +117,11 @@ export function textNullable<
 }
 
 export function text<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<string> = ax.$.string,
-  asdOptions?: Partial<AxiomSqlDomain<string, EmitOptions, Context>>,
-): AxiomSqlDomain<string, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
@@ -140,12 +132,11 @@ export function text<
 }
 
 export function date<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<Date> = ax.$.date,
-  asdOptions?: Partial<AxiomSqlDomain<Date, EmitOptions, Context>>,
-): AxiomSqlDomain<Date, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<Date, Context>>,
+): AxiomSqlDomain<Date, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATE` }),
@@ -156,12 +147,11 @@ export function date<
 }
 
 export function dateNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, EmitOptions, Context>>,
-): AxiomSqlDomain<Date | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, Context>>,
+): AxiomSqlDomain<Date | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATE` }),
@@ -172,12 +162,11 @@ export function dateNullable<
 }
 
 export function dateTime<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<Date> = ax.$.date,
-  asdOptions?: Partial<AxiomSqlDomain<Date, EmitOptions, Context>>,
-): AxiomSqlDomain<Date, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<Date, Context>>,
+): AxiomSqlDomain<Date, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
@@ -188,12 +177,11 @@ export function dateTime<
 }
 
 export function dateTimeNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, EmitOptions, Context>>,
-): AxiomSqlDomain<Date | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<Date | undefined, Context>>,
+): AxiomSqlDomain<Date | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
@@ -204,12 +192,11 @@ export function dateTimeNullable<
 }
 
 export function integer<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<number> = ax.$.number,
-  asdOptions?: Partial<AxiomSqlDomain<number, EmitOptions, Context>>,
-): AxiomSqlDomain<number, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
+): AxiomSqlDomain<number, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
@@ -220,12 +207,11 @@ export function integer<
 }
 
 export function integerNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<number | undefined> = ax.$.number.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<number, EmitOptions, Context>>,
-): AxiomSqlDomain<number | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
+): AxiomSqlDomain<number | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
@@ -236,12 +222,11 @@ export function integerNullable<
 }
 
 export function bigint<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<bigint> = ax.$.bigint,
-  asdOptions?: Partial<AxiomSqlDomain<bigint, EmitOptions, Context>>,
-): AxiomSqlDomain<bigint, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<bigint, Context>>,
+): AxiomSqlDomain<bigint, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
@@ -252,12 +237,11 @@ export function bigint<
 }
 
 export function bigintNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<bigint | undefined> = ax.$.bigint.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<bigint, EmitOptions, Context>>,
-): AxiomSqlDomain<bigint | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<bigint, Context>>,
+): AxiomSqlDomain<bigint | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
@@ -268,12 +252,11 @@ export function bigintNullable<
 }
 
 export function jsonText<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<string> = ax.$.string,
-  asdOptions?: Partial<AxiomSqlDomain<string, EmitOptions, Context>>,
-): AxiomSqlDomain<string, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `JSON` }),
@@ -284,12 +267,11 @@ export function jsonText<
 }
 
 export function jsonTextNullable<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   axiom: ax.Axiom<string | undefined> = ax.$.string.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<string, EmitOptions, Context>>,
-): AxiomSqlDomain<string | undefined, EmitOptions, Context> {
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string | undefined, Context> {
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `JSON` }),
@@ -300,59 +282,54 @@ export function jsonTextNullable<
 }
 
 export interface SqlDomainsSupplier<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   TsValueType = Any,
 > {
   domains: IdentifiableSqlDomain<
     TsValueType,
-    EmitOptions,
     Context
   >[];
 }
 
 export function isSqlDomainsSupplier<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   TsValueType = Any,
->(o: unknown): o is SqlDomainsSupplier<EmitOptions, Context, TsValueType> {
+>(o: unknown): o is SqlDomainsSupplier<Context, TsValueType> {
   const isSDS = safety.typeGuard<
-    SqlDomainsSupplier<EmitOptions, Context, TsValueType>
+    SqlDomainsSupplier<Context, TsValueType>
   >("domains");
   return isSDS(o);
 }
 
 export function sqlDomains<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   props: TPropAxioms,
   sdOptions?: {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
       axiom: Any,
-      domains: IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+      domains: IdentifiableSqlDomain<Any, Context>[],
     ) => void;
   },
 ) { // we let Typescript infer function return to allow generics to be more effective
   const { onPropertyNotAxiomSqlDomain } = sdOptions ?? {};
   const domains: IdentifiableSqlDomain<
     Any,
-    EmitOptions,
     Context
   >[] = [];
   const axiom = ax.$.object(props);
   Object.entries(axiom.axiomObjectDecl).forEach((entry) => {
     const [name, axiom] = entry;
-    if (isAxiomSqlDomain<Any, EmitOptions, Context>(axiom)) {
+    if (isAxiomSqlDomain<Any, Context>(axiom)) {
       const mutatableISD = axiom as safety.Writeable<
-        IdentifiableSqlDomain<Any, EmitOptions, Context>
+        IdentifiableSqlDomain<Any, Context>
       >;
       mutatableISD.identity = name as Any;
       mutatableISD.reference = (rOptions) => {
         const result: Omit<
-          IdentifiableSqlDomain<Any, EmitOptions, Context>,
+          IdentifiableSqlDomain<Any, Context>,
           "reference"
         > = {
           identity: (rOptions?.foreignIdentity ?? name) as string,

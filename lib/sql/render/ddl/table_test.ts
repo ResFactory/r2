@@ -36,8 +36,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     },
   );
 
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("table 1 definition", () => {
     ta.assert(mod.isTableDefinition(syntheticTable1Defn));
@@ -58,7 +59,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
 
   await tc.step("table 1 creation SQL", () => {
     ta.assertEquals(
-      syntheticTable1Defn.SQL(ctx, emitOptions),
+      syntheticTable1Defn.SQL(ctx),
       uws(`
         CREATE TABLE "synthetic_table1" (
             "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,7 +100,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
 
   await tc.step("table 2 SQL", () => {
     ta.assertEquals(
-      syntheticTable2Defn.SQL(ctx, emitOptions),
+      syntheticTable2Defn.SQL(ctx),
       uws(`
         CREATE TABLE "synthetic_table2" (
             "synthetic_table2_id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,26 +137,20 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     });
     ta.assert(insertable);
     ta.assertEquals(
-      syntheticTable1DefnRF.insertDML(insertable).SQL(ctx, emitOptions),
+      syntheticTable1DefnRF.insertDML(insertable).SQL(ctx),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }')`,
     );
     ta.assertEquals(
-      syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(
-        ctx,
-        emitOptions,
-      ),
+      syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') RETURNING *`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "primary-keys" })
-        .SQL(
-          ctx,
-          emitOptions,
-        ),
+        .SQL(ctx),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') RETURNING "synthetic_table1_id"`,
@@ -164,10 +159,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       syntheticTable1DefnRF.insertDML(insertable, {
         returning: { columns: ["synthetic_table1_id"] },
         onConflict: { SQL: () => `ON CONFLICT ("synthetic_table1_id") IGNORE` },
-      }).SQL(
-        ctx,
-        emitOptions,
-      ),
+      }).SQL(ctx),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }') ON CONFLICT ("synthetic_table1_id") IGNORE RETURNING "synthetic_table1_id"`,

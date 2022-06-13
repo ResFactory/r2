@@ -6,7 +6,9 @@ import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
   const SQL = mod.select();
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("invalid SELECT statement (misspelled token)", () => {
     const select = SQL`
@@ -38,7 +40,7 @@ Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
       "city",
     ]);
     ta.assertEquals(
-      select.SQL(undefined, emitOptions),
+      select.SQL(ctx),
       uws(`
         SELECT customer_name, order_count, city
           FROM customers`),

@@ -7,15 +7,14 @@ import * as mod from "./mod.ts";
 type Any = any; // make it easy on linter
 
 // deno-lint-ignore no-empty-interface
-interface SyntheticTmplContext {
+interface SyntheticTmplContext extends mod.SqlEmitContext {
 }
 
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
-  const ctx: SyntheticTmplContext = {};
-  const schema = mdf.syntheticTableDefns<
-    SyntheticTmplContext,
-    mod.SqlTextEmitOptions<SyntheticTmplContext>
-  >();
+  const ctx: SyntheticTmplContext = {
+    sqlTextEmitOptions: mod.typicalSqlTextEmitOptions(),
+  };
+  const schema = mdf.syntheticTableDefns<SyntheticTmplContext>();
   const persist = (
     sts: mod.SqlTextSupplier<SyntheticTmplContext>,
     basename: string,
@@ -28,20 +27,18 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   };
 
   const tablesDeclared = new Set<
-    mod.TableDefinition<
-      Any,
-      mod.SqlTextEmitOptions<SyntheticTmplContext>,
-      SyntheticTmplContext
-    >
+    mod.TableDefinition<Any, SyntheticTmplContext>
   >();
-  const viewsDeclared = new Set<mod.ViewDefinition<Any, Any, Any>>();
+  const viewsDeclared = new Set<
+    mod.ViewDefinition<Any, SyntheticTmplContext>
+  >();
 
   // deno-fmt-ignore
-  const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext, Any>) => {
-    if (mod.isTableDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+  const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext>) => {
+    if (mod.isTableDefinition<Any, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (mod.isViewDefinition<Any, mod.SqlTextEmitOptions<SyntheticTmplContext>, SyntheticTmplContext>(sts)) {
+    if (mod.isViewDefinition<Any, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }
@@ -88,7 +85,7 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
 
-  const syntheticSQL = DDL.SQL(ctx, mod.typicalSqlTextEmitOptions());
+  const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {
     console.dir(DDL.lintIssues);
   }

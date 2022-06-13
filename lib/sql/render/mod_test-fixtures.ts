@@ -8,12 +8,9 @@ const expectType = <T>(_value: T) => {
   // Do nothing, the TypeScript compiler handles this for us
 };
 
-export function syntheticTableDefns<
-  Context,
-  EmitOptions extends mod.SqlTextEmitOptions<Context>,
->() {
+export function syntheticTableDefns<Context extends mod.SqlEmitContext>() {
   const primaryKey = () =>
-    mod.autoIncPrimaryKey<number, EmitOptions, Context>(mod.integer());
+    mod.autoIncPrimaryKey<number, Context>(mod.integer());
 
   /**
    * All of our tables will follow a specific format, namely that they will have
@@ -38,11 +35,10 @@ export function syntheticTableDefns<
     // "created_at" is considered "housekeeping" with a default so don't
     // emit it as part of the insert DML statement
     const defaultIspOptions: mod.InsertStmtPreparerOptions<
-      Context,
       TableName,
       Any,
       Any,
-      EmitOptions
+      Context
     > = { isColumnEmittable: (name) => name == "created_at" ? false : true };
     return {
       ...mod.tableDefinition(tableName, props, {
@@ -119,21 +115,16 @@ export function syntheticTableDefns<
   // this is added for testing purposes to make sure Axiom/Domain is creating
   // proper type-safe objects, otherwise will result in Typescript compile error;
   // expectType calls are not required for non-test or production use cases
-  type tablePK = mod.TablePrimaryKeyColumnDefn<
-    number,
-    mod.SqlTextEmitOptions<Any>,
-    Any
-  >;
+  type tablePK = mod.TablePrimaryKeyColumnDefn<number, Any>;
   expectType<tablePK>(publHost.primaryKey.publ_host_id);
   expectType<
-    mod.AxiomSqlDomain<Date | undefined, mod.SqlTextEmitOptions<Any>, Any>
+    mod.AxiomSqlDomain<Date | undefined, Any>
   >(publHost.axiomObjectDecl.created_at);
   expectType<tablePK>(publBuildEvent.primaryKey.publ_build_event_id);
   expectType<
     mod.TableForeignKeyColumnDefn<
       number,
       "publ_host",
-      mod.SqlTextEmitOptions<Any>,
       Any
     >
   >(publBuildEvent.axiomObjectDecl.publ_host_id);

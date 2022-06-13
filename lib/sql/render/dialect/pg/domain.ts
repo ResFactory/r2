@@ -10,25 +10,21 @@ export type DomainName = string;
 export interface DomainDefinition<
   TsType,
   DN extends DomainName,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends
-  tmpl.SqlTextSupplier<Context, EmitOptions>,
-  d.AxiomSqlDomain<TsType, EmitOptions, Context> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context>, d.AxiomSqlDomain<TsType, Context> {
   readonly domainName: DN;
   readonly isIdempotent: boolean;
 }
 
 export function isDomainDefinition<
   TsType,
-  Context,
   DN extends DomainName,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is DomainDefinition<TsType, DN, EmitOptions, Context> {
+): o is DomainDefinition<TsType, DN, Context> {
   const isSD = safety.typeGuard<
-    DomainDefinition<TsType, DN, EmitOptions, Context>
+    DomainDefinition<TsType, DN, Context>
   >(
     "domainName",
     "SQL",
@@ -37,15 +33,13 @@ export function isDomainDefinition<
 }
 
 export interface SchemaDefnOptions<
-  Context,
   DN extends DomainName,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context extends tmpl.SqlEmitContext,
 > {
   readonly isIdempotent?: boolean;
   readonly warnOnDuplicate?: (
     identifier: string,
     ctx: Context,
-    options: EmitOptions,
   ) => string;
   readonly humanFriendlyFmtIndent?: string;
 }
@@ -53,26 +47,25 @@ export interface SchemaDefnOptions<
 export function pgDomainDefn<
   TsType,
   DN extends DomainName,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
-  dd: d.AxiomSqlDomain<TsType, EmitOptions, Context>,
+  dd: d.AxiomSqlDomain<TsType, Context>,
   domainName: DN,
-  ddOptions?: SchemaDefnOptions<Context, DN, EmitOptions>,
+  ddOptions?: SchemaDefnOptions<DN, Context>,
 ) {
   const { isIdempotent = false, humanFriendlyFmtIndent: hffi } = ddOptions ??
     {};
   const result:
-    & tmpl.SqlTextLintIssuesSupplier<Context, EmitOptions>
-    & tmpl.SqlTextSupplier<Context, EmitOptions> = {
+    & tmpl.SqlTextLintIssuesSupplier<Context>
+    & tmpl.SqlTextSupplier<Context> = {
       populateSqlTextLintIssues: () => {},
-      SQL: (ctx, steOptions) => {
+      SQL: (ctx) => {
         const identifier = domainName;
-        const asType = dd.sqlDataType("PostgreSQL domain").SQL(ctx, steOptions);
+        const asType = dd.sqlDataType("PostgreSQL domain").SQL(ctx);
         if (isIdempotent) {
           if (ddOptions?.warnOnDuplicate) {
-            const [_, quotedWarning] = steOptions.quotedLiteral(
-              ddOptions.warnOnDuplicate(identifier, ctx, steOptions),
+            const [_, quotedWarning] = ctx.sqlTextEmitOptions.quotedLiteral(
+              ddOptions.warnOnDuplicate(identifier, ctx),
             );
             return hffi
               ? uws(`

@@ -64,20 +64,20 @@ export function qualifiedNamingStrategy(
   };
 }
 
-export interface SqlObjectNamingStrategyOptions<Context> {
+export interface SqlObjectNamingStrategyOptions {
   readonly quoteIdentifiers?: boolean;
   readonly qualifyNames?: NameQualifier;
 }
 
-export interface SqlObjectNamingStrategySupplier<Context> {
+export interface SqlNamingStrategy {
   (
-    ctx: Context,
-    nsOptions?: SqlObjectNamingStrategyOptions<Context>,
+    ctx: SqlEmitContext,
+    nsOptions?: SqlObjectNamingStrategyOptions,
   ): SqlObjectNamingStrategy;
 }
 
-export interface SqlTextEmitOptions<Context> {
-  readonly namingStrategy: SqlObjectNamingStrategySupplier<Context>;
+export interface SqlTextEmitOptions {
+  readonly namingStrategy: SqlNamingStrategy;
   readonly quotedLiteral: (value: unknown) => [value: unknown, quoted: string];
   readonly comments: (text: string, indent?: string) => string;
   readonly indentation: (
@@ -94,6 +94,10 @@ export interface SqlTextEmitOptions<Context> {
   ) => string;
 }
 
+export interface SqlEmitContext {
+  readonly sqlTextEmitOptions: SqlTextEmitOptions;
+}
+
 export function typicalQuotedSqlLiteral(
   value: unknown,
 ): [value: unknown, quoted: string] {
@@ -108,9 +112,7 @@ export function typicalQuotedSqlLiteral(
   return [value, String(value)];
 }
 
-export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
-  Context
-> {
+export function typicalSqlNamingStrategy(): SqlNamingStrategy {
   const quotedIdentifiersNS: SqlObjectNamingStrategy = {
     schemaName: (name) => `"${name}"`,
     tableName: (name) => `"${name}"`,
@@ -156,7 +158,7 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     storedRoutineReturns: (name) => name,
   };
 
-  const namingStrategy: SqlObjectNamingStrategySupplier<Context> = (
+  const result: SqlNamingStrategy = (
     _,
     nsOptions,
   ) => {
@@ -168,8 +170,12 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
       : ns;
   };
 
+  return result;
+}
+
+export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   return {
-    namingStrategy,
+    namingStrategy: typicalSqlNamingStrategy(),
     quotedLiteral: typicalQuotedSqlLiteral,
     comments: (text, indent = "") => text.replaceAll(/^/gm, `${indent}-- `),
     indentation: (nature, content) => {
@@ -225,58 +231,49 @@ export function typicalSqlTextPersistOptions(): SqlTextPersistOptions {
   };
 }
 
-export interface RenderedSqlText<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
-> {
-  (ctx: Context, options: EmitOptions): string;
+export interface RenderedSqlText<Context extends SqlEmitContext> {
+  (ctx: Context): string;
 }
 
 export interface SqlTextSupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > {
-  readonly SQL: RenderedSqlText<Context, EmitOptions>;
+  readonly SQL: RenderedSqlText<Context>;
 }
 
 export function isSqlTextSupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 >(
   o: unknown,
-): o is SqlTextSupplier<Context, EmitOptions> {
-  const isSTS = safety.typeGuard<SqlTextSupplier<Context, EmitOptions>>("SQL");
+): o is SqlTextSupplier<Context> {
+  const isSTS = safety.typeGuard<SqlTextSupplier<Context>>("SQL");
   return isSTS(o);
 }
 
 export interface SqlTextLintIssuesSupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > {
   readonly populateSqlTextLintIssues: (
     lintIssues: l.SqlLintIssueSupplier[],
     ctx: Context,
-    options?: EmitOptions,
   ) => void;
 }
 
 export function isSqlTextLintIssuesSupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 >(
   o: unknown,
-): o is SqlTextLintIssuesSupplier<Context, EmitOptions> {
+): o is SqlTextLintIssuesSupplier<Context> {
   const isSTLIS = safety.typeGuard<
-    SqlTextLintIssuesSupplier<Context, EmitOptions>
+    SqlTextLintIssuesSupplier<Context>
   >("populateSqlTextLintIssues");
   return isSTLIS(o);
 }
 
 export interface PersistableSqlText<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > {
-  readonly sqlTextSupplier: SqlTextSupplier<Context, EmitOptions>;
+  readonly sqlTextSupplier: SqlTextSupplier<Context>;
   readonly persistDest: (
     ctx: Context,
     index: number,
@@ -285,12 +282,11 @@ export interface PersistableSqlText<
 }
 
 export function isPersistableSqlText<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 >(
   o: unknown,
-): o is PersistableSqlText<Context, EmitOptions> {
-  const isPSTS = safety.typeGuard<PersistableSqlText<Context, EmitOptions>>(
+): o is PersistableSqlText<Context> {
+  const isPSTS = safety.typeGuard<PersistableSqlText<Context>>(
     "sqlTextSupplier",
     "persistDest",
   );
@@ -298,22 +294,20 @@ export function isPersistableSqlText<
 }
 
 export interface SqlTextLintSummarySupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > {
   readonly sqlTextLintSummary: (
     lintIssues: l.SqlLintIssueSupplier[],
-  ) => SqlTextSupplier<Context, EmitOptions>;
+  ) => SqlTextSupplier<Context>;
 }
 
 export function isSqlTextLintSummarySupplier<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 >(
   o: unknown,
-): o is SqlTextLintSummarySupplier<Context, EmitOptions> {
+): o is SqlTextLintSummarySupplier<Context> {
   const isSLSTS = safety.typeGuard<
-    SqlTextLintSummarySupplier<Context, EmitOptions>
+    SqlTextLintSummarySupplier<Context>
   >(
     "sqlTextLintSummary",
   );
@@ -329,34 +323,30 @@ export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
 >("persistableSqlTextIndex");
 
 export class SqlPartialExprEventEmitter<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > extends events.EventEmitter<{
   sqlEncountered(
     ctx: Context,
-    sts: SqlTextSupplier<Context, EmitOptions>,
+    sts: SqlTextSupplier<Context>,
   ): void;
   persistableSqlEncountered(
     ctx: Context,
-    sts: SqlTextSupplier<Context, EmitOptions>,
+    sts: SqlTextSupplier<Context>,
   ): void;
   sqlEmitted(
     ctx: Context,
-    sts: SqlTextSupplier<Context, EmitOptions>,
+    sts: SqlTextSupplier<Context>,
     sql: string,
   ): void;
   sqlPersisted(
     ctx: Context,
     destPath: string,
-    pst: PersistableSqlText<Context, EmitOptions>,
-    persistResultEmitSTS: SqlTextSupplier<Context, EmitOptions>,
+    pst: PersistableSqlText<Context>,
+    persistResultEmitSTS: SqlTextSupplier<Context>,
   ): void;
 }> {}
 
-export interface SqlTextSupplierOptions<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
-> {
+export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
   readonly sqlSuppliersDelimText?: string;
   readonly exprInArrayDelim?: (entry: unknown, isLast: boolean) => string;
   readonly literalSupplier?: (
@@ -366,38 +356,34 @@ export interface SqlTextSupplierOptions<
   readonly persistIndexer?: { activeIndex: number };
   readonly persist?: (
     ctx: Context,
-    psts: PersistableSqlText<Context, EmitOptions>,
+    psts: PersistableSqlText<Context>,
     indexer: { activeIndex: number },
-    steOptions?: EmitOptions,
-    speEE?: SqlPartialExprEventEmitter<Context, EmitOptions>,
-  ) => SqlTextSupplier<Context, EmitOptions> | undefined;
+    speEE?: SqlPartialExprEventEmitter<Context>,
+  ) => SqlTextSupplier<Context> | undefined;
   readonly sqlTextLintSummary?: (
     options?: {
       noIssuesText?: string;
       transform?: (
-        suggested: SqlTextSupplier<Context, EmitOptions>,
+        suggested: SqlTextSupplier<Context>,
         lintIssues: l.SqlLintIssueSupplier[],
-      ) => SqlTextSupplier<Context, EmitOptions>;
+      ) => SqlTextSupplier<Context>;
     },
-  ) => SqlTextLintSummarySupplier<Context, EmitOptions>;
+  ) => SqlTextLintSummarySupplier<Context>;
   readonly prepareEvents?: (
-    speEE: SqlPartialExprEventEmitter<Context, EmitOptions>,
-  ) => SqlPartialExprEventEmitter<Context, EmitOptions>;
+    speEE: SqlPartialExprEventEmitter<Context>,
+  ) => SqlPartialExprEventEmitter<Context>;
 }
 
-export function typicalSqlTextSupplierOptions<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
->(
-  inherit?: Partial<SqlTextSupplierOptions<Context, EmitOptions>>,
-): SqlTextSupplierOptions<Context, EmitOptions> {
+export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
+  inherit?: Partial<SqlTextSupplierOptions<Context>>,
+): SqlTextSupplierOptions<Context> {
   return {
     sqlSuppliersDelimText: ";",
     exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
     // we want to auto-unindent our string literals and remove initial newline
     literalSupplier: (literals, expressions) =>
       ws.whitespaceSensitiveTemplateLiteralSupplier(literals, expressions),
-    persist: (ctx, psts, indexer, _steOptions, steEE) => {
+    persist: (ctx, psts, indexer, steEE) => {
       const destPath = psts.persistDest(ctx, indexer.activeIndex);
       const emit = {
         SQL: () => `-- encountered persistence request for ${destPath}`,
@@ -409,8 +395,9 @@ export function typicalSqlTextSupplierOptions<
       const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
       return {
         sqlTextLintSummary: (lintIssues) => {
-          const result: SqlTextSupplier<Context, EmitOptions> = {
-            SQL: (_, steOptions) => {
+          const result: SqlTextSupplier<Context> = {
+            SQL: (ctx) => {
+              const steOptions = ctx.sqlTextEmitOptions;
               return lintIssues.length > 0
                 ? lintIssues.map((li) => {
                   // deno-fmt-ignore
@@ -429,12 +416,11 @@ export function typicalSqlTextSupplierOptions<
 }
 
 export function typicalSqlTextLintSummary<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 >(
   _: Context,
-  options: SqlTextSupplierOptions<Context, EmitOptions>,
-): SqlTextLintSummarySupplier<Context, EmitOptions> {
+  options: SqlTextSupplierOptions<Context>,
+): SqlTextLintSummarySupplier<Context> {
   return options?.sqlTextLintSummary?.() ?? {
     sqlTextLintSummary: () => {
       return {
@@ -445,56 +431,53 @@ export function typicalSqlTextLintSummary<
 }
 
 export type SqlPartialExpression<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context>,
+  Context extends SqlEmitContext,
 > =
   | ((
     ctx: Context,
-    options: SqlTextSupplierOptions<Context, EmitOptions>,
+    options: SqlTextSupplierOptions<Context>,
   ) => c.TextContributionsPlaceholder)
   | ((
     ctx: Context,
-    options: SqlTextSupplierOptions<Context, EmitOptions>,
-  ) => SqlTextSupplier<Context, EmitOptions> | SqlTextSupplier<
-    Context,
-    EmitOptions
+    options: SqlTextSupplierOptions<Context>,
+  ) => SqlTextSupplier<Context> | SqlTextSupplier<
+    Context
   >[])
   | ((
     ctx: Context,
-    options: SqlTextSupplierOptions<Context, EmitOptions>,
-  ) => PersistableSqlText<Context, EmitOptions> | PersistableSqlText<
-    Context,
-    EmitOptions
+    options: SqlTextSupplierOptions<Context>,
+  ) => PersistableSqlText<Context> | PersistableSqlText<
+    Context
   >[])
   | ((
     ctx: Context,
-    options: SqlTextSupplierOptions<Context, EmitOptions>,
-  ) => SqlTextLintSummarySupplier<Context, EmitOptions>)
+    options: SqlTextSupplierOptions<Context>,
+  ) => SqlTextLintSummarySupplier<Context>)
   | ((
     ctx: Context,
-    options: SqlTextSupplierOptions<Context, EmitOptions>,
+    options: SqlTextSupplierOptions<Context>,
   ) => string)
-  | SqlTextSupplier<Context, EmitOptions>
-  | PersistableSqlText<Context, EmitOptions>
+  | SqlTextSupplier<Context>
+  | PersistableSqlText<Context>
   | (
-    | SqlTextSupplier<Context, EmitOptions>
-    | PersistableSqlText<Context, EmitOptions>
+    | SqlTextSupplier<Context>
+    | PersistableSqlText<Context>
     | string
   )[]
-  | SqlTextLintSummarySupplier<Context, EmitOptions>
+  | SqlTextLintSummarySupplier<Context>
   | string;
 
 export function SQL<
-  Context,
-  EmitOptions extends SqlTextEmitOptions<Context> = SqlTextEmitOptions<Context>,
-  Expressions extends SqlPartialExpression<Context, EmitOptions> =
-    SqlPartialExpression<Context, EmitOptions>,
+  Context extends SqlEmitContext,
+  Expressions extends SqlPartialExpression<Context> = SqlPartialExpression<
+    Context
+  >,
 >(
-  stsOptions = typicalSqlTextSupplierOptions<Context, EmitOptions>(),
+  stsOptions = typicalSqlTextSupplierOptions<Context>(),
 ): (
   literals: TemplateStringsArray,
   ...expressions: Expressions[]
-) => SqlTextSupplier<Context, EmitOptions> & Partial<l.SqlLintIssuesSupplier> {
+) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
   const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
   const tmplLiteralLintIssues: l.SqlLintIssueSupplier[] = [];
   return (literals, ...suppliedExprs) => {
@@ -506,20 +489,14 @@ export function SQL<
       prepareEvents,
     } = stsOptions ?? {};
     const speEE = prepareEvents
-      ? prepareEvents(new SqlPartialExprEventEmitter<Context, EmitOptions>())
+      ? prepareEvents(new SqlPartialExprEventEmitter<Context>())
       : undefined;
     // by default no pre-processing of text literals are done; if auto-unindent is desired pass in
     //   options.literalSupplier = (literals, suppliedExprs) => ws.whitespaceSensitiveTemplateLiteralSupplier(literals, suppliedExprs)
     const literalSupplier = stsOptions?.literalSupplier
       ? stsOptions?.literalSupplier(literals, suppliedExprs)
       : (index: number) => literals[index];
-    const interpolate: (
-      ctx: Context,
-      steOptions: EmitOptions,
-    ) => string = (
-      ctx,
-      steOptions,
-    ) => {
+    const interpolate: (ctx: Context) => string = (ctx) => {
       // evaluate expressions and look for contribution placeholders;
       // we pre-evaluate expressions so that text at the beginning of
       // a template could refer to expressions at the bottom.
@@ -555,16 +532,16 @@ export function SQL<
       }
 
       const preprocessSingleExpr = (expr: unknown) => {
-        if (isSqlTextLintIssuesSupplier<Context, EmitOptions>(expr)) {
-          expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx, steOptions);
+        if (isSqlTextLintIssuesSupplier<Context>(expr)) {
+          expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx);
         }
-        if (isPersistableSqlText<Context, EmitOptions>(expr)) {
+        if (isPersistableSqlText<Context>(expr)) {
           speEE?.emitSync(
             "persistableSqlEncountered",
             ctx,
             expr.sqlTextSupplier,
           );
-        } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
+        } else if (isSqlTextSupplier<Context>(expr)) {
           speEE?.emitSync("sqlEncountered", ctx, expr);
         }
       };
@@ -586,19 +563,18 @@ export function SQL<
         // if SQL is wrapped in a persistence handler it means that the content
         // should be written to a file and, optionally, the same or alternate
         // content should be emitted as part of this template string
-        if (isPersistableSqlText<Context, EmitOptions>(expr)) {
+        if (isPersistableSqlText<Context>(expr)) {
           persistIndexer.activeIndex++;
           if (stsOptions?.persist) {
             const persistenceSqlText = stsOptions.persist(
               ctx,
               expr,
               persistIndexer,
-              steOptions,
               speEE,
             );
             if (persistenceSqlText) {
               // after persistence, if we want to store a remark or other SQL
-              interpolated += persistenceSqlText.SQL(ctx, steOptions);
+              interpolated += persistenceSqlText.SQL(ctx);
             }
           } else {
             tmplLiteralLintIssues.push({
@@ -608,18 +584,15 @@ export function SQL<
                 }'`,
             });
           }
-        } else if (isSqlTextSupplier<Context, EmitOptions>(expr)) {
-          const SQL = expr.SQL(ctx, steOptions);
+        } else if (isSqlTextSupplier<Context>(expr)) {
+          const SQL = expr.SQL(ctx);
           interpolated += SQL;
           if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
           speEE?.emitSync("sqlEmitted", ctx, expr, SQL);
         } else if (typeof expr === "string") {
           interpolated += expr;
-        } else if (isSqlTextLintSummarySupplier<Context, EmitOptions>(expr)) {
-          interpolated += expr.sqlTextLintSummary(sqlTextLintIssues).SQL(
-            ctx,
-            steOptions,
-          );
+        } else if (isSqlTextLintSummarySupplier<Context>(expr)) {
+          interpolated += expr.sqlTextLintSummary(sqlTextLintIssues).SQL(ctx);
         } else {
           interpolated += Deno.inspect(expr);
         }
@@ -645,8 +618,8 @@ export function SQL<
       return interpolated;
     };
     return {
-      SQL: (ctx, steOptions) => {
-        return interpolate(ctx, steOptions);
+      SQL: (ctx) => {
+        return interpolate(ctx);
       },
       lintIssues: tmplLiteralLintIssues,
     };

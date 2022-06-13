@@ -6,8 +6,9 @@ import * as d from "../../domain.ts";
 import * as ty from "../../ddl/type.ts";
 
 Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
-  const ctx = undefined;
-  const emitOptions = tmpl.typicalSqlTextEmitOptions();
+  const ctx: tmpl.SqlEmitContext = {
+    sqlTextEmitOptions: tmpl.typicalSqlTextEmitOptions(),
+  };
 
   await tc.step("PL/pgSQL anonymous block (auto begin/end)", () => {
     const autoBeginEndAnonBlock = mod.anonymousPlPgSqlRoutine()`
@@ -16,7 +17,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         WHEN DUPLICATE_OBJECT THEN
           RAISE NOTICE 'domain "custom_type_1" already exists, skipping';`;
     ta.assertEquals(
-      autoBeginEndAnonBlock.SQL(ctx, emitOptions),
+      autoBeginEndAnonBlock.SQL(ctx),
       uws(`
         DO $$
           BEGIN
@@ -35,7 +36,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
       const doSafeDupe = mod.doIgnoreDuplicate()`
         CREATE DOMAIN custom_type_1 AS TEXT;`;
       ta.assertEquals(
-        doSafeDupe.SQL(ctx, emitOptions),
+        doSafeDupe.SQL(ctx),
         uws(`
           DO $$ BEGIN
             CREATE DOMAIN custom_type_1 AS TEXT;
@@ -55,7 +56,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
       });
       const doSafeDupe = mod.doIgnoreDuplicate()`${synTypeDefn}`;
       ta.assertEquals(
-        doSafeDupe.SQL(ctx, emitOptions),
+        doSafeDupe.SQL(ctx),
         uws(`
           DO $$ BEGIN
             CREATE TYPE "synthetic_type" AS (
@@ -78,7 +79,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           RAISE NOTICE 'domain "custom_type_1" already exists, skipping';
       END;`;
     ta.assertEquals(
-      anonBlock.SQL(ctx, emitOptions),
+      anonBlock.SQL(ctx),
       uws(`
         DO $$
           BEGIN
@@ -99,7 +100,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
       }, (name, args) => mod.typedPlSqlBody(name, args))`
       -- this is the stored procedure body`;
       ta.assertEquals(
-        sp.SQL(ctx, emitOptions),
+        sp.SQL(ctx),
         uws(`
         CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT) AS $$
           -- this is the stored procedure body
@@ -124,7 +125,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
       )`
       -- this is the stored procedure body`;
       ta.assertEquals(
-        sp.SQL(ctx, emitOptions),
+        sp.SQL(ctx),
         uws(`
         DROP PROCEDURE IF EXISTS "synthetic_sp1";
         CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT, IN "arg2" INTEGER, OUT "arg3" BIGINT, IN OUT "arg4" DATE) AS $$
@@ -155,7 +156,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
          WHERE date between fromDate and toDate
          GROUP BY label;`;
       ta.assertEquals(
-        sf.SQL(ctx, emitOptions),
+        sf.SQL(ctx),
         uws(`
         CREATE OR REPLACE FUNCTION "Repeat"("fromDate" DATE, "toDate" DATE = CURRENT_TIMESTAMP) RETURNS TABLE("label" TEXT, "cnt" BIGINT) AS $$
           SELECT label, count(*) AS Cnt
@@ -165,7 +166,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         $$ LANGUAGE SQL;`),
       );
       ta.assertEquals(
-        sf.drop().SQL(ctx, emitOptions),
+        sf.drop().SQL(ctx),
         uws(`DROP FUNCTION IF EXISTS "Repeat"`),
       );
     },
@@ -189,7 +190,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
            WHERE date between fromDate and toDate
            GROUP BY label;`;
       ta.assertEquals(
-        sf.SQL(ctx, emitOptions),
+        sf.SQL(ctx),
         uws(`
         CREATE OR REPLACE FUNCTION "Repeat"("fromDate" DATE, "toDate" DATE) RETURNS TABLE("label" TEXT, "cnt" BIGINT) AS $$
         BEGIN
@@ -229,7 +230,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           RETURN ret;
         END;`;
       ta.assertEquals(
-        sf.SQL(ctx, emitOptions),
+        sf.SQL(ctx),
         uws(`
           CREATE FUNCTION "Return_Record"("a" TEXT, "b" TEXT) RETURNS RECORD AS $$
           DECLARE

@@ -11,58 +11,52 @@ type Any = any; // make it easier on Deno linting
 
 export type TablePrimaryKeyColumnDefn<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
   readonly isPrimaryKey: true;
   readonly isAutoIncrement: boolean;
 };
 
 export function isTablePrimaryKeyColumnDefn<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context> {
+): o is TablePrimaryKeyColumnDefn<ColumnTsType, Context> {
   const isTPKCD = safety.typeGuard<
-    TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context>
+    TablePrimaryKeyColumnDefn<ColumnTsType, Context>
   >("isPrimaryKey", "isAutoIncrement");
   return isTPKCD(o);
 }
 
 export type TableColumnInsertDmlExclusionSupplier<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
   readonly isExcludedFromInsertDML: true;
 };
 
 export function isTableColumnInsertDmlExclusionSupplier<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
 ): o is TableColumnInsertDmlExclusionSupplier<
   ColumnTsType,
-  EmitOptions,
   Context
 > {
   const isIDES = safety.typeGuard<
-    TableColumnInsertDmlExclusionSupplier<ColumnTsType, EmitOptions, Context>
+    TableColumnInsertDmlExclusionSupplier<ColumnTsType, Context>
   >("isExcludedFromInsertDML");
   return isIDES(o);
 }
 
 export function primaryKey<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
-  axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
-): TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context> {
+  axiom: d.AxiomSqlDomain<ColumnTsType, Context>,
+): TablePrimaryKeyColumnDefn<ColumnTsType, Context> {
   return {
     ...axiom,
     isPrimaryKey: true,
@@ -72,7 +66,7 @@ export function primaryKey<
         const ctcdd = axiom?.sqlPartial?.(
           "create table, column defn decorators",
         );
-        const decorators: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+        const decorators: tmpl.SqlTextSupplier<Context> = {
           SQL: () => `PRIMARY KEY`,
         };
         return ctcdd ? [decorators, ...ctcdd] : [decorators];
@@ -84,13 +78,12 @@ export function primaryKey<
 
 export function autoIncPrimaryKey<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
-  axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
+  axiom: d.AxiomSqlDomain<ColumnTsType, Context>,
 ):
-  & TablePrimaryKeyColumnDefn<ColumnTsType, EmitOptions, Context>
-  & TableColumnInsertDmlExclusionSupplier<ColumnTsType, EmitOptions, Context> {
+  & TablePrimaryKeyColumnDefn<ColumnTsType, Context>
+  & TableColumnInsertDmlExclusionSupplier<ColumnTsType, Context> {
   return {
     ...axiom,
     isPrimaryKey: true,
@@ -101,7 +94,7 @@ export function autoIncPrimaryKey<
         const ctcdd = axiom?.sqlPartial?.(
           "create table, column defn decorators",
         );
-        const decorators: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+        const decorators: tmpl.SqlTextSupplier<Context> = {
           SQL: () => `PRIMARY KEY AUTOINCREMENT`,
         };
         return ctcdd ? [decorators, ...ctcdd] : [decorators];
@@ -114,13 +107,11 @@ export function autoIncPrimaryKey<
 export type TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
   readonly foreignTableName: ForeignTableName;
   readonly foreignDomain: d.AxiomSqlDomain<
     ColumnTsType,
-    EmitOptions,
     Context
   >;
 };
@@ -128,21 +119,18 @@ export type TableForeignKeyColumnDefn<
 export function isTableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
 ): o is TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName,
-  EmitOptions,
   Context
 > {
   const isTFKCD = safety.typeGuard<
     TableForeignKeyColumnDefn<
       ColumnTsType,
       ForeignTableName,
-      EmitOptions,
       Context
     >
   >("foreignTableName", "foreignDomain");
@@ -152,26 +140,22 @@ export function isTableForeignKeyColumnDefn<
 export function foreignKey<
   ColumnTsType,
   ForeignTableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   foreignTableName: ForeignTableName,
   foreignDomain: d.AxiomSqlDomain<
     ColumnTsType,
-    EmitOptions,
     Context
   >,
 ): TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName,
-  EmitOptions,
   Context
 > {
   const domain = foreignDomain.referenceASD();
   const result: TableForeignKeyColumnDefn<
     ColumnTsType,
     ForeignTableName,
-    EmitOptions,
     Context
   > = {
     foreignTableName,
@@ -182,10 +166,10 @@ export function foreignKey<
         const aacd = domain?.sqlPartial?.(
           "create table, after all column definitions",
         );
-        const unique: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+        const unique: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
-            ? ((ctx, steOptions) => {
-              const ns = steOptions.namingStrategy(ctx, {
+            ? ((ctx) => {
+              const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
                 quoteIdentifiers: true,
               });
               const tn = ns.tableName;
@@ -219,30 +203,28 @@ export function foreignKey<
 
 export type TableUniqueColumnDefn<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context> & {
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
   readonly isUnique: true;
 };
 
 export function unique<
   ColumnTsType,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
-  axiom: d.AxiomSqlDomain<ColumnTsType, EmitOptions, Context>,
-): TableUniqueColumnDefn<ColumnTsType, EmitOptions, Context> {
-  const result: TableUniqueColumnDefn<ColumnTsType, EmitOptions, Context> = {
+  axiom: d.AxiomSqlDomain<ColumnTsType, Context>,
+): TableUniqueColumnDefn<ColumnTsType, Context> {
+  const result: TableUniqueColumnDefn<ColumnTsType, Context> = {
     ...axiom,
     sqlPartial: (dest) => {
       if (dest === "create table, after all column definitions") {
         const aacd = axiom?.sqlPartial?.(
           "create table, after all column definitions",
         );
-        const unique: tmpl.SqlTextSupplier<Context, EmitOptions> = {
+        const unique: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
-            ? ((ctx, steOptions) => {
-              const ns = steOptions.namingStrategy(ctx, {
+            ? ((ctx) => {
+              const ns = ctx.sqlTextEmitOptions.namingStrategy(ctx, {
                 quoteIdentifiers: true,
               });
               return `UNIQUE(${
@@ -269,36 +251,31 @@ export function unique<
 export function typicalTableColumnDefnSQL<
   TableName extends string,
   ColumnName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   tableName: TableName,
-  isd: d.IdentifiableSqlDomain<Any, EmitOptions, Context, ColumnName>,
-): tmpl.RenderedSqlText<Context, EmitOptions> {
-  return (ctx, steOptions) => {
+  isd: d.IdentifiableSqlDomain<Any, Context, ColumnName>,
+): tmpl.RenderedSqlText<Context> {
+  return (ctx) => {
+    const { sqlTextEmitOptions: steOptions } = ctx;
     const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
     const columnName = ns.tableColumnName({
       tableName,
       columnName: isd.identity,
     });
-    let sqlDataType = isd.sqlDataType("create table column").SQL(
-      ctx,
-      steOptions,
-    );
+    let sqlDataType = isd.sqlDataType("create table column").SQL(ctx);
     if (sqlDataType) sqlDataType = " " + sqlDataType;
     const decorations = isd.sqlPartial?.(
       "create table, column defn decorators",
     );
     const decoratorsSQL = decorations
-      ? ` ${decorations.map((d) => d.SQL(ctx, steOptions)).join(" ")}`
+      ? ` ${decorations.map((d) => d.SQL(ctx)).join(" ")}`
       : "";
     const notNull = decoratorsSQL.length == 0
       ? isd.isNullable ? "" : " NOT NULL"
       : "";
     const defaultValue = isd.sqlDefaultValue
-      ? ` DEFAULT ${
-        isd.sqlDefaultValue("create table column").SQL(ctx, steOptions)
-      }`
+      ? ` DEFAULT ${isd.sqlDefaultValue("create table column").SQL(ctx)}`
       : "";
     // deno-fmt-ignore
     return `${steOptions.indentation("define table column")}${columnName}${sqlDataType}${decoratorsSQL}${notNull}${defaultValue}`;
@@ -310,29 +287,25 @@ export type TableIdentityColumnName<TableName extends string> =
 
 export type TableIdentityColumnsSupplier<
   TableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
   TableIdColumnName extends TableIdentityColumnName<TableName> =
     TableIdentityColumnName<TableName>,
 > = {
   [K in keyof TableName as TableIdColumnName]: d.AxiomSqlDomain<
     number,
-    EmitOptions,
     Context
   >;
 };
 
 export type HousekeepingColumnsDefns<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 > = {
-  readonly created_at: d.AxiomSqlDomain<Date | undefined, EmitOptions, Context>;
+  readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
 };
 
 export function housekeeping<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
->(): HousekeepingColumnsDefns<EmitOptions, Context> {
+  Context extends tmpl.SqlEmitContext,
+>(): HousekeepingColumnsDefns<Context> {
   return {
     created_at: d.dateTimeNullable(undefined, {
       sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
@@ -342,53 +315,49 @@ export function housekeeping<
 
 export type TableDefinition<
   TableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> = tmpl.SqlTextSupplier<Context, EmitOptions> & {
+  Context extends tmpl.SqlEmitContext,
+> = tmpl.SqlTextSupplier<Context> & {
   readonly tableName: TableName;
 };
 
 export function isTableDefinition<
   TableName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is TableDefinition<TableName, EmitOptions, Context> {
+): o is TableDefinition<TableName, Context> {
   const isTD = safety.typeGuard<
-    TableDefinition<TableName, EmitOptions, Context>
+    TableDefinition<TableName, Context>
   >("tableName", "SQL");
   return isTD(o);
 }
 
 export interface TableDefnOptions<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 > {
   readonly isIdempotent?: boolean;
   readonly isTemp?: boolean;
   readonly sqlPartial?: (
     destination: "after all column definitions",
-  ) => tmpl.SqlTextSupplier<Context, EmitOptions>[] | undefined;
+  ) => tmpl.SqlTextSupplier<Context>[] | undefined;
   readonly onPropertyNotAxiomSqlDomain?: (
     name: string,
     axiom: ax.Axiom<Any>,
-    domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+    domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
 }
 
 export function tableDefinition<
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdOptions?: TableDefnOptions<EmitOptions, Context>,
+  tdOptions?: TableDefnOptions<Context>,
 ) {
-  const columnDefnsSS: tmpl.SqlTextSupplier<Context, EmitOptions>[] = [];
-  const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context, EmitOptions>[] = [];
+  const columnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
+  const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
   const sd = d.sqlDomains(props, tdOptions);
   for (const columnDefn of sd.domains) {
     const typicalSQL = typicalTableColumnDefnSQL(tableName, columnDefn);
@@ -420,7 +389,6 @@ export function tableDefinition<
       >
     ]: TablePrimaryKeyColumnDefn<
       TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
-      EmitOptions,
       Context
     >;
   };
@@ -437,7 +405,6 @@ export function tableDefinition<
     [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
       TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
       TableName,
-      EmitOptions,
       Context
     >;
   };
@@ -448,24 +415,25 @@ export function tableDefinition<
     };
   }
 
-  const result: TableDefinition<TableName, EmitOptions, Context> & {
+  const result: TableDefinition<TableName, Context> & {
     primaryKey: PrimaryKeys;
     foreignKeyRef: ForeignKeyRefs;
   } = {
     tableName,
-    SQL: (ctx, steOptions) => {
+    SQL: (ctx) => {
+      const { sqlTextEmitOptions: steOptions } = ctx;
       const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
       const indent = steOptions.indentation("define table column");
       const afterCDs =
         tdOptions?.sqlPartial?.("after all column definitions") ?? [];
       const decoratorsSQL = [...afterColumnDefnsSS, ...afterCDs].map((sts) =>
-        sts.SQL(ctx, steOptions)
+        sts.SQL(ctx)
       ).join(`,\n${indent}`);
 
       const { isTemp, isIdempotent } = tdOptions ?? {};
       // deno-fmt-ignore
       const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
-        columnDefnsSS.map(cdss => cdss.SQL(ctx, steOptions)).join(",\n") +
+        columnDefnsSS.map(cdss => cdss.SQL(ctx)).join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
         "\n)";
       return result;
@@ -488,12 +456,11 @@ export function typicalKeysTableDefinition<
   TPropAxioms extends
     & Record<string, ax.Axiom<Any>>
     & Record<`${TableName}_id`, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdOptions?: TableDefnOptions<EmitOptions, Context>,
+  tdOptions?: TableDefnOptions<Context>,
 ) {
   return tableDefinition(tableName, props, tdOptions);
 }
@@ -501,18 +468,16 @@ export function typicalKeysTableDefinition<
 export function tableDomainsRowFactory<
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdrfOptions?: TableDefnOptions<EmitOptions, Context> & {
+  tdrfOptions?: TableDefnOptions<Context> & {
     defaultIspOptions?: dml.InsertStmtPreparerOptions<
-      Context,
       TableName,
       Any,
       Any,
-      EmitOptions
+      Context
     >;
   },
 ) {
@@ -549,11 +514,10 @@ export function tableDomainsRowFactory<
       options?: tr.TransformTabularRecordOptions<InsertableRecord>,
     ) => tr.transformTabularRecord(o, rowState, options),
     insertDML: dml.typicalInsertStmtPreparer<
-      Context,
       TableName,
       InsertableRecord,
       EntireRecord,
-      EmitOptions
+      Context
     >(
       tableName,
       (group) => {
@@ -578,8 +542,7 @@ export function tableDomainsViewWrapper<
   ViewName extends string,
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   viewName: ViewName,
   tableName: TableName,
@@ -588,34 +551,34 @@ export function tableDomainsViewWrapper<
     & vw.ViewDefnOptions<
       ViewName,
       keyof TPropAxioms & string,
-      EmitOptions,
       Context
     >
     & {
       readonly onPropertyNotAxiomSqlDomain?: (
         name: string,
         axiom: ax.Axiom<Any>,
-        domains: d.IdentifiableSqlDomain<Any, EmitOptions, Context>[],
+        domains: d.IdentifiableSqlDomain<Any, Context>[],
       ) => void;
     },
 ) {
   const sd = d.sqlDomains(props, tdvwOptions);
   const selectColumnNames = sd.domains.map((d) => d.identity);
-  const selectColumnNamesSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
-    SQL: (ctx, steOptions) =>
+  const selectColumnNamesSS: tmpl.SqlTextSupplier<Context> = {
+    SQL: (ctx) =>
       selectColumnNames.map((cn) =>
-        steOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+        ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
           .tableColumnName({
             tableName,
             columnName: cn,
           })
       ).join(", "),
   };
-  const tableNameSS: tmpl.SqlTextSupplier<Context, EmitOptions> = {
-    SQL: (ctx, steOptions) =>
-      steOptions.namingStrategy(ctx, { quoteIdentifiers: true }).tableName?.(
-        tableName,
-      ) ??
+  const tableNameSS: tmpl.SqlTextSupplier<Context> = {
+    SQL: (ctx) =>
+      ctx.sqlTextEmitOptions.namingStrategy(ctx, { quoteIdentifiers: true })
+        .tableName?.(
+          tableName,
+        ) ??
         tableName,
   };
   return vw.safeViewDefinition(viewName, props, tdvwOptions)`

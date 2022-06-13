@@ -8,53 +8,48 @@ export type ANONYMOUS = "ANONYMOUS";
 
 export interface RoutineBody<
   BodyIdentity extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly identity?: BodyIdentity;
   readonly isValid: boolean;
-  readonly content: tmpl.SqlTextSupplier<Context, EmitOptions>;
+  readonly content: tmpl.SqlTextSupplier<Context>;
 }
 
 export interface RoutineDefinition<
   RoutineName extends string,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends tmpl.SqlTextSupplier<Context, EmitOptions> {
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.SqlTextSupplier<Context> {
   readonly isValid: boolean;
-  readonly body: RoutineBody<RoutineName, EmitOptions, Context>;
+  readonly body: RoutineBody<RoutineName, Context>;
 }
 
 export interface AnonymousRoutineDefn<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends RoutineDefinition<ANONYMOUS, EmitOptions, Context> {
+  Context extends tmpl.SqlEmitContext,
+> extends RoutineDefinition<ANONYMOUS, Context> {
   readonly isAnonymousRoutine: boolean;
   readonly isValid: boolean;
-  readonly body: RoutineBody<ANONYMOUS, EmitOptions, Context>;
+  readonly body: RoutineBody<ANONYMOUS, Context>;
 }
 
 export interface NamedRoutineDefn<
   RoutineName extends string,
   ArgAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
-> extends RoutineDefinition<RoutineName, EmitOptions, Context> {
+  Context extends tmpl.SqlEmitContext,
+> extends RoutineDefinition<RoutineName, Context> {
   readonly routineName: RoutineName;
   readonly isValid: boolean;
-  readonly body: RoutineBody<RoutineName, EmitOptions, Context>;
+  readonly body: RoutineBody<RoutineName, Context>;
   readonly argsDefn: ArgAxioms;
   readonly isIdempotent: boolean;
 }
 
 export function isAnonymousRoutineDefn<
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is AnonymousRoutineDefn<EmitOptions, Context> {
+): o is AnonymousRoutineDefn<Context> {
   const isViewDefn = safety.typeGuard<
-    AnonymousRoutineDefn<EmitOptions, Context>
+    AnonymousRoutineDefn<Context>
   >(
     "isAnonymousRoutine",
     "body",
@@ -66,13 +61,12 @@ export function isAnonymousRoutineDefn<
 export function isRoutineDefinition<
   RoutineName extends string,
   ArgAxioms extends Record<string, ax.Axiom<Any>>,
-  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
-  Context = Any,
+  Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context> {
+): o is NamedRoutineDefn<RoutineName, ArgAxioms, Context> {
   const isViewDefn = safety.typeGuard<
-    NamedRoutineDefn<RoutineName, ArgAxioms, EmitOptions, Context>
+    NamedRoutineDefn<RoutineName, ArgAxioms, Context>
   >(
     "routineName",
     "body",
