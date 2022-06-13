@@ -109,18 +109,24 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   );
 
   await tc.step(
-    "PL/pgSQL stored procedure (idempotent, auto begin/end)",
+    "PL/pgSQL stored procedure (idempotent, auto begin/end, with IN/OUT modifiers and drop before)",
     () => {
-      const sp = mod.storedProcedure("synthetic_sp1", {
-        arg1: d.text(),
-        arg2: mod.IN(d.integer()),
-        arg3: mod.OUT(d.bigint()),
-        arg4: mod.IN_OUT(d.date()),
-      }, (name, args, bo) => mod.typedPlPgSqlBody(name, args, bo))`
+      const sp = mod.storedProcedure(
+        "synthetic_sp1",
+        {
+          arg1: d.text(),
+          arg2: mod.IN(d.integer()),
+          arg3: mod.OUT(d.bigint()),
+          arg4: mod.IN_OUT(d.date()),
+        },
+        (name, args, bo) => mod.typedPlPgSqlBody(name, args, bo),
+        { before: (name) => mod.dropStoredProcedure(name) },
+      )`
       -- this is the stored procedure body`;
       ta.assertEquals(
         sp.SQL(ctx, emitOptions),
         uws(`
+        DROP PROCEDURE IF EXISTS "synthetic_sp1";
         CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT, IN "arg2" INTEGER, OUT "arg3" BIGINT, IN OUT "arg4" DATE) AS $$
         BEGIN
           -- this is the stored procedure body
@@ -131,7 +137,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   );
 
   await tc.step(
-    "PL/SQL stored function returns TABLE (idempotent, auto begin/end)",
+    "PL/SQL stored function returns TABLE (idempotent, auto begin/end, manual drop)",
     () => {
       const sf = mod.storedFunction(
         "Repeat",
@@ -157,6 +163,10 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
            WHERE date between fromDate and toDate
            GROUP BY label;
         $$ LANGUAGE SQL;`),
+      );
+      ta.assertEquals(
+        sf.drop().SQL(ctx, emitOptions),
+        uws(`DROP FUNCTION IF EXISTS "Repeat"`),
       );
     },
   );

@@ -175,7 +175,7 @@ export function untypedPlPgSqlBody<
   BodyIdentity extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
->(identity: BodyIdentity, bOptions?: { readonly autoBeginEnd: boolean }) {
+>(identity: BodyIdentity, bOptions?: { readonly autoBeginEnd?: boolean }) {
   return (
     literals: TemplateStringsArray,
     ...expressions: tmpl.SqlPartialExpression<Context, EmitOptions>[]
@@ -244,7 +244,7 @@ export function typedPlPgSqlBody<
 >(
   identity: BodyIdentity,
   argDefns: ArgAxioms,
-  bOptions?: { readonly autoBeginEnd: boolean },
+  bOptions?: { readonly autoBeginEnd?: boolean },
 ) {
   return (
     literals: TemplateStringsArray,
@@ -389,19 +389,25 @@ export function doIgnoreDuplicate<
 }
 
 export interface StoredRoutineDefnOptions<
+  RoutineName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
 > extends tmpl.SqlTextSupplierOptions<Context, EmitOptions> {
-  readonly autoBeginEnd: boolean;
+  readonly autoBeginEnd?: boolean;
   readonly isIdempotent?: boolean;
   readonly headerBodySeparator?: string;
+  readonly before?: (
+    routineName: RoutineName,
+    srdOptions: StoredRoutineDefnOptions<RoutineName, EmitOptions, Context>,
+  ) => tmpl.SqlTextSupplier<Context, EmitOptions>;
 }
 
 // deno-lint-ignore no-empty-interface
 export interface StoredProcedureDefnOptions<
+  RoutineName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
-> extends StoredRoutineDefnOptions<EmitOptions, Context> {
+> extends StoredRoutineDefnOptions<RoutineName, EmitOptions, Context> {
 }
 
 export function routineArgsSQL<
@@ -430,7 +436,7 @@ export function storedProcedure<
   BodyTemplateSupplier extends (
     routineName: RoutineName,
     argsDefn: ArgAxioms,
-    spOptions?: StoredProcedureDefnOptions<EmitOptions, Context>,
+    spOptions?: StoredProcedureDefnOptions<RoutineName, EmitOptions, Context>,
   ) => tmpl.SafeTemplateString<
     tmpl.SqlPartialExpression<Context, EmitOptions>,
     Any
@@ -444,7 +450,7 @@ export function storedProcedure<
   routineName: RoutineName,
   argsDefn: ArgAxioms,
   bodyTemplate: BodyTemplateSupplier,
-  spOptions?: StoredProcedureDefnOptions<EmitOptions, Context> & {
+  spOptions?: StoredProcedureDefnOptions<RoutineName, EmitOptions, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
       axiom: Any,
@@ -481,22 +487,52 @@ export function storedProcedure<
             ctx,
             steOptions,
           );
-          return steOptions.indentation(
+          const sqlText = steOptions.indentation(
             "create routine",
             // deno-fmt-ignore
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} PROCEDURE ${ns.storedRoutineName(routineName)}(${argsSQL}) AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
+          return spOptions?.before
+            ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
+              spOptions.before(routineName, spOptions),
+              sqlText,
+            ]}`.SQL(ctx, steOptions)
+            : sqlText;
         },
       };
-    return result;
+    return {
+      ...result,
+      drop: (options?: { ifExists?: boolean }) =>
+        dropStoredProcedure(routineName, options),
+    };
+  };
+}
+
+export function dropStoredProcedure<
+  RoutineName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  spName: RoutineName,
+  dvOptions?: { ifExists?: boolean },
+): tmpl.SqlTextSupplier<Context, EmitOptions> {
+  const { ifExists = true } = dvOptions ?? {};
+  return {
+    SQL: (ctx, steOptions) => {
+      const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+      return `DROP PROCEDURE ${ifExists ? "IF EXISTS " : ""}${
+        ns.storedRoutineName(spName)
+      }`;
+    },
   };
 }
 
 // deno-lint-ignore no-empty-interface
 export interface StoredFunctionDefnOptions<
+  RoutineName extends string,
   EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
   Context = Any,
-> extends StoredRoutineDefnOptions<EmitOptions, Context> {
+> extends StoredRoutineDefnOptions<RoutineName, EmitOptions, Context> {
 }
 
 export function storedFunction<
@@ -511,7 +547,7 @@ export function storedFunction<
     routineName: RoutineName,
     argsDefn: ArgAxioms,
     returns: Returns,
-    spOptions?: StoredFunctionDefnOptions<EmitOptions, Context>,
+    spOptions?: StoredFunctionDefnOptions<RoutineName, EmitOptions, Context>,
   ) => tmpl.SafeTemplateString<
     tmpl.SqlPartialExpression<Context, EmitOptions>,
     Any
@@ -526,7 +562,7 @@ export function storedFunction<
   argsDefn: ArgAxioms,
   returns: Returns,
   bodyTemplate: BodyTemplateSupplier,
-  sfOptions?: StoredFunctionDefnOptions<EmitOptions, Context> & {
+  sfOptions?: StoredFunctionDefnOptions<RoutineName, EmitOptions, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
       axiom: Any,
@@ -584,13 +620,42 @@ export function storedFunction<
             ctx,
             steOptions,
           );
-          return steOptions.indentation(
+          const sqlText = steOptions.indentation(
             "create routine",
             // deno-fmt-ignore
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} FUNCTION ${ns.storedRoutineName(routineName)}(${argsSQL}) RETURNS ${returnsSQL} AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
+          return sfOptions?.before
+            ? tmpl.SQL<Context, EmitOptions>(ctx)`${[
+              sfOptions.before(routineName, sfOptions),
+              sqlText,
+            ]}`.SQL(ctx, steOptions)
+            : sqlText;
         },
       };
-    return result;
+    return {
+      ...result,
+      drop: (options?: { ifExists?: boolean }) =>
+        dropStoredFunction(routineName, options),
+    };
+  };
+}
+
+export function dropStoredFunction<
+  RoutineName extends string,
+  EmitOptions extends tmpl.SqlTextEmitOptions<Context>,
+  Context = Any,
+>(
+  sfName: RoutineName,
+  dvOptions?: { ifExists?: boolean },
+): tmpl.SqlTextSupplier<Context, EmitOptions> {
+  const { ifExists = true } = dvOptions ?? {};
+  return {
+    SQL: (ctx, steOptions) => {
+      const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
+      return `DROP FUNCTION ${ifExists ? "IF EXISTS " : ""}${
+        ns.storedRoutineName(sfName)
+      }`;
+    },
   };
 }
