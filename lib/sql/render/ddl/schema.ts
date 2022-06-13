@@ -53,9 +53,11 @@ export function sqlSchemaDefn<
       isIdempotent,
       populateSqlTextLintIssues: () => {},
       SQL: (ctx) => {
-        return `CREATE SCHEMA ${isIdempotent ? "IF NOT EXISTS " : ""}${ctx
-          .sqlNamingStrategy(ctx, { quoteIdentifiers: true })
-          .schemaName?.(schemaName)}`;
+        return `CREATE SCHEMA ${isIdempotent ? "IF NOT EXISTS " : ""}${
+          ctx
+            .sqlNamingStrategy(ctx, { quoteIdentifiers: true })
+            .schemaName(schemaName)
+        }`;
       },
       schemaQualifier: tmpl.qualifyName(schemaName),
     };
