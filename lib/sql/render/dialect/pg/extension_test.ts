@@ -4,14 +4,13 @@ import * as sch from "../../ddl/schema.ts";
 import * as tmpl from "../../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
-  const sdf = sch.typicalSqlSchemaDefnFactory();
   const edf = mod.typicalPgExtensionDefnFactory();
   const ctx = undefined;
   const emitOptions = tmpl.typicalSqlTextEmitOptions();
 
   await tc.step("idempotent extension declaration", () => {
     const extn = edf.pgExtensionDefn(
-      sdf.sqlSchemaDefn("synthetic_schema"),
+      sch.sqlSchemaDefn("synthetic_schema"),
       "synthetic_extension",
     );
     ta.assertEquals(
@@ -22,7 +21,7 @@ Deno.test("SQL Aide (SQLa) PostgreSQL extension", async (tc) => {
 
   await tc.step("non-idempotent extension declaration", () => {
     const extn = edf.pgExtensionDefn(
-      sdf.sqlSchemaDefn("synthetic_schema"),
+      sch.sqlSchemaDefn("synthetic_schema"),
       "synthetic_extension",
       { isIdempotent: false },
     );

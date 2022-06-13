@@ -421,7 +421,7 @@ export function routineArgsSQL<
   const ns = steOptions.namingStrategy(ctx, { quoteIdentifiers: true });
   return domains.map((arg) =>
     `${isPgRoutineArgModifer(arg) ? `${arg.pgRouteineArgModifier} ` : ""}${
-      ns.storedRoutineArg(arg.identity)
+      ns.storedRoutineArgName(arg.identity)
     } ${arg.sqlDataType("stored routine arg").SQL(ctx, steOptions)}${
       arg.sqlDefaultValue
         ? ` = ${arg.sqlDefaultValue("stored routine arg").SQL(ctx, steOptions)}`

@@ -77,20 +77,31 @@ following types of SQL language constructs.
 
 ## TODO
 
-- Create CALL SqlTextSupplier as a new stored routine object property similar to
-  how a InsertStatementPreparer works. Just like DML is tied to a table, CALL
-  should be tied to stored routine header(s) so that there's full type- safety
-  integrated into the call.
-- In PostgreSQL dialect:
-  - array types (e.g. `xyz text[]`) as domains and Axiom(s)
-  - in language definition add STABLE and other type-safe modifiers
-- Add symmetric and asymmetric encryption domains for storing passwords, IDs,
-  etc.
+- [ ] Use legacy `state.observableQR` strategy for defining and using schemas
+- [ ] Create CALL SqlTextSupplier as a new stored routine object property
+      similar to how a InsertStatementPreparer works. Just like DML is tied to a
+      table, CALL should be tied to stored routine header(s) so that there's
+      full type- safety integrated into the call.
+- [ ] In PostgreSQL dialect:
+  - [ ] array types (e.g. `xyz text[]`) as domains and Axiom(s)
+  - [ ] in language definition add STABLE and other type-safe modifiers
+- [ ] Creat CTE-based view or stored function returning SETOF TABLE that would
+      allow storing data in SQL view code or a LANGUAGE SQL STRICT IMMUTABLE
+      function. This would allow us to use to create small "view tables" for
+      storing configuration as code (e.g. confidential password data can be
+      stored in secure location of server as stateless code to be pulled in
+      regularly instead of treated as stateful data in tables). The
+      `dcp_context.context` table as well as many other tiny tables could just
+      be replaced as views or, at worst, materialed views in case performance
+      becomes an issue. The primary benefit of creating rows in small tables as
+      views is stateful vs. stateless maintenance.
+- [ ] Add symmetric and asymmetric encryption domains for storing passwords,
+      IDs, etc.
   - See https://github.com/FiloSottile/age et. al but use built-in database
     capabilities through SQL whenever possible
-- Add type-safe where criteria builder in DQL SELECT statements so that outbound
-  select columns are properly typed but so are in-bound where criteria with
-  proper bind-able parameters (using ? or :name strategies).
+- [ ] Add type-safe where criteria builder in DQL SELECT statements so that
+      outbound select columns are properly typed but so are in-bound where
+      criteria with proper bind-able parameters (using ? or :name strategies).
   - Most of the value should not be derived for generating static SQL
     expressions (which should be written out whenever possible) but using
     Sparx-like QueryDefn dynamic generator for end-user selections
@@ -116,8 +127,8 @@ following types of SQL language constructs.
   - Only introduce high-value type-safety features into template expressions
     which would enhance readability or improve the SQL, not try to replace it or
     create another DSL. `SQLa` is about SQL assembly, not replacing SQL.
-- Implement dml/dto.ts for type-safe Axiom-based data transfer objects to/from
-  camel-case JS objects and snake_case SQL-style records
+- [ ] Implement dml/dto.ts for type-safe Axiom-based data transfer objects
+      to/from camel-case JS objects and snake_case SQL-style records
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)
   suggestions into SQLa renderers so that developers just have to give feature

@@ -17,29 +17,56 @@ export type SafeTemplateString<Expressions, ReturnType> = (
   ...expressions: Expressions[]
 ) => ReturnType;
 
+/** in case the name should be "qualified" for a schema/namespace */
+export type NameQualifier = (unqualifiedName: string) => string;
+
 export interface SqlObjectNamingStrategy {
   readonly schemaName: (schemaName: string) => string;
   readonly tableName: (tableName: string) => string;
   readonly tableColumnName: (
     tc: { tableName: string; columnName: string },
+    qualifyTableName?: false | ".",
   ) => string;
   readonly viewName: (viewName: string) => string;
   readonly viewColumnName: (
     vc: { viewName: string; columnName: string },
+    qualifyViewName?: false | ".",
   ) => string;
   readonly typeName: (typeName: string) => string;
   readonly typeFieldName: (
     vc: { typeName: string; fieldName: string },
+    qualifyTypeName?: false | ".",
   ) => string;
   readonly storedRoutineName: (name: string) => string;
-  readonly storedRoutineArg: (name: string) => string;
+  readonly storedRoutineArgName: (name: string) => string;
   readonly storedRoutineReturns: (name: string) => string;
 }
 
+export function qualifyName(qualifier: string, delim = "."): NameQualifier {
+  return (name) => `${qualifier}${delim}${name}`;
+}
+
+export function qualifiedNamingStrategy(
+  ns: SqlObjectNamingStrategy,
+  q: NameQualifier,
+): SqlObjectNamingStrategy {
+  return {
+    schemaName: (name) => q(ns.schemaName(name)),
+    tableName: (name) => q(ns.tableName(name)),
+    tableColumnName: (tc, qtn) => q(ns.tableColumnName(tc, qtn)),
+    viewName: (name) => q(ns.viewName(name)),
+    viewColumnName: (vc, qtn) => q(ns.viewColumnName(vc, qtn)),
+    typeName: (name) => q(ns.typeName(name)),
+    typeFieldName: (tf, qtn) => q(ns.typeFieldName(tf, qtn)),
+    storedRoutineName: (name) => q(ns.storedRoutineName(name)),
+    storedRoutineArgName: (name) => q(ns.storedRoutineArgName(name)),
+    storedRoutineReturns: (name) => q(ns.storedRoutineReturns(name)),
+  };
+}
+
 export interface SqlObjectNamingStrategyOptions<Context> {
-  readonly quoteIdentifiers: boolean;
-  // readonly qualifyTableName: boolean;
-  // readonly qualifyViewName: boolean;
+  readonly quoteIdentifiers?: boolean;
+  readonly qualifyNames?: NameQualifier;
 }
 
 export interface SqlObjectNamingStrategySupplier<Context> {
@@ -87,26 +114,45 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
   const quotedIdentifiersNS: SqlObjectNamingStrategy = {
     schemaName: (name) => `"${name}"`,
     tableName: (name) => `"${name}"`,
-    tableColumnName: (tc) => `"${tc.columnName}"`,
+    tableColumnName: (tc, qtn) =>
+      qtn
+        // deno-fmt-ignore
+        ? `${quotedIdentifiersNS.tableName(tc.tableName)}${qtn}"${tc.columnName}"`
+        : `"${tc.columnName}"`,
     viewName: (name) => `"${name}"`,
-    viewColumnName: (vc) => `"${vc.columnName}"`,
+    viewColumnName: (vc, qvn) =>
+      qvn
+        ? `${quotedIdentifiersNS.viewName(vc.viewName)}${qvn}"${vc.columnName}"`
+        : `"${vc.columnName}"`,
     typeName: (name) => `"${name}"`,
-    typeFieldName: (tf) => `"${tf.fieldName}"`,
+    typeFieldName: (tf, qtn) =>
+      qtn
+        ? `${quotedIdentifiersNS.typeName(tf.typeName)}${qtn}"${tf.fieldName}"`
+        : `"${tf.fieldName}"`,
     storedRoutineName: (name) => `"${name}"`,
-    storedRoutineArg: (name) => `"${name}"`,
+    storedRoutineArgName: (name) => `"${name}"`,
     storedRoutineReturns: (name) => `"${name}"`,
   };
 
   const bareIdentifiersNS: SqlObjectNamingStrategy = {
     schemaName: (name) => name,
     tableName: (name) => name,
-    tableColumnName: (tc) => tc.columnName,
+    tableColumnName: (tc, qtn) =>
+      qtn
+        ? `${bareIdentifiersNS.tableName(tc.tableName)}${qtn}${tc.columnName}`
+        : tc.columnName,
     viewName: (name) => name,
-    viewColumnName: (vc) => vc.columnName,
+    viewColumnName: (vc, qvn) =>
+      qvn
+        ? `${bareIdentifiersNS.viewName(vc.viewName)}${qvn}${vc.columnName}`
+        : vc.columnName,
     typeName: (name) => name,
-    typeFieldName: (tf) => tf.fieldName,
+    typeFieldName: (tf, qtn) =>
+      qtn
+        ? `${bareIdentifiersNS.typeName(tf.fieldName)}${qtn}${tf.fieldName}`
+        : tf.fieldName,
     storedRoutineName: (name) => name,
-    storedRoutineArg: (name) => name,
+    storedRoutineArgName: (name) => name,
     storedRoutineReturns: (name) => name,
   };
 
@@ -114,9 +160,12 @@ export function typicalSqlTextEmitOptions<Context>(): SqlTextEmitOptions<
     _,
     nsOptions,
   ) => {
-    return nsOptions?.quoteIdentifiers
+    const ns = nsOptions?.quoteIdentifiers
       ? quotedIdentifiersNS
       : bareIdentifiersNS;
+    return nsOptions?.qualifyNames
+      ? qualifiedNamingStrategy(ns, nsOptions.qualifyNames)
+      : ns;
   };
 
   return {
