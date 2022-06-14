@@ -8,11 +8,46 @@ import * as d from "../domain.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
 
-// deno-lint-ignore no-empty-interface
 interface SyntheticTmplContext extends mod.SqlEmitContext {
+  readonly syntheticBehavior1: mod.SqlTextBehaviorSupplier<
+    SyntheticTmplContext
+  >;
+  readonly syntheticBehavior2: mod.SqlTextBehaviorSupplier<
+    SyntheticTmplContext
+  >;
 }
 
-const stContext = (): SyntheticTmplContext => mod.typicalSqlEmitContext();
+const stContext = () => {
+  const behaviorState = {
+    state1Value: 0,
+    state2Value: 0,
+  };
+  const ctx: SyntheticTmplContext = {
+    ...mod.typicalSqlEmitContext(),
+    // for this behavior we want to execute and then emit some output
+    syntheticBehavior1: {
+      executeSqlBehavior: () => {
+        behaviorState.state1Value++;
+        return {
+          SQL: () => {
+            return `behavior 1 state value: ${behaviorState.state1Value}`;
+          },
+        };
+      },
+    },
+    // for this behavior we want to execute and then "eat" the emitted output
+    syntheticBehavior2: {
+      executeSqlBehavior: () => {
+        behaviorState.state2Value++;
+        return mod.removeLineFromEmitStream;
+      },
+    },
+  };
+  return {
+    ...ctx,
+    behaviorState,
+  };
+};
 
 const table = <
   TableName extends string,
@@ -99,13 +134,17 @@ Deno.test("SQL Aide (SQLa) template", () => {
     --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
 
     ${mod.typicalSqlTextLintSummary}
+    -- ${ctx.syntheticBehavior1}
 
     ${syntheticTable1Defn}
     ${persist(syntheticTable1Defn, "publ-host.sql")}
 
     ${syntheticTable1ViewWrapper}
+    ${ctx.syntheticBehavior2} -- the behavior will execute but this entire line will be removed from the interpolated result
 
-    ${syntheticTable1Defn.insertDML({ column_one_text: "test", column_unique: "testHI" })}`;
+    ${syntheticTable1Defn.insertDML({ column_one_text: "test", column_unique: "testHI" })}
+
+    -- ${ctx.syntheticBehavior1}`;
 
   const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {
@@ -115,6 +154,8 @@ Deno.test("SQL Aide (SQLa) template", () => {
   ta.assertEquals(0, DDL.lintIssues?.length);
   ta.assertEquals(tablesDeclared.size, 1);
   ta.assertEquals(viewsDeclared.size, 1);
+  ta.assertEquals(ctx.behaviorState.state1Value, 2);
+  ta.assertEquals(ctx.behaviorState.state2Value, 1);
 });
 
 // deno-fmt-ignore
@@ -137,6 +178,7 @@ const fixturePrime = ws.unindentWhitespace(`
   --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
 
   -- no SQL lint issues
+  -- behavior 1 state value: 1
 
   CREATE TABLE "synthetic_table1" (
       "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,4 +194,6 @@ const fixturePrime = ws.unindentWhitespace(`
       SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
         FROM "synthetic_table1";
 
-  INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('test', NULL, 'testHI', NULL);`);
+  INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('test', NULL, 'testHI', NULL);
+
+  -- behavior 1 state value: 2`);

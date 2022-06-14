@@ -32,7 +32,7 @@ export interface InsertStmtPreparerOptions<
     columnName: keyof InsertableRecord,
     record: InsertableRecord,
     tableName: TableName,
-    ns: tmpl.SqlObjectNamingStrategy,
+    ns: tmpl.SqlObjectNames,
     ctx: Context,
   ) =>
     | [columNameSqlText: string, value: unknown, valueSqlText: string]
@@ -58,7 +58,7 @@ export interface InsertStmtPreparerOptions<
     record: InsertableRecord,
     names: InsertableColumnName[],
     values: [value: unknown, sqlText: string][],
-    ns: tmpl.SqlObjectNamingStrategy,
+    ns: tmpl.SqlObjectNames,
     ctx: Context,
   ) => string;
 }

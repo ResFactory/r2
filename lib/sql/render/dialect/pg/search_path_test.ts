@@ -8,7 +8,7 @@ type SchemaName = "synthetic_schema1" | "synthetic_schema2";
 Deno.test("SQL Aide (SQLa) schema", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
 
-  await tc.step("schema search path declaration", () => {
+  await tc.step("PostgreSQL schema search path declaration", () => {
     const schema1 = sch.sqlSchemaDefn<SchemaName, tmpl.SqlEmitContext>(
       "synthetic_schema1",
     );
@@ -16,10 +16,10 @@ Deno.test("SQL Aide (SQLa) schema", async (tc) => {
       "synthetic_schema2",
     );
 
-    const searchPath = mod.pgSearchPath<SchemaName, tmpl.SqlEmitContext>([
+    const searchPath = mod.pgSearchPath<SchemaName, tmpl.SqlEmitContext>(
       schema1,
       schema2,
-    ]);
+    );
     ta.assertEquals(
       searchPath.SQL(ctx),
       `SET search_path TO "synthetic_schema1", "synthetic_schema2"`,

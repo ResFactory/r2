@@ -13,6 +13,7 @@ export interface SchemaDefinition<
   readonly sqlNamespace: SchemaName;
   readonly isIdempotent: boolean;
   readonly schemaQualifier: tmpl.NameQualifier;
+  readonly qualifiedNames: (baseNS: tmpl.SqlObjectNames) => tmpl.SqlObjectNames;
 }
 
 export function isSchemaDefinition<
@@ -23,10 +24,7 @@ export function isSchemaDefinition<
 ): o is SchemaDefinition<SchemaName, Context> {
   const isSD = safety.typeGuard<
     SchemaDefinition<SchemaName, Context>
-  >(
-    "sqlNamespace",
-    "SQL",
-  );
+  >("sqlNamespace", "SQL");
   return isSD(o);
 }
 
@@ -45,6 +43,7 @@ export function sqlSchemaDefn<
   schemaDefnOptions?: SchemaDefnOptions<SchemaName, Context>,
 ) {
   const { isIdempotent = false } = schemaDefnOptions ?? {};
+  const schemaQualifier = tmpl.qualifyName(schemaName);
   const result:
     & SchemaDefinition<SchemaName, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context> = {
@@ -59,7 +58,8 @@ export function sqlSchemaDefn<
             .schemaName(schemaName)
         }`;
       },
-      schemaQualifier: tmpl.qualifyName(schemaName),
+      schemaQualifier,
+      qualifiedNames: (ns) => tmpl.qualifiedNamingStrategy(ns, schemaQualifier),
     };
   return result;
 }

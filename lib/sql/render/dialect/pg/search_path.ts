@@ -25,23 +25,10 @@ export function isPostgresSchemaSearchPathDefinition<
   return isSD(o);
 }
 
-// deno-lint-ignore no-empty-interface
-export interface PostgresSchemaSearchPathDefnOptions<
-  SchemaName extends nsp.SqlNamespace,
-  Context extends tmpl.SqlEmitContext,
-> {
-}
-
 export function pgSearchPath<
   SchemaName extends nsp.SqlNamespace,
   Context extends tmpl.SqlEmitContext,
->(
-  searchPath: sch.SchemaDefinition<SchemaName, Context>[],
-  _spDefnOptions?: PostgresSchemaSearchPathDefnOptions<
-    SchemaName,
-    Context
-  >,
-) {
+>(...searchPath: sch.SchemaDefinition<SchemaName, Context>[]) {
   const result:
     & PostgresSchemaSearchPathDefinition<SchemaName, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context> = {

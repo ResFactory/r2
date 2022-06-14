@@ -20,7 +20,7 @@ export type SafeTemplateString<Expressions, ReturnType> = (
 /** in case the name should be "qualified" for a schema/namespace */
 export type NameQualifier = (unqualifiedName: string) => string;
 
-export interface SqlObjectNamingStrategy {
+export interface SqlObjectNames {
   readonly schemaName: (schemaName: string) => string;
   readonly tableName: (tableName: string) => string;
   readonly tableColumnName: (
@@ -47,9 +47,9 @@ export function qualifyName(qualifier: string, delim = "."): NameQualifier {
 }
 
 export function qualifiedNamingStrategy(
-  ns: SqlObjectNamingStrategy,
+  ns: SqlObjectNames,
   q: NameQualifier,
-): SqlObjectNamingStrategy {
+): SqlObjectNames {
   return {
     schemaName: (name) => q(ns.schemaName(name)),
     tableName: (name) => q(ns.tableName(name)),
@@ -69,15 +69,15 @@ export interface SqlObjectNamingStrategyOptions {
   readonly qualifyNames?: NameQualifier;
 }
 
-export interface SqlNamingStrategy {
+export interface SqlObjectNamesSupplier {
   (
     ctx: SqlEmitContext,
     nsOptions?: SqlObjectNamingStrategyOptions,
-  ): SqlObjectNamingStrategy;
+  ): SqlObjectNames;
 }
 
 export interface SqlNamingStrategySupplier {
-  readonly sqlNamingStrategy: SqlNamingStrategy;
+  readonly sqlNamingStrategy: SqlObjectNamesSupplier;
 }
 
 export interface SqlTextEmitOptions {
@@ -140,8 +140,8 @@ export function typicalQuotedSqlLiteral(
   return [value, String(value)];
 }
 
-export function typicalSqlNamingStrategy(): SqlNamingStrategy {
-  const quotedIdentifiersNS: SqlObjectNamingStrategy = {
+export function typicalSqlNamingStrategy(): SqlObjectNamesSupplier {
+  const quotedIdentifiersNS: SqlObjectNames = {
     schemaName: (name) => `"${name}"`,
     tableName: (name) => `"${name}"`,
     tableColumnName: (tc, qtn) =>
@@ -164,7 +164,7 @@ export function typicalSqlNamingStrategy(): SqlNamingStrategy {
     storedRoutineReturns: (name) => `"${name}"`,
   };
 
-  const bareIdentifiersNS: SqlObjectNamingStrategy = {
+  const bareIdentifiersNS: SqlObjectNames = {
     schemaName: (name) => name,
     tableName: (name) => name,
     tableColumnName: (tc, qtn) =>
@@ -186,7 +186,7 @@ export function typicalSqlNamingStrategy(): SqlNamingStrategy {
     storedRoutineReturns: (name) => name,
   };
 
-  const result: SqlNamingStrategy = (
+  const result: SqlObjectNamesSupplier = (
     _,
     nsOptions,
   ) => {
@@ -341,6 +341,41 @@ export function isSqlTextLintSummarySupplier<
   return isSLSTS(o);
 }
 
+export interface SqlTextBehaviorEmitTransformer {
+  before: (interpolationSoFar: string, exprIdx: number) => string;
+  after: (nextLiteral: string, exprIdx: number) => string;
+}
+
+export const removeLineFromEmitStream: SqlTextBehaviorEmitTransformer = {
+  before: (isf) => {
+    // remove the last line in the interpolation stream
+    return isf.replace(/\n.*?$/, "");
+  },
+  after: (literal) => {
+    // remove everything up to and including the line break
+    return literal.replace(/.*?\n/, "\n");
+  },
+};
+
+export interface SqlTextBehaviorSupplier<
+  Context extends SqlEmitContext,
+> {
+  readonly executeSqlBehavior: (
+    context: Context,
+  ) => SqlTextBehaviorEmitTransformer | SqlTextSupplier<Context>;
+}
+
+export function isSqlTextBehaviorSupplier<
+  Context extends SqlEmitContext,
+>(
+  o: unknown,
+): o is SqlTextBehaviorSupplier<Context> {
+  const isSTBS = safety.typeGuard<
+    SqlTextBehaviorSupplier<Context>
+  >("executeSqlBehavior");
+  return isSTBS(o);
+}
+
 export interface PersistableSqlTextIndexSupplier {
   readonly persistableSqlTextIndex: number;
 }
@@ -360,6 +395,10 @@ export class SqlPartialExprEventEmitter<
     ctx: Context,
     sts: SqlTextSupplier<Context>,
   ): void;
+  sqlBehaviorEncountered(
+    ctx: Context,
+    sts: SqlTextBehaviorSupplier<Context>,
+  ): void;
   sqlEmitted(
     ctx: Context,
     sts: SqlTextSupplier<Context>,
@@ -370,6 +409,11 @@ export class SqlPartialExprEventEmitter<
     destPath: string,
     pst: PersistableSqlText<Context>,
     persistResultEmitSTS: SqlTextSupplier<Context>,
+  ): void;
+  behaviorActivity(
+    ctx: Context,
+    sts: SqlTextBehaviorSupplier<Context>,
+    behaviorResult?: SqlTextBehaviorEmitTransformer | SqlTextSupplier<Context>,
   ): void;
 }> {}
 
@@ -483,12 +527,18 @@ export type SqlPartialExpression<
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context>,
+  ) => SqlTextBehaviorSupplier<Context>)
+  | ((
+    ctx: Context,
+    options: SqlTextSupplierOptions<Context>,
   ) => string)
   | SqlTextSupplier<Context>
   | PersistableSqlText<Context>
+  | SqlTextBehaviorSupplier<Context>
   | (
     | SqlTextSupplier<Context>
     | PersistableSqlText<Context>
+    | SqlTextBehaviorSupplier<Context>
     | string
   )[]
   | SqlTextLintSummarySupplier<Context>
@@ -540,7 +590,7 @@ export function SQL<
             placeholders.push(exprIndex);
             expressions[exprIndex] = expr; // we're going to run the function later
           } else {
-            // either a string, TableDefinition, or arbitrary SqlTextSupplier
+            // either a string, SqlTextSupplier (e.g. TableDefinition, et. al.), SqlTextBehavior
             expressions[exprIndex] = exprValue;
           }
         } else {
@@ -572,6 +622,8 @@ export function SQL<
           );
         } else if (isSqlTextSupplier<Context>(expr)) {
           speEE?.emitSync("sqlEncountered", ctx, expr);
+        } else if (isSqlTextBehaviorSupplier<Context>(expr)) {
+          speEE?.emitSync("sqlBehaviorEncountered", ctx, expr);
         }
       };
 
@@ -584,8 +636,10 @@ export function SQL<
       }
 
       let interpolated = "";
+      let recentSTBET: SqlTextBehaviorEmitTransformer | undefined;
       const processSingleExpr = (
         expr: unknown,
+        exprIndex: number,
         inArray?: boolean,
         isLastArrayEntry?: boolean,
       ) => {
@@ -620,6 +674,15 @@ export function SQL<
           speEE?.emitSync("sqlEmitted", ctx, expr, SQL);
         } else if (typeof expr === "string") {
           interpolated += expr;
+        } else if (isSqlTextBehaviorSupplier<Context>(expr)) {
+          const behaviorResult = expr.executeSqlBehavior(ctx);
+          if (isSqlTextSupplier<Context>(behaviorResult)) {
+            interpolated += behaviorResult.SQL(ctx);
+          } else {
+            recentSTBET = behaviorResult;
+            interpolated = recentSTBET.before(interpolated, exprIndex);
+          }
+          speEE?.emitSync("behaviorActivity", ctx, expr, behaviorResult);
         } else if (isSqlTextLintSummarySupplier<Context>(expr)) {
           interpolated += expr.sqlTextLintSummary(sqlTextLintIssues).SQL(ctx);
         } else {
@@ -631,19 +694,29 @@ export function SQL<
         }
       };
 
+      let activeLiteral: string;
       for (let i = 0; i < expressions.length; i++) {
-        interpolated += literalSupplier(i);
+        activeLiteral = literalSupplier(i);
+        if (recentSTBET) {
+          activeLiteral = recentSTBET.after(activeLiteral, i);
+          recentSTBET = undefined;
+        }
+        interpolated += activeLiteral;
         const expr = expressions[i];
         if (Array.isArray(expr)) {
           const lastIndex = expr.length - 1;
           for (let eIndex = 0; eIndex < expr.length; eIndex++) {
-            processSingleExpr(expr[eIndex], true, eIndex == lastIndex);
+            processSingleExpr(expr[eIndex], eIndex, true, eIndex == lastIndex);
           }
         } else {
-          processSingleExpr(expr);
+          processSingleExpr(expr, i);
         }
       }
-      interpolated += literalSupplier(literals.length - 1);
+      activeLiteral = literalSupplier(literals.length - 1);
+      if (recentSTBET) {
+        interpolated = recentSTBET.after(interpolated, literals.length - 1);
+      }
+      interpolated += activeLiteral;
       return interpolated;
     };
     return {
