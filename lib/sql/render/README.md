@@ -77,11 +77,20 @@ following types of SQL language constructs.
 
 ## TODO
 
-- [ ] Use legacy `state.observableQR` strategy for defining and using schemas
+- [ ] Use legacy `state.observableQR` strategy for defining and using schemas; A
+      good strategy might be to have each table/view/SqlTextSupplier in its own
+      schema object. Just like `syntheticTableDefns` defines tables and other
+      objects and returns them as an object, we could create a function like
+      `syntheticDatabase` then the objects for PostgreSQL would return schemas
+      and in each schema would be the tables/views, etc. For SQLite or others
+      that don't support schemas it would be easy to flatten the objects.
 - [ ] Create CALL SqlTextSupplier as a new stored routine object property
       similar to how a InsertStatementPreparer works. Just like DML is tied to a
       table, CALL should be tied to stored routine header(s) so that there's
       full type- safety integrated into the call.
+- [ ] Migrate PgDCP `SQLa` Justfile to pure Typescript modules with a
+      Taskfile.ts if necessary and incorporate CLI capabilities like
+      https://github.com/hyperqueryhq/whale
 - [ ] In PostgreSQL dialect:
   - [ ] array types (e.g. `xyz text[]`) as domains and Axiom(s)
   - [ ] in language definition add STABLE and other type-safe modifiers
@@ -99,6 +108,8 @@ following types of SQL language constructs.
       IDs, etc.
   - See https://github.com/FiloSottile/age et. al but use built-in database
     capabilities through SQL whenever possible
+- [ ] Refer to https://supabase.com/blog/2021/07/01/roles-postgres-hooks for how
+      to manage complex policies such as roles across multiple tenants
 - [ ] Add type-safe where criteria builder in DQL SELECT statements so that
       outbound select columns are properly typed but so are in-bound where
       criteria with proper bind-able parameters (using ? or :name strategies).
