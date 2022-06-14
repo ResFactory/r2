@@ -8,7 +8,7 @@ const expectType = <T>(_value: T) => {
   // Do nothing, the TypeScript compiler handles this for us
 };
 
-export function syntheticTableDefns<Context extends mod.SqlEmitContext>() {
+export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>() {
   const primaryKey = () =>
     mod.autoIncPrimaryKey<number, Context>(mod.integer());
 

@@ -14,7 +14,7 @@ const stContext = (): SyntheticTmplContext => mod.typicalSqlEmitContext();
 
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   const ctx = stContext();
-  const schema = mdf.syntheticTableDefns<SyntheticTmplContext>();
+  const dbDefn = mdf.syntheticDatabaseDefn<SyntheticTmplContext>();
   const persist = (
     sts: mod.SqlTextSupplier<SyntheticTmplContext>,
     basename: string,
@@ -70,20 +70,20 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${mod.typicalSqlTextLintSummary}
 
-    ${schema.publHost}
-    ${persist(schema.publHost, "publ-host.sql")}
+    ${dbDefn.publHost}
+    ${persist(dbDefn.publHost, "publ-host.sql")}
 
-    ${schema.publHost.view}
+    ${dbDefn.publHost.view}
 
-    ${schema.publBuildEvent}
+    ${dbDefn.publBuildEvent}
 
-    ${schema.publServerService}
+    ${dbDefn.publServerService}
 
-    ${schema.publServerStaticAccessLog}
+    ${dbDefn.publServerStaticAccessLog}
 
-    ${schema.publServerErrorLog}
+    ${dbDefn.publServerErrorLog}
 
-    ${schema.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
+    ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
 
   const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {
