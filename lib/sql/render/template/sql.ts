@@ -320,27 +320,6 @@ export function isPersistableSqlText<
   return isPSTS(o);
 }
 
-export interface SqlTextLintSummarySupplier<
-  Context extends SqlEmitContext,
-> {
-  readonly sqlTextLintSummary: (
-    lintIssues: l.SqlLintIssueSupplier[],
-  ) => SqlTextSupplier<Context>;
-}
-
-export function isSqlTextLintSummarySupplier<
-  Context extends SqlEmitContext,
->(
-  o: unknown,
-): o is SqlTextLintSummarySupplier<Context> {
-  const isSLSTS = safety.typeGuard<
-    SqlTextLintSummarySupplier<Context>
-  >(
-    "sqlTextLintSummary",
-  );
-  return isSLSTS(o);
-}
-
 export interface SqlTextBehaviorEmitTransformer {
   before: (interpolationSoFar: string, exprIdx: number) => string;
   after: (nextLiteral: string, exprIdx: number) => string;
@@ -431,6 +410,7 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
     indexer: { activeIndex: number },
     speEE?: SqlPartialExprEventEmitter<Context>,
   ) => SqlTextSupplier<Context> | undefined;
+  readonly sqlTextLintIssues?: l.SqlLintIssueSupplier[];
   readonly sqlTextLintSummary?: (
     options?: {
       noIssuesText?: string;
@@ -439,7 +419,8 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
         lintIssues: l.SqlLintIssueSupplier[],
       ) => SqlTextSupplier<Context>;
     },
-  ) => SqlTextLintSummarySupplier<Context>;
+  ) => SqlTextBehaviorSupplier<Context>;
+  readonly tmplEngineLintIssues?: l.SqlLintIssueSupplier[];
   readonly prepareEvents?: (
     speEE: SqlPartialExprEventEmitter<Context>,
   ) => SqlPartialExprEventEmitter<Context>;
@@ -448,6 +429,8 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
 export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
   inherit?: Partial<SqlTextSupplierOptions<Context>>,
 ): SqlTextSupplierOptions<Context> {
+  const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
+  const tmplEngineLintIssues: l.SqlLintIssueSupplier[] = [];
   return {
     sqlSuppliersDelimText: ";",
     exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
@@ -462,15 +445,16 @@ export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
       steEE?.emitSync("sqlPersisted", ctx, destPath, psts, emit);
       return emit;
     },
+    sqlTextLintIssues,
     sqlTextLintSummary: (options) => {
       const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
       return {
-        sqlTextLintSummary: (lintIssues) => {
+        executeSqlBehavior: () => {
           const result: SqlTextSupplier<Context> = {
             SQL: (ctx) => {
               const steOptions = ctx.sqlTextEmitOptions;
-              return lintIssues.length > 0
-                ? lintIssues.map((li) => {
+              return sqlTextLintIssues.length > 0
+                ? sqlTextLintIssues.map((li) => {
                   // deno-fmt-ignore
                   const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
                   return steOptions.comments(message);
@@ -478,10 +462,11 @@ export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
                 : steOptions.comments(noIssuesText);
             },
           };
-          return transform ? transform(result, lintIssues) : result;
+          return transform ? transform(result, sqlTextLintIssues) : result;
         },
       };
     },
+    tmplEngineLintIssues,
     ...inherit,
   };
 }
@@ -491,9 +476,9 @@ export function typicalSqlTextLintSummary<
 >(
   _: Context,
   options: SqlTextSupplierOptions<Context>,
-): SqlTextLintSummarySupplier<Context> {
+): SqlTextBehaviorSupplier<Context> {
   return options?.sqlTextLintSummary?.() ?? {
-    sqlTextLintSummary: () => {
+    executeSqlBehavior: () => {
       return {
         SQL: () => `-- no SQL lint summary supplier`,
       };
@@ -523,10 +508,6 @@ export type SqlPartialExpression<
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context>,
-  ) => SqlTextLintSummarySupplier<Context>)
-  | ((
-    ctx: Context,
-    options: SqlTextSupplierOptions<Context>,
   ) => SqlTextBehaviorSupplier<Context>)
   | ((
     ctx: Context,
@@ -541,7 +522,6 @@ export type SqlPartialExpression<
     | SqlTextBehaviorSupplier<Context>
     | string
   )[]
-  | SqlTextLintSummarySupplier<Context>
   | string;
 
 export function SQL<
@@ -557,8 +537,7 @@ export function SQL<
   literals: TemplateStringsArray,
   ...expressions: Expressions[]
 ) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
-  const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
-  const tmplLiteralLintIssues: l.SqlLintIssueSupplier[] = [];
+  const { sqlTextLintIssues, tmplEngineLintIssues } = stsOptions;
   return (literals, ...suppliedExprs) => {
     const {
       sqlSuppliersDelimText,
@@ -611,7 +590,7 @@ export function SQL<
       }
 
       const preprocessSingleExpr = (expr: unknown) => {
-        if (isSqlTextLintIssuesSupplier<Context>(expr)) {
+        if (sqlTextLintIssues && isSqlTextLintIssuesSupplier<Context>(expr)) {
           expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx);
         }
         if (isPersistableSqlText<Context>(expr)) {
@@ -659,8 +638,8 @@ export function SQL<
               // after persistence, if we want to store a remark or other SQL
               interpolated += persistenceSqlText.SQL(ctx);
             }
-          } else {
-            tmplLiteralLintIssues.push({
+          } else if (tmplEngineLintIssues) {
+            tmplEngineLintIssues.push({
               lintIssue:
                 `persistable SQL encountered but no persistence handler available: '${
                   Deno.inspect(expr)
@@ -683,8 +662,6 @@ export function SQL<
             interpolated = recentSTBET.before(interpolated, exprIndex);
           }
           speEE?.emitSync("behaviorActivity", ctx, expr, behaviorResult);
-        } else if (isSqlTextLintSummarySupplier<Context>(expr)) {
-          interpolated += expr.sqlTextLintSummary(sqlTextLintIssues).SQL(ctx);
         } else {
           interpolated += Deno.inspect(expr);
         }
@@ -723,7 +700,7 @@ export function SQL<
       SQL: (ctx) => {
         return interpolate(ctx);
       },
-      lintIssues: tmplLiteralLintIssues,
+      lintIssues: tmplEngineLintIssues,
     };
   };
 }
