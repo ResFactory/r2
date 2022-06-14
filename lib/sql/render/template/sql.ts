@@ -673,6 +673,13 @@ export function SQL<
 
       let activeLiteral: string;
       for (let i = 0; i < expressions.length; i++) {
+        // we have two main types of text that we emit: SqlTextSupplier ("STS")
+        // and SqlTextBehaviorEmitTransformer ("STBET"); behaviors are arbitary
+        // and can (optionally) change the emit stream or they can supplyer SQL
+        // like like an STS. If we have a non-null recentSTBET it means that a
+        // behavior emit transformer wants to change the stream otherwise we
+        // just have a "normal" expression where the text is emitted without
+        // changing what's already been prepared.
         activeLiteral = literalSupplier(i);
         if (recentSTBET) {
           activeLiteral = recentSTBET.after(activeLiteral, i);
