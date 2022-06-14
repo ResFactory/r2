@@ -83,7 +83,9 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${dbDefn.publServerErrorLog}
 
-    ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}`;
+    ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}
+
+    ${mod.typicalSqlTmplEngineLintSummary}`;
 
   const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {
@@ -177,4 +179,6 @@ const fixturePrime = ws.unindentWhitespace(`
       FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
   );
 
-  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);`);
+  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);
+
+  -- no template engine lint issues`);

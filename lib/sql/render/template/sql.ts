@@ -420,7 +420,16 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
       ) => SqlTextSupplier<Context>;
     },
   ) => SqlTextBehaviorSupplier<Context>;
-  readonly tmplEngineLintIssues?: l.SqlLintIssueSupplier[];
+  readonly sqlTmplEngineLintIssues?: l.SqlLintIssueSupplier[];
+  readonly sqlTmplEngineLintSummary?: (
+    options?: {
+      noIssuesText?: string;
+      transform?: (
+        suggested: SqlTextSupplier<Context>,
+        lintIssues: l.SqlLintIssueSupplier[],
+      ) => SqlTextSupplier<Context>;
+    },
+  ) => SqlTextBehaviorSupplier<Context>;
   readonly prepareEvents?: (
     speEE: SqlPartialExprEventEmitter<Context>,
   ) => SqlPartialExprEventEmitter<Context>;
@@ -430,7 +439,7 @@ export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
   inherit?: Partial<SqlTextSupplierOptions<Context>>,
 ): SqlTextSupplierOptions<Context> {
   const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
-  const tmplEngineLintIssues: l.SqlLintIssueSupplier[] = [];
+  const sqlTmplEngineLintIssues: l.SqlLintIssueSupplier[] = [];
   return {
     sqlSuppliersDelimText: ";",
     exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
@@ -466,7 +475,28 @@ export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
         },
       };
     },
-    tmplEngineLintIssues,
+    sqlTmplEngineLintIssues,
+    sqlTmplEngineLintSummary: (options) => {
+      const { noIssuesText = "no template engine lint issues", transform } =
+        options ?? {};
+      return {
+        executeSqlBehavior: () => {
+          const result: SqlTextSupplier<Context> = {
+            SQL: (ctx) => {
+              const steOptions = ctx.sqlTextEmitOptions;
+              return sqlTextLintIssues.length > 0
+                ? sqlTextLintIssues.map((li) => {
+                  // deno-fmt-ignore
+                  const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
+                  return steOptions.comments(message);
+                }).join("\n")
+                : steOptions.comments(noIssuesText);
+            },
+          };
+          return transform ? transform(result, sqlTextLintIssues) : result;
+        },
+      };
+    },
     ...inherit,
   };
 }
@@ -478,6 +508,21 @@ export function typicalSqlTextLintSummary<
   options: SqlTextSupplierOptions<Context>,
 ): SqlTextBehaviorSupplier<Context> {
   return options?.sqlTextLintSummary?.() ?? {
+    executeSqlBehavior: () => {
+      return {
+        SQL: () => `-- no SQL lint summary supplier`,
+      };
+    },
+  };
+}
+
+export function typicalSqlTmplEngineLintSummary<
+  Context extends SqlEmitContext,
+>(
+  _: Context,
+  options: SqlTextSupplierOptions<Context>,
+): SqlTextBehaviorSupplier<Context> {
+  return options?.sqlTmplEngineLintSummary?.() ?? {
     executeSqlBehavior: () => {
       return {
         SQL: () => `-- no SQL lint summary supplier`,
@@ -537,7 +582,7 @@ export function SQL<
   literals: TemplateStringsArray,
   ...expressions: Expressions[]
 ) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
-  const { sqlTextLintIssues, tmplEngineLintIssues } = stsOptions;
+  const { sqlTextLintIssues, sqlTmplEngineLintIssues } = stsOptions;
   return (literals, ...suppliedExprs) => {
     const {
       sqlSuppliersDelimText,
@@ -638,8 +683,8 @@ export function SQL<
               // after persistence, if we want to store a remark or other SQL
               interpolated += persistenceSqlText.SQL(ctx);
             }
-          } else if (tmplEngineLintIssues) {
-            tmplEngineLintIssues.push({
+          } else if (sqlTmplEngineLintIssues) {
+            sqlTmplEngineLintIssues.push({
               lintIssue:
                 `persistable SQL encountered but no persistence handler available: '${
                   Deno.inspect(expr)
@@ -707,7 +752,7 @@ export function SQL<
       SQL: (ctx) => {
         return interpolate(ctx);
       },
-      lintIssues: tmplEngineLintIssues,
+      lintIssues: sqlTmplEngineLintIssues,
     };
   };
 }
