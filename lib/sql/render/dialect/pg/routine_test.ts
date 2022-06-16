@@ -3,7 +3,7 @@ import * as mod from "./routine.ts";
 import * as tmpl from "../../template/mod.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
 import * as d from "../../domain.ts";
-import * as ty from "../../ddl/type.ts";
+import * as ddl from "../../ddl/mod.ts";
 
 Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
@@ -48,7 +48,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   await tc.step(
     "PL/pgSQL DO block with safe duplicate exception dismissal via SqlTextSupplier",
     () => {
-      const synTypeDefn = ty.sqlTypeDefinition("synthetic_type", {
+      const synTypeDefn = ddl.sqlTypeDefinition("synthetic_type", {
         text: d.text(),
         int: d.integer(),
       });
@@ -101,6 +101,28 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         sp.SQL(ctx),
         uws(`
         CREATE OR REPLACE PROCEDURE "synthetic_sp1"("arg1" TEXT) AS $$
+          -- this is the stored procedure body
+        $$ LANGUAGE SQL;`),
+      );
+    },
+  );
+
+  await tc.step(
+    "PL/SQL namespaced stored procedure (idempotent, auto begin/end)",
+    () => {
+      const sp = mod.storedProcedure(
+        "synthetic_sp1",
+        {
+          arg1: d.text(),
+        },
+        (name, args) => mod.typedPlSqlBody(name, args, ctx),
+        { sqlNS: ddl.sqlSchemaDefn("synthetic_schema") },
+      )`
+      -- this is the stored procedure body`;
+      ta.assertEquals(
+        sp.SQL(ctx),
+        uws(`
+        CREATE OR REPLACE PROCEDURE "synthetic_schema"."synthetic_sp1"("arg1" TEXT) AS $$
           -- this is the stored procedure body
         $$ LANGUAGE SQL;`),
       );
@@ -214,7 +236,11 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         },
         "RECORD",
         (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
-        { autoBeginEnd: false, isIdempotent: false },
+        {
+          autoBeginEnd: false,
+          isIdempotent: false,
+          sqlNS: ddl.sqlSchemaDefn("synthetic_schema"),
+        },
       )`
         DECLARE
           ret RECORD;
@@ -230,7 +256,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
       ta.assertEquals(
         sf.SQL(ctx),
         uws(`
-          CREATE FUNCTION "Return_Record"("a" TEXT, "b" TEXT) RETURNS RECORD AS $$
+          CREATE FUNCTION "synthetic_schema"."Return_Record"("a" TEXT, "b" TEXT) RETURNS RECORD AS $$
           DECLARE
             ret RECORD;
           BEGIN

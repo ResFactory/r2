@@ -100,13 +100,17 @@ export function dropType<
   Context extends tmpl.SqlEmitContext,
 >(
   viewName: ViewName,
-  dvOptions?: { ifExists?: boolean },
+  dtOptions?: {
+    readonly ifExists?: boolean;
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
+  },
 ): tmpl.SqlTextSupplier<Context> {
-  const { ifExists = true } = dvOptions ?? {};
+  const { ifExists = true } = dtOptions ?? {};
   return {
     SQL: (ctx) => {
       const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
+        qnss: dtOptions?.sqlNS,
       });
       return `DROP TYPE ${ifExists ? "IF EXISTS " : ""}${
         ns.viewName(viewName)

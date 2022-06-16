@@ -229,13 +229,17 @@ export function dropView<
   Context extends tmpl.SqlEmitContext,
 >(
   viewName: ViewName,
-  dvOptions?: { ifExists?: boolean },
+  dvOptions?: {
+    readonly ifExists?: boolean;
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
+  },
 ): tmpl.SqlTextSupplier<Context> {
   const { ifExists = true } = dvOptions ?? {};
   return {
     SQL: (ctx) => {
       const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
+        qnss: dvOptions?.sqlNS,
       });
       return `DROP VIEW ${ifExists ? "IF EXISTS " : ""}${
         ns.viewName(viewName)

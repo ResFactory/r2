@@ -3,6 +3,7 @@ import * as tmpl from "../../template/mod.ts";
 import * as r from "../../pl/mod.ts";
 import * as ax from "../../../../safety/axiom.ts";
 import * as d from "../../domain.ts";
+import * as ns from "../../namespace.ts";
 
 export function routineSqlTextSupplierOptions<
   Context extends tmpl.SqlEmitContext,
@@ -392,6 +393,7 @@ export interface StoredRoutineDefnOptions<
     routineName: RoutineName,
     srdOptions: StoredRoutineDefnOptions<RoutineName, Context>,
   ) => tmpl.SqlTextSupplier<Context>;
+  readonly sqlNS?: ns.SqlNamespaceSupplier;
 }
 
 // deno-lint-ignore no-empty-interface
@@ -458,7 +460,10 @@ export function storedProcedure<
     const argsSD = d.sqlDomains(argsDefn, spOptions);
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesSupplier<Context>
+      & {
+        readonly sqlNS?: ns.SqlNamespaceSupplier;
+      } = {
         routineName,
         argsDefn,
         isValid: body.isValid,
@@ -468,7 +473,10 @@ export function storedProcedure<
           body.populateSqlTextLintIssues(lintIssues, steOptions),
         SQL: (ctx) => {
           const { sqlTextEmitOptions: steOptions } = ctx;
-          const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+          const ns = ctx.sqlNamingStrategy(ctx, {
+            quoteIdentifiers: true,
+            qnss: spOptions?.sqlNS,
+          });
           const bodySqlText = body.SQL(ctx);
           const argsSQL = routineArgsSQL(argsSD.domains, ctx);
           const langSQL = body.pgPL.sqlPartial("after body definition").SQL(
@@ -487,6 +495,7 @@ export function storedProcedure<
             ]}`.SQL(ctx)
             : sqlText;
         },
+        sqlNS: spOptions?.sqlNS,
       };
     return {
       ...result,
@@ -501,13 +510,17 @@ export function dropStoredProcedure<
   Context extends tmpl.SqlEmitContext,
 >(
   spName: RoutineName,
-  dvOptions?: { ifExists?: boolean },
+  dspOptions?: {
+    readonly ifExists?: boolean;
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
+  },
 ): tmpl.SqlTextSupplier<Context> {
-  const { ifExists = true } = dvOptions ?? {};
+  const { ifExists = true } = dspOptions ?? {};
   return {
     SQL: (ctx) => {
       const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
+        qnss: dspOptions?.sqlNS,
       });
       return `DROP PROCEDURE ${ifExists ? "IF EXISTS " : ""}${
         ns.storedRoutineName(spName)
@@ -570,7 +583,10 @@ export function storedFunction<
     const argsSD = d.sqlDomains(argsDefn, sfOptions);
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesSupplier<Context>
+      & {
+        readonly sqlNS?: ns.SqlNamespaceSupplier;
+      } = {
         routineName,
         argsDefn,
         isValid: body.isValid,
@@ -580,7 +596,10 @@ export function storedFunction<
           body.populateSqlTextLintIssues(lintIssues, steOptions),
         SQL: (ctx) => {
           const { sqlTextEmitOptions: steOptions } = ctx;
-          const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+          const ns = ctx.sqlNamingStrategy(ctx, {
+            quoteIdentifiers: true,
+            qnss: sfOptions?.sqlNS,
+          });
           const bodySqlText = body.SQL(ctx);
           const argsSQL = routineArgsSQL(argsSD.domains, ctx);
           let returnsSQL: string;
@@ -617,6 +636,7 @@ export function storedFunction<
             ]}`.SQL(ctx)
             : sqlText;
         },
+        sqlNS: sfOptions?.sqlNS,
       };
     return {
       ...result,
@@ -631,13 +651,17 @@ export function dropStoredFunction<
   Context extends tmpl.SqlEmitContext,
 >(
   sfName: RoutineName,
-  dvOptions?: { ifExists?: boolean },
+  dsfOptions?: {
+    readonly ifExists?: boolean;
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
+  },
 ): tmpl.SqlTextSupplier<Context> {
-  const { ifExists = true } = dvOptions ?? {};
+  const { ifExists = true } = dsfOptions ?? {};
   return {
     SQL: (ctx) => {
       const ns = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
+        qnss: dsfOptions?.sqlNS,
       });
       return `DROP FUNCTION ${ifExists ? "IF EXISTS " : ""}${
         ns.storedRoutineName(sfName)
