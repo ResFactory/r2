@@ -2,6 +2,7 @@ import * as safety from "../../../safety/mod.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
+import * as ns from "../namespace.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -34,6 +35,7 @@ export interface SqlTypeDefnOptions<
     viewName: TypeName,
     vdOptions: SqlTypeDefnOptions<TypeName, FieldName, Context>,
   ) => tmpl.SqlTextSupplier<Context>;
+  readonly sqlNS?: ns.SqlNamespaceSupplier;
 }
 
 export function sqlTypeDefinition<
@@ -44,7 +46,7 @@ export function sqlTypeDefinition<
 >(
   typeName: TypeName,
   props: TPropAxioms,
-  vdOptions?: SqlTypeDefnOptions<TypeName, ColumnName, Context> & {
+  tdOptions?: SqlTypeDefnOptions<TypeName, ColumnName, Context> & {
     readonly onPropertyNotAxiomSqlDomain?: (
       name: string,
       axiom: Any,
@@ -52,30 +54,34 @@ export function sqlTypeDefinition<
     ) => void;
   },
 ) {
-  const sd = d.sqlDomains(props, vdOptions);
-  const typeDefn: SqlTypeDefinition<TypeName, Context> = {
+  const sd = d.sqlDomains(props, tdOptions);
+  const typeDefn: SqlTypeDefinition<TypeName, Context> & {
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
+  } = {
     typeName,
     SQL: (ctx) => {
       const { sqlTextEmitOptions: steOptions } = ctx;
-      const ns = ctx.sqlNamingStrategy(ctx, {
+      // use this naming strategy when schema/namespace not required
+      const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+      // use this naming strategy when schema/namespace might be necessary
+      const qualNS = ctx.sqlNamingStrategy(ctx, {
         quoteIdentifiers: true,
+        qnss: tdOptions?.sqlNS,
       });
       const ctfi = steOptions.indentation("define type field");
       const create = steOptions.indentation(
         "create type",
-        `CREATE TYPE ${ns.typeName(typeName)} AS (\n${ctfi}${
+        `CREATE TYPE ${qualNS.typeName(typeName)} AS (\n${ctfi}${
           sd.domains.map((
             r,
           ) => (`${ns.typeFieldName({ typeName, fieldName: r.identity })} ${
-            r.sqlDataType("type field").SQL(
-              ctx,
-            )
+            r.sqlDataType("type field").SQL(ctx)
           }`)).join(`,\n${ctfi}`)
         }\n)`,
       );
-      return vdOptions?.before
+      return tdOptions?.before
         ? ctx.embeddedSQL<Context>()`${[
-          vdOptions.before(typeName, vdOptions),
+          tdOptions.before(typeName, tdOptions),
           create,
         ]}`.SQL(ctx)
         : create;
@@ -85,6 +91,7 @@ export function sqlTypeDefinition<
     ...sd,
     ...typeDefn,
     drop: (options?: { ifExists?: boolean }) => dropType(typeName, options),
+    sqlNS: tdOptions?.sqlNS,
   };
 }
 

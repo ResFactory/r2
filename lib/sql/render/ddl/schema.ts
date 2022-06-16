@@ -10,10 +10,15 @@ export interface SchemaDefinition<
   Context extends tmpl.SqlEmitContext,
 > extends tmpl.SqlTextSupplier<Context>, nsp.SqlNamespaceSupplier {
   readonly isValid: boolean;
-  readonly sqlNamespace: SchemaName;
+  readonly sqlNamespace: SchemaName; // further specifies SqlNamespaceSupplier.sqlNamespace
   readonly isIdempotent: boolean;
-  readonly schemaQualifier: tmpl.NameQualifier;
-  readonly qualifiedNames: (baseNS: tmpl.SqlObjectNames) => tmpl.SqlObjectNames;
+}
+
+export interface SchemaDefnSupplier<
+  SchemaName extends nsp.SqlNamespace,
+  Context extends tmpl.SqlEmitContext,
+> extends tmpl.QualifiedNamingStrategySupplier {
+  readonly schema: SchemaDefinition<SchemaName, Context>;
 }
 
 export function isSchemaDefinition<
@@ -26,6 +31,18 @@ export function isSchemaDefinition<
     SchemaDefinition<SchemaName, Context>
   >("sqlNamespace", "SQL");
   return isSD(o);
+}
+
+export function isSchemaDefnSupplier<
+  SchemaName extends nsp.SqlNamespace,
+  Context extends tmpl.SqlEmitContext,
+>(
+  o: unknown,
+): o is SchemaDefnSupplier<SchemaName, Context> {
+  const isSDS = safety.typeGuard<
+    SchemaDefnSupplier<SchemaName, Context>
+  >("schema");
+  return isSDS(o);
 }
 
 export interface SchemaDefnOptions<
@@ -43,7 +60,6 @@ export function sqlSchemaDefn<
   schemaDefnOptions?: SchemaDefnOptions<SchemaName, Context>,
 ) {
   const { isIdempotent = false } = schemaDefnOptions ?? {};
-  const schemaQualifier = tmpl.qualifyName(schemaName);
   const result:
     & SchemaDefinition<SchemaName, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context> = {
@@ -58,8 +74,11 @@ export function sqlSchemaDefn<
             .schemaName(schemaName)
         }`;
       },
-      schemaQualifier,
-      qualifiedNames: (ns) => tmpl.qualifiedNamingStrategy(ns, schemaQualifier),
+      qualifiedNames: (ctx, baseNS) => {
+        const ns = baseNS ?? ctx.sqlNamingStrategy(ctx);
+        const nsQualifier = tmpl.qualifyName(ns.schemaName(schemaName));
+        return tmpl.qualifiedNamingStrategy(ns, nsQualifier);
+      },
     };
   return result;
 }

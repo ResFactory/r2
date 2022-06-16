@@ -3,6 +3,7 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./view.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
+import * as sch from "./schema.ts";
 
 Deno.test("SQL Aide (SQLa) views", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
@@ -21,6 +22,26 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
               WHERE something = 'true'`),
     );
   });
+
+  await tc.step(
+    "idempotent namespaced view with columns inferred from select",
+    () => {
+      const view = mod.viewDefinition("synthetic_view", {
+        sqlNS: sch.sqlSchemaDefn("synthetic_schema"),
+      })`
+      SELECT this, that, the_other
+        FROM table
+       WHERE something = 'true'`;
+      ta.assertEquals(
+        view.SQL(ctx),
+        uws(`
+         CREATE VIEW IF NOT EXISTS "synthetic_schema"."synthetic_view" AS
+             SELECT this, that, the_other
+               FROM table
+              WHERE something = 'true'`),
+      );
+    },
+  );
 
   await tc.step("idempotent view with type-safe columns specified", () => {
     const view = mod.safeViewDefinition("synthetic_view", {

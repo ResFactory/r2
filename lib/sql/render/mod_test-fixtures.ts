@@ -10,7 +10,9 @@ const expectType = <T>(_value: T) => {
 };
 
 export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
-  ddlOptions?: mod.SqlTextSupplierOptions<Context>,
+  ddlOptions?: mod.SqlTextSupplierOptions<Context> & {
+    readonly sqlNS?: mod.SqlNamespaceSupplier;
+  },
 ) {
   const primaryKey = () =>
     mod.autoIncPrimaryKey<number, Context>(mod.integer());
@@ -46,6 +48,7 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     return {
       ...mod.tableDefinition(tableName, props, {
         isIdempotent: true,
+        sqlNS: ddlOptions?.sqlNS,
       }),
       ...mod.tableDomainsRowFactory(tableName, props, { defaultIspOptions }),
       view: mod.tableDomainsViewWrapper(

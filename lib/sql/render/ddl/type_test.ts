@@ -3,6 +3,7 @@ import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 import * as mod from "./type.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
+import * as sch from "./schema.ts";
 
 Deno.test("SQL Aide (SQLa) types", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
@@ -16,6 +17,21 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
       type.SQL(ctx),
       uws(`
          CREATE TYPE "synthetic_type" AS (
+             "text" TEXT,
+             "int" INTEGER
+         )`),
+    );
+  });
+
+  await tc.step("create namspaced SQL type", () => {
+    const type = mod.sqlTypeDefinition("synthetic_type", {
+      text: d.text(),
+      int: d.integer(),
+    }, { sqlNS: sch.sqlSchemaDefn("synthetic_schema") });
+    ta.assertEquals(
+      type.SQL(ctx),
+      uws(`
+         CREATE TYPE "synthetic_schema"."synthetic_type" AS (
              "text" TEXT,
              "int" INTEGER
          )`),

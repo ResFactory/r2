@@ -3,6 +3,7 @@ import * as mod from "./table.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 import * as ax from "../../../safety/axiom.ts";
+import * as sch from "./schema.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
@@ -39,6 +40,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         syntheticTable1Defn.axiomObjectDecl.column_one_text,
       ),
     },
+    { sqlNS: sch.sqlSchemaDefn("synthetic_schema") },
   );
 
   const ctx = tmpl.typicalSqlEmitContext();
@@ -115,7 +117,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     ta.assertEquals(
       syntheticTable2Defn.SQL(ctx),
       uws(`
-        CREATE TABLE "synthetic_table2" (
+        CREATE TABLE "synthetic_schema"."synthetic_table2" (
             "synthetic_table2_id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_fk_pk" INTEGER NOT NULL,
             "column_fk_text" TEXT NOT NULL,

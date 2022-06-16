@@ -3,6 +3,7 @@ import * as ax from "../../../safety/axiom.ts";
 import * as tmpl from "../template/mod.ts";
 import * as ss from "../dql/select.ts";
 import * as d from "../domain.ts";
+import * as ns from "../namespace.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -43,6 +44,7 @@ export interface ViewDefnOptions<
     viewName: ViewName,
     vdOptions: ViewDefnOptions<ViewName, ColumnName, Context>,
   ) => tmpl.SqlTextSupplier<Context>;
+  readonly sqlNS?: ns.SqlNamespaceSupplier;
 }
 
 export function viewDefinition<
@@ -85,8 +87,10 @@ export function viewDefinition<
             "create view select statement",
             rawSelectStmtSqlText,
           );
+          // use this naming strategy when schema/namespace might be necessary
           const ns = ctx.sqlNamingStrategy(ctx, {
             quoteIdentifiers: true,
+            qnss: vdOptions?.sqlNS,
           });
           const create = `CREATE ${isTemp ? "TEMP " : ""}VIEW ${
             isIdempotent ? "IF NOT EXISTS " : ""

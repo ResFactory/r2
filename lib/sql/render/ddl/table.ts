@@ -6,6 +6,7 @@ import * as tr from "../../../tabular/mod.ts";
 import * as dml from "../dml/mod.ts";
 import * as vw from "./view.ts";
 import * as ss from "../dql/select.ts";
+import * as ns from "../namespace.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easier on Deno linting
@@ -346,6 +347,7 @@ export interface TableDefnOptions<
     axiom: ax.Axiom<Any>,
     domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
+  readonly sqlNS?: ns.SqlNamespaceSupplier;
 }
 
 export function tableDefinition<
@@ -417,13 +419,17 @@ export function tableDefinition<
   }
 
   const result: TableDefinition<TableName, Context> & {
-    primaryKey: PrimaryKeys;
-    foreignKeyRef: ForeignKeyRefs;
+    readonly primaryKey: PrimaryKeys;
+    readonly foreignKeyRef: ForeignKeyRefs;
+    readonly sqlNS?: ns.SqlNamespaceSupplier;
   } = {
     tableName,
     SQL: (ctx) => {
       const { sqlTextEmitOptions: steOptions } = ctx;
-      const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+      const ns = ctx.sqlNamingStrategy(ctx, {
+        quoteIdentifiers: true,
+        qnss: tdOptions?.sqlNS,
+      });
       const indent = steOptions.indentation("define table column");
       const afterCDs =
         tdOptions?.sqlPartial?.("after all column definitions") ?? [];
@@ -441,6 +447,7 @@ export function tableDefinition<
     },
     primaryKey,
     foreignKeyRef: fkRef,
+    sqlNS: tdOptions?.sqlNS,
   };
 
   // we let Typescript infer function return to allow generics in sqlDomains to

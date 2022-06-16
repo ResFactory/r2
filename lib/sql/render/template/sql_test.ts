@@ -4,6 +4,7 @@ import * as mod from "./sql.ts";
 import * as ddl from "../ddl/mod.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
+import * as ns from "../namespace.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
@@ -57,9 +58,10 @@ const table = <
 >(
   tableName: TableName,
   props: TPropAxioms,
+  sqlNS?: ns.SqlNamespaceSupplier,
 ) => {
   return {
-    ...ddl.tableDefinition(tableName, props),
+    ...ddl.tableDefinition(tableName, props, { sqlNS }),
     ...ddl.tableDomainsRowFactory(tableName, props),
   };
 };
@@ -77,6 +79,14 @@ Deno.test("SQL Aide (SQLa) template", () => {
     syntheticTable1Defn.tableName,
     syntheticTable1Defn.axiomObjectDecl,
   );
+
+  const syntheticTable2Defn = table("synthetic_table2", {
+    synthetic_table2_id: ddl.autoIncPrimaryKey(d.integer()),
+    column_three_text: d.text(),
+    column_four_int_nullable: d.integerNullable(),
+    column_unique: ddl.unique(d.text()),
+    ...ddl.housekeeping(),
+  }, ddl.sqlSchemaDefn("synthetic_schema"));
 
   const persist = (
     sts: mod.SqlTextSupplier<SyntheticTmplContext>,
@@ -144,6 +154,8 @@ Deno.test("SQL Aide (SQLa) template", () => {
 
     ${syntheticTable1Defn.insertDML({ column_one_text: "test", column_unique: "testHI" })}
 
+    ${syntheticTable2Defn}
+
     -- ${ctx.syntheticBehavior1}`;
 
   const syntheticSQL = DDL.SQL(ctx);
@@ -152,7 +164,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
   }
   ta.assertEquals(syntheticSQL, fixturePrime);
   ta.assertEquals(0, DDL.lintIssues?.length);
-  ta.assertEquals(tablesDeclared.size, 1);
+  ta.assertEquals(tablesDeclared.size, 2);
   ta.assertEquals(viewsDeclared.size, 1);
   ta.assertEquals(ctx.behaviorState.state1Value, 2);
   ta.assertEquals(ctx.behaviorState.state2Value, 1);
@@ -195,5 +207,14 @@ const fixturePrime = ws.unindentWhitespace(`
         FROM "synthetic_table1";
 
   INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('test', NULL, 'testHI', NULL);
+
+  CREATE TABLE "synthetic_schema"."synthetic_table2" (
+      "synthetic_table2_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "column_three_text" TEXT NOT NULL,
+      "column_four_int_nullable" INTEGER,
+      "column_unique" TEXT NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE("column_unique")
+  );
 
   -- behavior 1 state value: 2`);

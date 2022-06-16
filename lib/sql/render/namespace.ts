@@ -1,8 +1,10 @@
 import * as safety from "../../safety/mod.ts";
+import * as tmpl from "./template/mod.ts";
 
 export type SqlNamespace = string;
 
-export interface SqlNamespaceSupplier {
+export interface SqlNamespaceSupplier
+  extends tmpl.QualifiedNamingStrategySupplier {
   readonly sqlNamespace: SqlNamespace;
 }
 
@@ -20,6 +22,11 @@ export function templateStringSqlSpace(
     sqlNamespace,
     templateLiterals,
     templateExprs,
+    qualifiedNames: (ctx, baseNS) => {
+      const ns = baseNS ?? ctx.sqlNamingStrategy(ctx);
+      const nsQualifier = tmpl.qualifyName(ns.schemaName(sqlNamespace));
+      return tmpl.qualifiedNamingStrategy(ns, nsQualifier);
+    },
   };
 }
 

@@ -64,9 +64,20 @@ export function qualifiedNamingStrategy(
   };
 }
 
+export interface QualifiedNamingStrategySupplier {
+  readonly qualifiedNames: (
+    ctx: SqlEmitContext,
+    baseNS?: SqlObjectNames,
+  ) => SqlObjectNames;
+}
+
+export const isQualifiedNamingStrategySupplier = safety.typeGuard<
+  QualifiedNamingStrategySupplier
+>("qualifiedNames");
+
 export interface SqlObjectNamingStrategyOptions {
   readonly quoteIdentifiers?: boolean;
-  readonly qualifyNames?: NameQualifier;
+  readonly qnss?: QualifiedNamingStrategySupplier;
 }
 
 export interface SqlObjectNamesSupplier {
@@ -187,15 +198,13 @@ export function typicalSqlNamingStrategy(): SqlObjectNamesSupplier {
   };
 
   const result: SqlObjectNamesSupplier = (
-    _,
+    ctx,
     nsOptions,
   ) => {
     const ns = nsOptions?.quoteIdentifiers
       ? quotedIdentifiersNS
       : bareIdentifiersNS;
-    return nsOptions?.qualifyNames
-      ? qualifiedNamingStrategy(ns, nsOptions.qualifyNames)
-      : ns;
+    return nsOptions?.qnss ? nsOptions.qnss.qualifiedNames(ctx, ns) : ns;
   };
 
   return result;

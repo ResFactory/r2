@@ -3,8 +3,7 @@ in a deterministically reproducible manner is crucial.
 
 `SQLa` is an _aide_ which helps prepare, organize, assemble, load, and revision
 manage type-safe, _deterministically reproducible_, SQL code. SQL Aide (`SQLa`)
-is SQL rendering/assembler library is a Deno TypeScript module which uses the
-power of JavaScript functions and
+is a Deno TypeScript module which uses the power of JavaScript functions and
 [Template literals (Template strings)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals)
 to prepare SQL components as composable building blocks ("SQL partials").
 
@@ -77,13 +76,24 @@ following types of SQL language constructs.
 
 ## TODO
 
+- [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
+      https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
+      and
+      https://www.kolide.com/blog/how-to-build-custom-osquery-tables-using-atc
+      as guides to auto-generate ATC config for osqueryi from the output of a
+      select statement (compose a select statement to produce ATC config and
+      test using `osqueryi`); `migration.rsmf-defn.jsonnet` has a complete
+      working example.
+- [ ] Add lint rules for missing indexes for PKs, FKs
 - [ ] Use legacy `state.observableQR` strategy for defining and using schemas; A
       good strategy might be to have each table/view/SqlTextSupplier in its own
       schema object. Just like `syntheticTableDefns` defines tables and other
       objects and returns them as an object, we could create a function like
       `syntheticDatabase` then the objects for PostgreSQL would return schemas
       and in each schema would be the tables/views, etc. For SQLite or others
-      that don't support schemas it would be easy to flatten the objects.
+      that don't support schemas it would be easy to flatten the objects. For PG
+      use https://aaronoellis.com/articles/using-postgres-schemas as a good
+      guide.
 - [ ] Create CALL SqlTextSupplier as a new stored routine object property
       similar to how a InsertStatementPreparer works. Just like DML is tied to a
       table, CALL should be tied to stored routine header(s) so that there's
@@ -110,6 +120,8 @@ following types of SQL language constructs.
     capabilities through SQL whenever possible
 - [ ] Refer to https://supabase.com/blog/2021/07/01/roles-postgres-hooks for how
       to manage complex policies such as roles across multiple tenants
+- [ ] Use https://github.com/lorint/AdventureWorks-for-Postgres for unit tests?
+- [ ] Use https://github.com/manyuanrong/sql-builder to add tableDefn.select``
 - [ ] Add type-safe where criteria builder in DQL SELECT statements so that
       outbound select columns are properly typed but so are in-bound where
       criteria with proper bind-able parameters (using ? or :name strategies).
@@ -140,6 +152,10 @@ following types of SQL language constructs.
     create another DSL. `SQLa` is about SQL assembly, not replacing SQL.
 - [ ] Implement dml/dto.ts for type-safe Axiom-based data transfer objects
       to/from camel-case JS objects and snake_case SQL-style records
+- [ ] [My other database is a compiler](https://blog.chiselstrike.com/my-other-database-is-a-compiler-10fd527a4d78)
+      has some interesting ideas about how to take Typescript arrow functions
+      and generate SQL from them. Perhaps we can do the same for basic SQL and
+      leave advanced SQL for hand-coding?
 - Incorporate
   [Database Performance for Developers](https://use-the-index-luke.com/)
   suggestions into SQLa renderers so that developers just have to give feature
