@@ -226,7 +226,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
   );
 
   await tc.step(
-    "PL/pgSQL stored function returns RECORD (non-idempotent, manual begin/end)",
+    "PL/pgSQL namespaced stored function returns RECORD (non-idempotent, manual begin/end)",
     () => {
       const sf = mod.storedFunction(
         "Return_Record",
