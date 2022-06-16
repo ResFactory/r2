@@ -76,6 +76,9 @@ following types of SQL language constructs.
 
 ## TODO
 
+- [ ] Support [with](https://modern-sql.com/feature/with) similar to how views
+      work (type-safe); this will allow us to use
+      [transient data](https://modern-sql.com/use-case/unit-tests-on-transient-data)
 - [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
       https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
       and
