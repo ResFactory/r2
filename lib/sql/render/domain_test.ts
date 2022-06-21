@@ -12,6 +12,7 @@ Deno.test("type-safe data domains", async (tc) => {
     text: mod.text(),
     text_nullable: mod.textNullable(),
     text_custom: mod.text($.string),
+    text_labeled_optional: mod.label(mod.textNullable(), "synthetic_label1"),
     int: mod.integer(),
     int_nullable: mod.integerNullable(),
     int_custom: mod.integer($.number),
@@ -95,6 +96,17 @@ Deno.test("type-safe data domains", async (tc) => {
       ta.assertEquals("intRef", intRefOther.identity);
     });
 
+    await tc.step("labeled", () => {
+      const syntheticDomains = mod.sqlDomains(syntheticDecl);
+      const labeled = Array.from(
+        mod.labeledSqlDomains(syntheticDomains, (test) => {
+          return test.labels.includes("synthetic_label1") ? true : false;
+        }),
+      );
+      ta.assertEquals(1, labeled.length);
+      ta.assertEquals("text_labeled_optional", labeled[0].identity);
+    });
+
     // hover over 'SyntheticDomains' to see fully typed object
     type SyntheticDomains = ax.AxiomType<typeof syntheticDomains>;
     // try typing in bad properties or invalid types
@@ -121,6 +133,7 @@ Deno.test("type-safe data domains", async (tc) => {
     // should see compile errors if any of these fail
     expectType<string>(synthetic.text);
     expectType<string>(synthetic.text_custom);
+    expectType<string | undefined>(synthetic.text_labeled_optional);
     expectType<number>(synthetic.int);
     expectType<number>(synthetic.int_custom);
     expectType<bigint>(synthetic.bigint);

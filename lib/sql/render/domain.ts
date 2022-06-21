@@ -101,6 +101,45 @@ export function isIdentifiableSqlDomain<
   return isAxiomSqlDomain(o) && isISD(o);
 }
 
+export type LabeledSqlDomain<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+  Label extends string,
+> =
+  & AxiomSqlDomain<TsValueType, Context>
+  & { readonly labels: Label[] };
+
+export function isLabeledSqlDomain<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+  Label extends string,
+>(
+  o: unknown,
+): o is LabeledSqlDomain<
+  TsValueType,
+  Context,
+  Label
+> {
+  const isTSD = safety.typeGuard<
+    LabeledSqlDomain<TsValueType, Context, Label>
+  >("labels");
+  return isAxiomSqlDomain(o) && isTSD(o);
+}
+
+export function label<
+  TsValueType,
+  Label extends string,
+  Context extends tmpl.SqlEmitContext,
+>(
+  domain: AxiomSqlDomain<TsValueType, Context>,
+  ...labels: Label[]
+): LabeledSqlDomain<TsValueType, Context, Label> {
+  return {
+    ...domain,
+    labels,
+  };
+}
+
 export function textNullable<
   Context extends tmpl.SqlEmitContext,
 >(
@@ -293,7 +332,7 @@ export interface SqlDomainsSupplier<
 
 export function isSqlDomainsSupplier<
   Context extends tmpl.SqlEmitContext,
-  TsValueType = Any,
+  TsValueType,
 >(o: unknown): o is SqlDomainsSupplier<Context, TsValueType> {
   const isSDS = safety.typeGuard<
     SqlDomainsSupplier<Context, TsValueType>
@@ -351,4 +390,27 @@ export function sqlDomains<
     ...axiom,
     domains,
   };
+}
+
+export function* labeledSqlDomains<
+  Label extends string,
+  Context extends tmpl.SqlEmitContext,
+  TsValueType = Any,
+>(
+  sds: SqlDomainsSupplier<Context, TsValueType>,
+  include: (
+    d:
+      & IdentifiableSqlDomain<TsValueType, Context, string>
+      & LabeledSqlDomain<TsValueType, Context, Label>,
+  ) => boolean,
+): Generator<
+  & IdentifiableSqlDomain<TsValueType, Context, string>
+  & LabeledSqlDomain<TsValueType, Context, Label>,
+  void
+> {
+  for (const d of sds.domains) {
+    if (isLabeledSqlDomain<TsValueType, Context, Label>(d) && include(d)) {
+      yield d;
+    }
+  }
 }
