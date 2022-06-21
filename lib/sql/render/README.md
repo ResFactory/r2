@@ -16,6 +16,26 @@ an RDBMS. Instead, `SQLa` is merely a convenient SQL _generator_ and assembler.
 It makes the preparation of SQL DDL, DML, and DQL easier for developers but it
 does not rewrite SQL or attempt to remove SQL knowledge.
 
+## Terminology
+
+- `domain` refers to the same concept as described in the SQL standard.
+  - A domain should be considered an atomic data type with optional constraints
+    or restrictions that should be placed on what kind of data can go into an
+    attribute or column.
+  - `text`, `integer`, etc. are generic domains but a domain may also be
+    `person_id`, `daily_purchase_amount`, or any custom business data.
+- `attribute` refers to a named instance of a specific domain. For example,
+  `person_id` can be a domain but once it's a named column of a table it becomes
+  an _attribute_.
+- `entity` is a concrete instance of a group of domains, this is usally a
+  _table_ in SQL but might also be represented as a view or a stored function.
+- `link` is a 1:n, n:1, or n:n relationship between entities.
+  - Links are typically defined as foreign keys in SQL but could be represented
+    as arrays in stored procedures or an ORM.
+  - For example, if you had an Order entity (table) with order line and customer
+    table foreign keys then the Order's links could be 1:n `items[]` and 1:1
+    `customer`.
+
 ## SQL rendering module organization
 
 This SQL Aide (`SQLa`) library provides type-safe code generation for the
@@ -28,6 +48,45 @@ following types of SQL language constructs.
 - [ ] Planned, not started yet
 - [~] Not planned but could be convinced to add
 
+### Domains
+
+- [x] Text
+- [x] Integer
+- [x] Date
+- [x] DateTime
+- [x] BigInt
+- [x] JSON
+- [ ] Symmetric encrypted text (for transactional data) See
+      https://github.com/FiloSottile/age et. al but use built-in database
+      capabilities through SQL whenever possible
+- [ ] Asymmetric encrypted text (for passwords)
+
+#### Domain Capabilities
+
+- [x] identity
+- [x] SQL type
+- [x] SQL default values
+- [ ] SQL size
+- [x] domain labels/tags for grouping
+- [x] SQL reference (for foreign key mirroring)
+- [ ] arrays of domains (e.g. Text[], Integer[], etc.)
+
+### Entities
+
+- [x] Table
+- [ ] Enum Table
+- [ ] Data Vault Tables
+
+#### Entities (Table) Capabilities
+
+- [x] identity
+- [x] columns ("attributes") declared as domains
+- [x] primary key(s)
+- [x] foreign key references (outbound)
+- [ ] columns referenced as foreign keys (inbound, aggregations, to define 1:M,
+      1:1, M:1 "links")
+- [ ] table labels/tags for grouping
+
 ### DDL (Data Definition Language)
 
 - [x] CREATE: This command is used to create the database or its objects (like
@@ -37,14 +96,30 @@ following types of SQL language constructs.
 - [ ] TRUNCATE: This is used to remove all records from a table, including all
       spaces allocated for the records are removed.
 - [ ] COMMENT: This is used to add comments to the data dictionary.
-- RENAME: This is used to rename an object existing in the database.
+- [ ] RENAME: This is used to rename an object existing in the database.
 
 ### DQL (Data Query Language)
 
 - [@] SELECT: It is used to retrieve data from the database.
+- [ ] [dql/with.ts](https://modern-sql.com/feature/with) similar to how views
+      work (type-safe); this will allow us to use
+      [transient data](https://modern-sql.com/use-case/unit-tests-on-transient-data)
+      - [ ] Creat CTE-based view or stored function returning SETOF TABLE that
+      would allow storing data in SQL view code or a LANGUAGE SQL STRICT
+      IMMUTABLE function. This would allow us to use to create small "view
+      tables" for storing configuration as code (e.g. confidential password data
+      can be stored in secure location of server as stateless code to be pulled
+      in regularly instead of treated as stateful data in tables). The
+      `dcp_context.context` table as well as many other tiny tables could just
+      be replaced as views or, at worst, materialed views in case performance
+      becomes an issue. The primary benefit of creating rows in small tables as
+      views is stateful vs. stateless maintenance.
 
 ### DML(Data Manipulation Language)
 
+- [ ] incorporate data validation using [ow](https://sindresorhus.com/ow/) or
+      similar library as inspiration to show how to wrap domains with data
+      validators
 - [x] INSERT : It is used to insert data into a table.
 - [ ] UPDATE: It is used to update existing data within a table.
 - [ ] DELETE : It is used to delete records from a database table.
@@ -60,6 +135,8 @@ following types of SQL language constructs.
 ### DCL (Data Control Language)
 
 - [ ] GRANT: This command gives users access privileges to the database.
+  - [ ] Refer to https://supabase.com/blog/2021/07/01/roles-postgres-hooks for
+        how to manage complex policies such as roles across multiple tenants
 - [ ] REVOKE: This command withdraws the user’s access privileges given by using
       the GRANT command.
 
@@ -70,15 +147,38 @@ following types of SQL language constructs.
 - SAVEPOINT: Sets a savepoint within a transaction.
 - SET TRANSACTION: Specify characteristics for the transaction.
 
+### Dialect-specific
+
+#### PostgreSQL
+
+- [x] Anonymous blocks
+- [x] Stored procedures definition (namespaced and type-safe)
+- [x] Stored functions definition (namespaced and type-safe)
+- [ ] Stored routine definition STABLE and other type-safe modifiers
+- [ ] CALL stored procedure (SqlTextSupplier as a new stored routine object
+      property similar to how a InsertStatementPreparer works. Just like DML is
+      tied to a table, CALL should be tied to stored routine header(s) so that
+      there's full type-safety integrated into the call)
+- [x] Domains
+- [x] Extensions
+- [x] search_path
+
+### Lint Rules
+
+- [ ] Missing indexes for primary keys, foreign keys
+
+### Tasks
+
+- [ ] Migrate PgDCP `SQLa` Justfile to pure Typescript modules with a
+      Taskfile.ts if necessary and incorporate CLI capabilities like
+      https://github.com/hyperqueryhq/whale
+
 ## Architecture
 
 ![Architecture](mod.drawio.svg)
 
 ## TODO
 
-- [ ] Support [with](https://modern-sql.com/feature/with) similar to how views
-      work (type-safe); this will allow us to use
-      [transient data](https://modern-sql.com/use-case/unit-tests-on-transient-data)
 - [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
       https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
       and
@@ -87,42 +187,6 @@ following types of SQL language constructs.
       select statement (compose a select statement to produce ATC config and
       test using `osqueryi`); `migration.rsmf-defn.jsonnet` has a complete
       working example.
-- [ ] Add lint rules for missing indexes for PKs, FKs
-- [ ] Use legacy `state.observableQR` strategy for defining and using schemas; A
-      good strategy might be to have each table/view/SqlTextSupplier in its own
-      schema object. Just like `syntheticTableDefns` defines tables and other
-      objects and returns them as an object, we could create a function like
-      `syntheticDatabase` then the objects for PostgreSQL would return schemas
-      and in each schema would be the tables/views, etc. For SQLite or others
-      that don't support schemas it would be easy to flatten the objects. For PG
-      use https://aaronoellis.com/articles/using-postgres-schemas as a good
-      guide.
-- [ ] Create CALL SqlTextSupplier as a new stored routine object property
-      similar to how a InsertStatementPreparer works. Just like DML is tied to a
-      table, CALL should be tied to stored routine header(s) so that there's
-      full type- safety integrated into the call.
-- [ ] Migrate PgDCP `SQLa` Justfile to pure Typescript modules with a
-      Taskfile.ts if necessary and incorporate CLI capabilities like
-      https://github.com/hyperqueryhq/whale
-- [ ] In PostgreSQL dialect:
-  - [ ] array types (e.g. `xyz text[]`) as domains and Axiom(s)
-  - [ ] in language definition add STABLE and other type-safe modifiers
-- [ ] Creat CTE-based view or stored function returning SETOF TABLE that would
-      allow storing data in SQL view code or a LANGUAGE SQL STRICT IMMUTABLE
-      function. This would allow us to use to create small "view tables" for
-      storing configuration as code (e.g. confidential password data can be
-      stored in secure location of server as stateless code to be pulled in
-      regularly instead of treated as stateful data in tables). The
-      `dcp_context.context` table as well as many other tiny tables could just
-      be replaced as views or, at worst, materialed views in case performance
-      becomes an issue. The primary benefit of creating rows in small tables as
-      views is stateful vs. stateless maintenance.
-- [ ] Add symmetric and asymmetric encryption domains for storing passwords,
-      IDs, etc.
-  - See https://github.com/FiloSottile/age et. al but use built-in database
-    capabilities through SQL whenever possible
-- [ ] Refer to https://supabase.com/blog/2021/07/01/roles-postgres-hooks for how
-      to manage complex policies such as roles across multiple tenants
 - [ ] Use https://github.com/lorint/AdventureWorks-for-Postgres for unit tests?
 - [ ] Use https://github.com/manyuanrong/sql-builder to add tableDefn.select``
 - [ ] Add type-safe where criteria builder in DQL SELECT statements so that
@@ -159,28 +223,28 @@ following types of SQL language constructs.
       has some interesting ideas about how to take Typescript arrow functions
       and generate SQL from them. Perhaps we can do the same for basic SQL and
       leave advanced SQL for hand-coding?
-- Incorporate
-  [Database Performance for Developers](https://use-the-index-luke.com/)
-  suggestions into SQLa renderers so that developers just have to give feature
-  flags and the proper SQL is generated for them.
-- Incorporate
-  [Evolutionary Database Design](https://martinfowler.com/articles/evodb.html)
-  principles into SQL rendering infrastructure.
-- See if
-  [Database Change and Version Control for Teams](https://www.bytebase.com/_nuxt/img/main.a176dc4.webp)
-  makes sense as a generator target.
-- Learn from [DataHub](https://datahubproject.io/docs/features) about how to
-  document and manage meta data ('data governance') artifacts and incorporate
-  appropriate governance capabilities. These are DataHub features we should
-  understand and perhaps push into DataHub:
-  - Tracing lineage across platforms, datasets, pipelines, charts, etc.
-  - Context about related entities across lineage
-  - Capture and maintain institutional knowledge using folksonomic identifiers
-    (tags) and taxonomies
-  - Asset ownership by users and/or user groups
-  - Fine-Grained Access Control with Policies
-  - Metadata quality & usage analytics
-- Integrate strategies from the following into the code generated by RF:
-  - [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
-  - [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
-  - [Common DB schema change mistakes](https://postgres.ai/blog/20220525-common-db-schema-change-mistakes#case-1-schema-mismatch)
+- [ ] Incorporate
+      [Database Performance for Developers](https://use-the-index-luke.com/)
+      suggestions into SQLa renderers so that developers just have to give
+      feature flags and the proper SQL is generated for them.
+- [ ] Incorporate
+      [Evolutionary Database Design](https://martinfowler.com/articles/evodb.html)
+      principles into SQL rendering infrastructure.
+- [ ] See if
+      [Database Change and Version Control for Teams](https://www.bytebase.com/_nuxt/img/main.a176dc4.webp)
+      makes sense as a generator target.
+- [ ] Learn from [DataHub](https://datahubproject.io/docs/features) about how to
+      document and manage meta data ('data governance') artifacts and
+      incorporate appropriate governance capabilities. These are DataHub
+      features we should understand and perhaps push into DataHub:
+  - [ ] Tracing lineage across platforms, datasets, pipelines, charts, etc.
+  - [ ] Context about related entities across lineage
+  - [ ] Capture and maintain institutional knowledge using folksonomic
+        identifiers (tags) and taxonomies
+  - [ ] Asset ownership by users and/or user groups
+  - [ ] Fine-Grained Access Control with Policies
+  - [ ] Metadata quality & usage analytics
+- [ ] Integrate strategies from the following into the code generated by RF:
+  - [ ] [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
+  - [ ] [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
+  - [ ] [Common DB schema change mistakes](https://postgres.ai/blog/20220525-common-db-schema-change-mistakes#case-1-schema-mismatch)
