@@ -150,25 +150,26 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
   /**
    * Some of our tables will just have fixed ("seeded") values and act as
    * enumerations (lookup) with foreign key relationships.
-   * TODO: allow enum with numeric index as well as string index
-   *       see how: https://github.com/microsoft/TypeScript/issues/30611
    * @param tableName the name of the enumeration table
    * @param seedEnum is enum whose list of values become the seed values of the lookup table
    * @returns a SQLa table with seed rows as insertDML and original typed enum for reference
    */
   const enumTable = <
-    T extends string,
-    TEnumValue extends string,
+    TEnumCode extends string,
+    TEnumValue extends number | string,
     TableName extends string,
   >(
     tableName: TableName,
-    seedEnum: { [key in T]: TEnumValue },
+    seedEnum: { [key in TEnumCode]: TEnumValue },
   ) => {
     const seedRows: TextLookupRecord[] = [];
     for (const e of Object.entries(seedEnum)) {
-      const code = e[0] as T;
-      const value = e[1] as TEnumValue;
-      seedRows.push({ code, value });
+      const code = e[0] as TEnumCode;
+      const value = e[1];
+      seedRows.push({
+        code,
+        value: typeof value === "string" ? value : String(value),
+      });
     }
     const entity = textLookupTable(tableName, seedRows);
     return {

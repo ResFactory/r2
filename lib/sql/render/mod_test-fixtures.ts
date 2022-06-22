@@ -16,11 +16,22 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
 ) {
   const mg = typ.typicalLookupsGovn(ddlOptions);
 
-  enum syntheticEnum {
+  enum syntheticEnum1 {
+    code1, // code is text, value is a number
+    code2,
+  }
+  enum syntheticEnum2 {
     code1 = "value1",
     code2 = "value2",
   }
-  const syntheticEnumModel = mg.enumTable("synthetic_enum", syntheticEnum);
+  const numericEnumModel = mg.enumTable(
+    "synthetic_enum_numeric",
+    syntheticEnum1,
+  );
+  const textEnumModel = mg.enumTable(
+    "synthetic_enum_text",
+    syntheticEnum2,
+  );
 
   const publHost = mg.table("publ_host", {
     publ_host_id: mg.primaryKey(),
@@ -123,7 +134,8 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     publServerService,
     publServerStaticAccessLog,
     publServerErrorLog,
-    syntheticEnumModel,
+    numericEnumModel,
+    textEnumModel,
     DDL,
   };
 }
