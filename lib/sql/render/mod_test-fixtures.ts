@@ -28,7 +28,7 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     "synthetic_enum_numeric",
     syntheticEnum1,
   );
-  const textEnumModel = mg.enumTable(
+  const textEnumModel = mg.enumTextTable(
     "synthetic_enum_text",
     syntheticEnum2,
   );

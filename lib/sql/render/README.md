@@ -56,6 +56,7 @@ following types of SQL language constructs.
 - [x] DateTime
 - [x] BigInt
 - [x] JSON
+- [ ] Axiom Enum 
 - [ ] Symmetric encrypted text (for transactional data) See
       https://github.com/FiloSottile/age et. al but use built-in database
       capabilities through SQL whenever possible
@@ -126,6 +127,8 @@ following types of SQL language constructs.
 - [ ] DELETE
 - [ ] CALL: Call a PL/SQL or JAVA subprogram.
 - [ ] EXPLAIN PLAN
+  - [ ] Integrate with https://explain.dalibo.com/, https://explain.depesz.com/,
+        and other visualizers.
 - [~] LOCK: Table control concurrency.
 
 ### PL (Procedural or Programming Language)
@@ -251,3 +254,5 @@ following types of SQL language constructs.
   - [ ] [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
   - [ ] [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
   - [ ] [Common DB schema change mistakes](https://postgres.ai/blog/20220525-common-db-schema-change-mistakes#case-1-schema-mismatch)
+- [ ] Generate ORM configurations from SQLa entity definitions
+  - [ ] https://mikro-orm.io/

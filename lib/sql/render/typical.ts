@@ -8,11 +8,6 @@ export type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
   readonly created_at: SQLa.AxiomSqlDomain<Date | undefined, Context>;
 };
 
-export type TextLookupRecord = {
-  readonly code: string;
-  readonly value: string;
-};
-
 /**
  * typicalModelsGovn is a "models governer" helpers object that supplies functions
  * for "typical" RDBMS schemas that prepare tables in a "governed" fashion with a
@@ -42,6 +37,15 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
     };
   }
 
+  // "created_at" is considered "housekeeping" with a default so don't
+  // emit it as part of the insert DML statement
+  const defaultIspOptions: SQLa.InsertStmtPreparerOptions<
+    Any,
+    Any,
+    Any,
+    Context
+  > = { isColumnEmittable: (name) => name == "created_at" ? false : true };
+
   /**
    * All of our "content" or "transaction" tables will follow a specific format,
    * namely that they will have a single primary key with the same name as the
@@ -63,14 +67,6 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
     tableName: TableName,
     props: TPropAxioms,
   ) => {
-    // "created_at" is considered "housekeeping" with a default so don't
-    // emit it as part of the insert DML statement
-    const defaultIspOptions: SQLa.InsertStmtPreparerOptions<
-      TableName,
-      Any,
-      Any,
-      Context
-    > = { isColumnEmittable: (name) => name == "created_at" ? false : true };
     return {
       ...SQLa.tableDefinition(tableName, props, {
         isIdempotent: true,
@@ -90,6 +86,7 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
     primaryKey,
     housekeeping,
     table,
+    defaultIspOptions,
   };
 }
 
@@ -106,6 +103,11 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
   },
 ) {
   const mg = typicalModelsGovn(ddlOptions);
+
+  type TextLookupRecord = {
+    readonly code: string;
+    readonly value: string;
+  };
 
   /**
    * Some of our tables will just have fixed ("seeded") values and act as
@@ -158,7 +160,62 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
    */
   const enumTable = <
     TEnumCode extends string,
-    TEnumValue extends number | string,
+    TEnumValue extends number,
+    TableName extends string,
+  >(
+    tableName: TableName,
+    seedEnum: { [key in TEnumCode]: TEnumValue },
+  ) => {
+    const seedRows: {
+      readonly code: number;
+      readonly value: string;
+    }[] = [];
+    for (const e of Object.entries(seedEnum)) {
+      const [key, value] = e;
+      if (typeof value === "number") {
+        // enums have numeric ids and reverse-mapped values as their keys
+        // and we care only about the text keys ids, they point to codes
+        const value = e[1] as TEnumValue;
+        seedRows.push({ code: value, value: key });
+      }
+    }
+    const props = {
+      code: SQLa.primaryKey(SQLa.integer()),
+      value: SQLa.text(),
+      ...mg.housekeeping(),
+    };
+    const tdrf = SQLa.tableDomainsRowFactory(tableName, props, {
+      defaultIspOptions: mg.defaultIspOptions,
+    });
+    return {
+      ...SQLa.tableDefinition(tableName, props, {
+        isIdempotent: true,
+        sqlNS: ddlOptions?.sqlNS,
+      }),
+      ...tdrf,
+      // seed will be used in SQL interpolation template literal, which accepts
+      // either a string, SqlTextSupplier, or array of SqlTextSuppliers; in our
+      // case, if seed data is provided we'll prepare the insert DMLs as an
+      // array of SqlTextSuppliers
+      seedDML: seedRows && seedRows.length > 0
+        ? seedRows.map((s) => tdrf.insertDML(s as Any))
+        : `-- no ${tableName} seed rows`,
+      seedEnum,
+    };
+  };
+
+  /**
+   * Some of our tables will just have fixed ("seeded") values and act as
+   * enumerations (lookup) with foreign key relationships.
+   * See https://github.com/microsoft/TypeScript/issues/30611 for how to create
+   * and use type-safe enums
+   * @param tableName the name of the enumeration table
+   * @param seedEnum is enum whose list of values become the seed values of the lookup table
+   * @returns a SQLa table with seed rows as insertDML and original typed enum for reference
+   */
+  const enumTextTable = <
+    TEnumCode extends string,
+    TEnumValue extends string,
     TableName extends string,
   >(
     tableName: TableName,
@@ -167,15 +224,30 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
     const seedRows: TextLookupRecord[] = [];
     for (const e of Object.entries(seedEnum)) {
       const code = e[0] as TEnumCode;
-      const value = e[1];
-      seedRows.push({
-        code,
-        value: typeof value === "string" ? value : String(value),
-      });
+      const value = e[1] as TEnumValue;
+      seedRows.push({ code, value });
     }
-    const entity = textLookupTable(tableName, seedRows);
+    const props = {
+      code: SQLa.primaryKey(SQLa.text()),
+      value: SQLa.text(),
+      ...mg.housekeeping(),
+    };
+    const tdrf = SQLa.tableDomainsRowFactory(tableName, props, {
+      defaultIspOptions: mg.defaultIspOptions,
+    });
     return {
-      ...entity,
+      ...SQLa.tableDefinition(tableName, props, {
+        isIdempotent: true,
+        sqlNS: ddlOptions?.sqlNS,
+      }),
+      ...tdrf,
+      // seed will be used in SQL interpolation template literal, which accepts
+      // either a string, SqlTextSupplier, or array of SqlTextSuppliers; in our
+      // case, if seed data is provided we'll prepare the insert DMLs as an
+      // array of SqlTextSuppliers
+      seedDML: seedRows && seedRows.length > 0
+        ? seedRows.map((s) => tdrf.insertDML(s as Any))
+        : `-- no ${tableName} seed rows`,
       seedEnum,
     };
   };
@@ -184,5 +256,6 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
     ...mg,
     textLookupTable,
     enumTable,
+    enumTextTable,
   };
 }

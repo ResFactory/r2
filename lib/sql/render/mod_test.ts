@@ -89,9 +89,11 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${dbDefn.textEnumModel}
 
-    ${dbDefn.numericEnumModel.seed}
+    -- TypeScript numeric enum object entries as RDBMS rows
+    ${dbDefn.numericEnumModel.seedDML}
 
-    ${dbDefn.textEnumModel.seed}
+    -- TypeScript text enum object entries as RDBMS rows
+    ${dbDefn.textEnumModel.seedDML}
 
     ${mod.typicalSqlTmplEngineLintSummary}`;
 
@@ -190,24 +192,22 @@ const fixturePrime = ws.unindentWhitespace(`
   INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);
 
   CREATE TABLE IF NOT EXISTS "synthetic_enum_numeric" (
-      "synthetic_enum_numeric_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "code" TEXT NOT NULL,
+      "code" INTEGER PRIMARY KEY,
       "value" TEXT NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
   CREATE TABLE IF NOT EXISTS "synthetic_enum_text" (
-      "synthetic_enum_text_id" INTEGER PRIMARY KEY AUTOINCREMENT,
-      "code" TEXT NOT NULL,
+      "code" TEXT PRIMARY KEY,
       "value" TEXT NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES ('0', 'code1');
-  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES ('1', 'code2');
-  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES ('code1', '0');
-  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES ('code2', '1');
+  -- TypeScript numeric enum object entries as RDBMS rows
+  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES (0, 'code1');
+  INSERT INTO "synthetic_enum_numeric" ("code", "value") VALUES (1, 'code2');
 
+  -- TypeScript text enum object entries as RDBMS rows
   INSERT INTO "synthetic_enum_text" ("code", "value") VALUES ('code1', 'value1');
   INSERT INTO "synthetic_enum_text" ("code", "value") VALUES ('code2', 'value2');
 
