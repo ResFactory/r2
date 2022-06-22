@@ -85,6 +85,10 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}
 
+    ${dbDefn.syntheticEnumModel}
+
+    ${dbDefn.syntheticEnumModel.seed}
+
     ${mod.typicalSqlTmplEngineLintSummary}`;
 
   const syntheticSQL = DDL.SQL(ctx);
@@ -93,7 +97,7 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   }
   ta.assertEquals(syntheticSQL, fixturePrime);
   ta.assertEquals(0, DDL.lintIssues?.length);
-  ta.assertEquals(tablesDeclared.size, 5);
+  ta.assertEquals(tablesDeclared.size, 6);
   ta.assertEquals(viewsDeclared.size, 1);
 });
 
@@ -180,5 +184,15 @@ const fixturePrime = ws.unindentWhitespace(`
   );
 
   INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);
+
+  CREATE TABLE IF NOT EXISTS "synthetic_enum" (
+      "synthetic_enum_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "code" TEXT NOT NULL,
+      "value" TEXT NOT NULL,
+      "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  INSERT INTO "synthetic_enum" ("code", "value") VALUES ('code1', 'value1');
+  INSERT INTO "synthetic_enum" ("code", "value") VALUES ('code2', 'value2');
 
   -- no template engine lint issues`);
