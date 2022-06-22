@@ -299,22 +299,6 @@ export type TableIdentityColumnsSupplier<
   >;
 };
 
-export type HousekeepingColumnsDefns<
-  Context extends tmpl.SqlEmitContext,
-> = {
-  readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
-};
-
-export function housekeeping<
-  Context extends tmpl.SqlEmitContext,
->(): HousekeepingColumnsDefns<Context> {
-  return {
-    created_at: d.dateTimeNullable(undefined, {
-      sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
-    }),
-  };
-}
-
 export type TableDefinition<
   TableName extends string,
   Context extends tmpl.SqlEmitContext,
