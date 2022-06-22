@@ -703,7 +703,12 @@ export function SQL<
         } else if (isSqlTextSupplier<Context>(expr)) {
           const SQL = expr.SQL(ctx);
           interpolated += SQL;
-          if (sqlSuppliersDelimText) interpolated += sqlSuppliersDelimText;
+          if (
+            sqlSuppliersDelimText &&
+            !interpolated.endsWith(sqlSuppliersDelimText)
+          ) {
+            interpolated += sqlSuppliersDelimText;
+          }
           speEE?.emitSync("sqlEmitted", ctx, expr, SQL);
         } else if (typeof expr === "string") {
           interpolated += expr;
