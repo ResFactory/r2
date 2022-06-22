@@ -50,10 +50,9 @@ export type SelectTemplateOptions<
   SelectStmtName extends string,
   Context extends tmpl.SqlEmitContext,
 > = tmpl.SqlTextSupplierOptions<Context> & {
-  readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) => (
+  readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) =>
     & Select<SelectStmtName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context>
-  );
+    & tmpl.SqlTextLintIssuesSupplier<Context>;
   readonly selectStmtName?: SelectStmtName;
   readonly onPropertyNotAxiomSqlDomain?: (
     name: string,

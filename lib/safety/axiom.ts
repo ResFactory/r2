@@ -154,7 +154,7 @@ type AxiomObject<
 const isObject = (value: any): value is Record<string, any> =>
   typeof value === "object" && value !== null;
 
-const lazy = <TType>(callback: () => TType): (() => TType) => {
+const lazy = <TType>(callback: () => TType): () => TType => {
   let cached: { value: TType } | undefined;
 
   return () => {
