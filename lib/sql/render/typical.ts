@@ -150,6 +150,8 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
   /**
    * Some of our tables will just have fixed ("seeded") values and act as
    * enumerations (lookup) with foreign key relationships.
+   * See https://github.com/microsoft/TypeScript/issues/30611 for how to create
+   * and use type-safe enums
    * @param tableName the name of the enumeration table
    * @param seedEnum is enum whose list of values become the seed values of the lookup table
    * @returns a SQLa table with seed rows as insertDML and original typed enum for reference
