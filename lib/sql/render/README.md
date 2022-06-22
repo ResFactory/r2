@@ -120,11 +120,12 @@ following types of SQL language constructs.
 - [ ] incorporate data validation using [ow](https://sindresorhus.com/ow/) or
       similar library as inspiration to show how to wrap domains with data
       validators
-- [x] INSERT : It is used to insert data into a table.
-- [ ] UPDATE: It is used to update existing data within a table.
-- [ ] DELETE : It is used to delete records from a database table.
+- [x] INSERT single row with `returning` support
+- [ ] INSERT multiple rows in single statement (no `returning` support)
+- [ ] UPDATE
+- [ ] DELETE
 - [ ] CALL: Call a PL/SQL or JAVA subprogram.
-- [ ] EXPLAIN PLAN: It describes the access path to data.
+- [ ] EXPLAIN PLAN
 - [~] LOCK: Table control concurrency.
 
 ### PL (Procedural or Programming Language)
@@ -165,6 +166,8 @@ following types of SQL language constructs.
 
 ### Lint Rules
 
+- [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
+      column name
 - [ ] Missing indexes for primary keys, foreign keys
 
 ### Tasks
