@@ -6,6 +6,20 @@ import * as ax from "../../../safety/axiom.ts";
 import * as sch from "./schema.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
+type HousekeepingColumnsDefns<Context extends tmpl.SqlEmitContext> = {
+  readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
+};
+
+function housekeeping<
+  Context extends tmpl.SqlEmitContext,
+>(): HousekeepingColumnsDefns<Context> {
+  return {
+    created_at: d.dateTimeNullable(undefined, {
+      sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+    }),
+  };
+}
+
 Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.typicalKeysTableDefinition(
     "synthetic_table1",
@@ -14,7 +28,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       column_one_text: d.text(),
       column_two_text_nullable: d.textNullable(),
       column_unique: mod.unique(d.text()),
-      ...mod.housekeeping(),
+      ...housekeeping(),
     },
   );
   const syntheticTable1DefnRF = mod.tableDomainsRowFactory(

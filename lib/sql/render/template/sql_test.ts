@@ -9,6 +9,20 @@ import * as ns from "../namespace.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
 
+type HousekeepingColumnsDefns<Context extends mod.SqlEmitContext> = {
+  readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
+};
+
+function housekeeping<
+  Context extends mod.SqlEmitContext,
+>(): HousekeepingColumnsDefns<Context> {
+  return {
+    created_at: d.dateTimeNullable(undefined, {
+      sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+    }),
+  };
+}
+
 interface SyntheticTmplContext extends mod.SqlEmitContext {
   readonly syntheticBehavior1: mod.SqlTextBehaviorSupplier<
     SyntheticTmplContext
@@ -72,7 +86,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
     column_unique: ddl.unique(d.text()),
-    ...ddl.housekeeping(),
+    ...housekeeping(),
   });
   const syntheticTable1ViewWrapper = ddl.tableDomainsViewWrapper(
     "synthetic_table1_view",
@@ -85,7 +99,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
     column_three_text: d.text(),
     column_four_int_nullable: d.integerNullable(),
     column_unique: ddl.unique(d.text()),
-    ...ddl.housekeeping(),
+    ...housekeeping(),
   }, ddl.sqlSchemaDefn("synthetic_schema"));
 
   const persist = (
