@@ -41,6 +41,7 @@ export type AxiomSqlDomain<
       | "stored function returns table column"
       | "type field"
       | "table foreign key ref"
+      | "diagram"
       | "PostgreSQL domain",
   ) => tmpl.SqlTextSupplier<Context>;
   readonly sqlDefaultValue?: (
