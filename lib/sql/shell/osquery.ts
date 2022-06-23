@@ -103,3 +103,49 @@ export async function osQuerySqlInventory(
   };
   return db;
 }
+
+export type osQueryATCRecord = {
+  readonly query: string;
+  readonly path: string;
+  readonly columns: string[];
+  readonly platform?: string;
+};
+
+export type osQueryATCConfig = {
+  readonly auto_table_construction: Record<string, osQueryATCRecord>
+}
+
+/**
+ * Create an osQuery Automatic Table Construction (ATC) configuration file
+ * content from a series of tables.
+ * @param tables the list of tables that should be included in the ATC configuration
+ * @returns a function which, when called, will produce an ATC configuratin object
+ */
+export function osQueryATCConfigSupplier(tables: {
+  readonly tableName: string;
+  readonly columns: Array<{ readonly columnName: string; }>
+  readonly query?: string;
+}[]) {
+  const osQueryATCPartials = tables.reduce(
+    (result, table) => {
+      const columns = table.columns.map((c) => c.columnName);
+      const query = table.query ?? `select ${columns.join(", ")} from ${table.tableName}`
+      result[table.tableName] = { query, columns, };
+      return result;
+    },
+    // we don't need the path right now since that's late binding
+    {} as Record<string, Omit<osQueryATCRecord, "path">>,
+  );
+
+  return (atcRecConfig: (suggested: string, atcPartial: Omit<osQueryATCRecord, "path">) => { readonly osQueryTableName: string; readonly atcRec: osQueryATCRecord }): osQueryATCConfig => {
+    const ATC: Record<string, osQueryATCRecord> = {};
+    for (const atcPartialEntry of Object.entries(osQueryATCPartials)) {
+      const [suggestedTableName, atcPartialRec] = atcPartialEntry;
+      const { osQueryTableName, atcRec } = atcRecConfig(suggestedTableName, atcPartialRec)
+      ATC[osQueryTableName] = atcRec;
+    }
+    return {
+      auto_table_construction: ATC,
+    };
+  };
+}
