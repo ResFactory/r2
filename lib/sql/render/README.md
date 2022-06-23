@@ -56,7 +56,7 @@ following types of SQL language constructs.
 - [x] DateTime
 - [x] BigInt
 - [x] JSON
-- [ ] Axiom Enum 
+- [ ] Axiom Enum
 - [ ] Symmetric encrypted text (for transactional data) See
       https://github.com/FiloSottile/age et. al but use built-in database
       capabilities through SQL whenever possible
@@ -75,7 +75,8 @@ following types of SQL language constructs.
 ### Entities
 
 - [x] Table
-- [ ] Enum Table
+- [x] Enum Table (text key, text values)
+- [x] Enum Table (text key, numeric values)
 - [ ] Data Vault Tables
 
 #### Entities (Table) Capabilities
@@ -172,12 +173,21 @@ following types of SQL language constructs.
 - [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
 - [ ] Missing indexes for primary keys, foreign keys
+- [ ] `_id` attributes that are not foreign keys (might be OK, might be a
+      mistake)
 
 ### Tasks
 
 - [ ] Migrate PgDCP `SQLa` Justfile to pure Typescript modules with a
       Taskfile.ts if necessary and incorporate CLI capabilities like
       https://github.com/hyperqueryhq/whale
+
+### Related Code
+
+- [ ] Generate ERDs (PlantUML, draw.io, etc.)
+- [ ] Generate ORM configurations from SQLa entity definitions
+  - [ ] https://mikro-orm.io/
+  - [ ] TypeORM
 
 ## Architecture
 
@@ -254,5 +264,3 @@ following types of SQL language constructs.
   - [ ] [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
   - [ ] [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
   - [ ] [Common DB schema change mistakes](https://postgres.ai/blog/20220525-common-db-schema-change-mistakes#case-1-schema-mismatch)
-- [ ] Generate ORM configurations from SQLa entity definitions
-  - [ ] https://mikro-orm.io/

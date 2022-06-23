@@ -386,8 +386,6 @@ export function tableDefinition<
     }
   }
 
-  // ESSENTIAL TODO: see d.AxiomPrimitive; do we need to "manually" compute the
-  // TsType through conditional types or can we infer it from ax.Axiom<?>
   type ForeignKeyRefs = {
     [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
       TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
