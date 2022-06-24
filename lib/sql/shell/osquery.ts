@@ -118,6 +118,8 @@ export type osQueryATCConfig = {
 /**
  * Create an osQuery Automatic Table Construction (ATC) configuration file
  * content from a series of tables.
+ * See: https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
+ * and: https://www.kolide.com/blog/how-to-build-custom-osquery-tables-using-atc
  * @param tables the list of tables that should be included in the ATC configuration
  * @returns a function which, when called, will produce an ATC configuratin object
  */
