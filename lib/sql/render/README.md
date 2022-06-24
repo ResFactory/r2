@@ -56,7 +56,7 @@ following types of SQL language constructs.
 - [x] DateTime
 - [x] BigInt
 - [x] JSON
-- [ ] Axiom Enum
+- [ ] Constrained values using Axiom $.enum
 - [ ] Symmetric encrypted text (for transactional data) See
       https://github.com/FiloSottile/age et. al but use built-in database
       capabilities through SQL whenever possible
@@ -75,8 +75,8 @@ following types of SQL language constructs.
 ### Entities
 
 - [x] Table
-- [x] Enum Table (text key, text values)
-- [x] Enum Table (text key, numeric values)
+- [x] Enum Table (type-safe text key, text values, automatic seeds)
+- [x] Enum Table (text key, numeric values, automatic seeds)
 - [ ] Data Vault Tables
 
 #### Entities (Table) Capabilities
@@ -153,6 +153,16 @@ following types of SQL language constructs.
 - SET TRANSACTION: Specify characteristics for the transaction.
 
 ### Dialect-specific
+
+These dialects are supported:
+
+- [x] ANSI SQL
+- [x] SQLite
+- [x] PostgreSQL
+- [ ] MySQL
+- [ ] Dolt
+- [ ] SQL*Server
+- [ ] ORACLE
 
 #### PostgreSQL
 

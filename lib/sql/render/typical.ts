@@ -189,6 +189,7 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
         seedRows.push({ code: value, value: key });
       }
     }
+
     const props = {
       code: SQLa.primaryKey(SQLa.integer()),
       value: SQLa.text(),
@@ -239,9 +240,43 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
       const value = e[1] as TEnumValue;
       seedRows.push({ code, value });
     }
+    const codeEnum = <
+      TType extends readonly [TEnumCode, ...(readonly TEnumCode[])],
+    >(
+      ...values: TType
+    ) =>
+      ax.create((value): value is TType[number] =>
+        values.includes(value as never)
+      );
+    const valueEnum = <
+      TType extends readonly [TEnumValue, ...(readonly TEnumValue[])],
+    >(
+      ...values: TType
+    ) =>
+      ax.create((value): value is TType[number] =>
+        values.includes(value as never)
+      );
+
+    const enumCodes = Object.keys(seedEnum) as unknown as TEnumCode[];
+    const enumValues = Object.values(seedEnum) as unknown as TEnumValue[];
+
+    const codeDomain = {
+      ...codeEnum(enumCodes[0], ...enumCodes),
+      sqlDataType: () => ({ SQL: () => `TEXT` }),
+      isNullable: false,
+      referenceASD: () => codeDomain,
+    };
+
+    const valueDomain = {
+      ...valueEnum(enumValues[0], ...enumValues),
+      sqlDataType: () => ({ SQL: () => `TEXT` }),
+      isNullable: false,
+      referenceASD: () => valueDomain,
+    };
+
     const props = {
-      code: SQLa.primaryKey(SQLa.text()),
-      value: SQLa.text(),
+      code: SQLa.primaryKey(codeDomain),
+      value: valueDomain,
       ...mg.housekeeping(),
     };
     const tdrf = SQLa.tableDomainsRowFactory(tableName, props, {
