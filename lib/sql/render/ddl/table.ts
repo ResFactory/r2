@@ -7,6 +7,7 @@ import * as dml from "../dml/mod.ts";
 import * as vw from "./view.ts";
 import * as ss from "../dql/select.ts";
 import * as ns from "../namespace.ts";
+import * as js from "../js.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easier on Deno linting
@@ -106,6 +107,48 @@ export function autoIncPrimaryKey<
   };
 }
 
+export type TableBelongsToForeignKeyRelNature<
+  Context extends tmpl.SqlEmitContext,
+> = {
+  readonly isBelongsToRel: true;
+  readonly collectionName?: js.JsTokenSupplier<Context>;
+};
+
+export type TableForeignKeyRelNature<Context extends tmpl.SqlEmitContext> =
+  | TableBelongsToForeignKeyRelNature<Context>
+  | { readonly isExtendsRel: true }
+  | { readonly isSelfRef: true }
+  | { readonly isInheritsRel: true };
+
+export function belongsTo<
+  Context extends tmpl.SqlEmitContext,
+>(
+  singularSnakeCaseCollName?: string,
+  pluralSnakeCaseCollName = singularSnakeCaseCollName
+    ? `${singularSnakeCaseCollName}s`
+    : undefined,
+): TableBelongsToForeignKeyRelNature<Context> {
+  return {
+    isBelongsToRel: true,
+    collectionName: singularSnakeCaseCollName
+      ? js.jsSnakeCaseToken(
+        singularSnakeCaseCollName,
+        pluralSnakeCaseCollName,
+      )
+      : undefined,
+  };
+}
+
+export function isTableBelongsToForeignKeyRelNature<
+  Context extends tmpl.SqlEmitContext,
+>(o: unknown): o is TableBelongsToForeignKeyRelNature<Context> {
+  const isTBFKRN = safety.typeGuard<TableBelongsToForeignKeyRelNature<Context>>(
+    "isBelongsToRel",
+    "collectionName",
+  );
+  return isTBFKRN(o);
+}
+
 export type TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName extends string,
@@ -116,6 +159,7 @@ export type TableForeignKeyColumnDefn<
     ColumnTsType,
     Context
   >;
+  readonly foreignRelNature?: TableForeignKeyRelNature<Context>;
 };
 
 export function isTableForeignKeyColumnDefn<
@@ -149,6 +193,7 @@ export function foreignKey<
     ColumnTsType,
     Context
   >,
+  foreignRelNature?: TableForeignKeyRelNature<Context>,
 ): TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName,
@@ -162,6 +207,7 @@ export function foreignKey<
   > = {
     foreignTableName,
     foreignDomain,
+    foreignRelNature,
     ...domain,
     sqlPartial: (dest) => {
       if (dest === "create table, after all column definitions") {
@@ -387,7 +433,9 @@ export function tableDefinition<
   }
 
   type ForeignKeyRefs = {
-    [Property in keyof TPropAxioms]: () => TableForeignKeyColumnDefn<
+    [Property in keyof TPropAxioms]: (
+      foreignRelNature?: TableForeignKeyRelNature<Context>,
+    ) => TableForeignKeyColumnDefn<
       TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
       TableName,
       Context
@@ -395,8 +443,8 @@ export function tableDefinition<
   };
   const fkRef: ForeignKeyRefs = {} as Any;
   for (const column of sd.domains) {
-    fkRef[column.identity as (keyof TPropAxioms)] = () => {
-      return foreignKey(tableName, column);
+    fkRef[column.identity as (keyof TPropAxioms)] = (foreignRelNature) => {
+      return foreignKey(tableName, column, foreignRelNature);
     };
   }
 

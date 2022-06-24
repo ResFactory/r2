@@ -5,59 +5,80 @@ type Any = any;
 
 export interface PlantUmlIeOptions<Context extends SQLa.SqlEmitContext> {
   readonly diagramName: string;
-  readonly includeColumn: (
+  readonly includeEntityAttr: (
     d: SQLa.IdentifiableSqlDomain<Any, Context>,
     td: SQLa.TableDefinition<Any, Context>,
   ) => boolean;
+  readonly elaborateEntityAttr?: (
+    d: SQLa.IdentifiableSqlDomain<Any, Context>,
+    td: SQLa.TableDefinition<Any, Context>,
+    entity: (name: string) => SQLa.TableDefinition<Any, Context> | undefined,
+    ns: SQLa.SqlObjectNames,
+  ) => string;
   readonly includeEntity: (
     td:
       & SQLa.TableDefinition<Any, Context>
       & SQLa.SqlDomainsSupplier<Any, Context>,
   ) => boolean;
+  readonly includeRelationship: (edge: SQLa.GraphEdge<Context>) => boolean;
+  readonly relationshipIndicator: (edge: SQLa.GraphEdge<Context>) => string;
+  readonly includeChildren: (
+    ir: SQLa.InboundRelationship<Any, Any, Context>,
+  ) => boolean;
 }
 
-export function plantUmlIE<
-  Context extends SQLa.SqlEmitContext & {
-    readonly plantUmlIeOptions: PlantUmlIeOptions<Context>;
-  },
->(
+export function typicalPlantUmlIeOptions<Context extends SQLa.SqlEmitContext>(
+  inherit: Partial<PlantUmlIeOptions<Context>>,
+): PlantUmlIeOptions<Context> {
+  return {
+    diagramName: "IE",
+    includeEntity: () => true,
+    includeEntityAttr: () => true,
+    includeRelationship: () => true,
+    includeChildren: () => true,
+    relationshipIndicator: () => {
+      // Relationship types see: https://plantuml.com/es/ie-diagram
+      // Zero or One	|o--
+      // Exactly One	||--
+      // Zero or Many	}o--
+      // One or Many	}|--
+      return "|o..o|";
+    },
+    ...inherit,
+  };
+}
+
+export function plantUmlIE<Context extends SQLa.SqlEmitContext>(
   ctx: Context,
-  tables: (
+  tableDefns: (
     ctx: Context,
   ) => Generator<
     SQLa.TableDefinition<Any, Context> & SQLa.SqlDomainsSupplier<Any, Context>
   >,
+  puieOptions: PlantUmlIeOptions<Context>,
 ) {
+  const graph = SQLa.graph(ctx, tableDefns);
   const ns = ctx.sqlNamingStrategy(ctx);
-  const puieOptions = ctx.plantUmlIeOptions;
-  const columnPuml = (d: SQLa.IdentifiableSqlDomain<Any, Context>) => {
+
+  const columnPuml = (
+    d: SQLa.IdentifiableSqlDomain<Any, Context>,
+    td: SQLa.TableDefinition<Any, Context>,
+  ) => {
     const tcName = ns.tableColumnName({
-      tableName: "",
+      tableName: td.tableName,
       columnName: d.identity,
     });
-    const required = d.isNullable ? "" : "*";
+    const required = d.isNullable ? " " : "*";
     const name = SQLa.isTablePrimaryKeyColumnDefn(d) ? `**${tcName}**` : tcName;
-    const descr = "";
-    // let descr = tc.column.references
-    //   ? (gim.isEnumeration(tc.column.references.table.entity)
-    //     ? ` <<ENUM(${tc.column.references.table.name(this.reCtx)})>> `
-    //     : ` <<FK(${tc.column.references.table.name(this.reCtx)})>>`)
-    //   : "";
-    // if ("isSelfReference" in tc.column.forAttr) descr = " <<SELF>>";
+    const descr = puieOptions.elaborateEntityAttr?.(
+      d,
+      td,
+      (name) => graph.entitiesByName.get(name),
+      ns,
+    );
     const sqlType = d.sqlDataType("diagram").SQL(ctx);
-    return `    ${required} ${name}: ${sqlType}${descr}`;
+    return `    ${required} ${name}: ${sqlType}${descr ?? ""}`;
   };
-
-  // const backRef = (
-  //   table: gimRDS.Table,
-  //   backRef: gim.InboundRelationshipBackRef<gim.Entity>,
-  // ) => {
-  //   const name = infl.toCamelCase(backRef.name.plural);
-  //   const type = backRef.rel.fromAttr.parent
-  //     ? infl.toPascalCase(backRef.rel.fromAttr.parent.name)
-  //     : "SHOULD_NEVER_HAPPEN!";
-  //   return `    ${name}: ${type}[]`;
-  // }
 
   const tablePuml = (
     td:
@@ -65,43 +86,57 @@ export function plantUmlIE<
       & SQLa.SqlDomainsSupplier<Any, Context>,
   ) => {
     const columns: string[] = [];
+    // we want to put all the primary keys at the top of the entity
     for (const column of td.domains) {
+      if (!puieOptions.includeEntityAttr(column, td)) continue;
       if (SQLa.isTablePrimaryKeyColumnDefn(column)) {
-        columns.push(columnPuml(column));
+        columns.push(columnPuml(column, td));
         columns.push("    --");
       }
     }
 
     for (const column of td.domains) {
       if (!SQLa.isTablePrimaryKeyColumnDefn(column)) {
-        if (!puieOptions.includeColumn(column, td)) continue;
-        columns.push(columnPuml(column));
+        if (!puieOptions.includeEntityAttr(column, td)) continue;
+        columns.push(columnPuml(column, td));
       }
     }
 
-    // const backRefs: string[] = [];
-    // if (td.entity.backRefs) {
-    //   for (const backRef of td.entity.backRefs) {
-    //     backRefs.push(this.backRef(td, backRef));
-    //   }
-    // }
-    // if (backRefs.length > 0) {
-    //   backRefs.unshift("    --");
-    // }
+    const rels = graph.entityRels.get(td.tableName);
+    const children: string[] = [];
+    if (rels && rels.inboundRels.length > 0) {
+      for (const ir of rels.inboundRels) {
+        const frn = ir.fromAttr.foreignRelNature;
+        if (SQLa.isTableBelongsToForeignKeyRelNature(frn)) {
+          if (!puieOptions.includeChildren(ir)) continue;
+          const collectionName = frn.collectionName ??
+            SQLa.jsSnakeCaseToken(ir.from.tableName);
+          children.push(
+            `    ${collectionName(ctx, "plural", "js-class-member-decl")}: ${
+              collectionName(ctx, "singular", "ts-type-decl")
+            }[]`,
+          );
+        }
+      }
+    }
+    if (children.length > 0) {
+      children.unshift("    --");
+    }
 
     return [
+      "",
       `  entity "${ns.tableName(td.tableName)}" as ${
         ns.tableName(td.tableName)
       } {`,
       ...columns,
-      //...backRefs,
+      ...children,
       `  }`,
     ];
   };
 
   const tablesPuml = () => {
     let result: string[] = [];
-    for (const table of tables(ctx)) {
+    for (const table of tableDefns(ctx)) {
       if (!puieOptions.includeEntity(table)) {
         continue;
       }
@@ -113,32 +148,24 @@ export function plantUmlIE<
 
   const relationshipsPuml = () => {
     const result: string[] = [];
-    // for (const rel of this.options.rdbmsModel.relationships) {
-    //   if (
-    //     !this.includeRelationship(
-    //       this.reCtx,
-    //       this.includeColumn,
-    //       this.includeEntity,
-    //       rel,
-    //     )
-    //   ) {
-    //     continue;
-    //   }
-    //   const refIsEnum = !gim.isEnumeration(rel.references.table.entity);
-
-    // const src = rel.source;
-    // const ref = rel.references;
-    // // Relationship types see: https://plantuml.com/es/ie-diagram
-    // // Zero or One	|o--
-    // // Exactly One	||--
-    // // Zero or Many	}o--
-    // // One or Many	}|--
-    // const relIndicator = refIsEnum ? "|o..o|" : "|o..o{";
-    // result.push(
-    //   `  ${ref.table.name(this.reCtx)} ${relIndicator} ${src.table.name(this.reCtx)
-    //   }`,
-    // );
-    //}
+    for (const rel of graph.edges) {
+      if (!puieOptions.includeRelationship(rel)) {
+        continue;
+      }
+      const src = rel.source;
+      const ref = rel.ref;
+      // Relationship types see: https://plantuml.com/es/ie-diagram
+      // Zero or One	|o--
+      // Exactly One	||--
+      // Zero or Many	}o--
+      // One or Many	}|--
+      const relIndicator = puieOptions.relationshipIndicator(rel);
+      result.push(
+        `  ${ns.tableName(ref.entity.tableName)} ${relIndicator} ${
+          ns.tableName(src.entity.tableName)
+        }`,
+      );
+    }
     if (result.length > 0) result.unshift("");
     return result;
   };
@@ -154,7 +181,7 @@ export function plantUmlIE<
     "    BorderColor Silver",
     "    FontColor Black",
     "    FontSize 12",
-    "  }\n",
+    "  }",
     ...tablesPuml(),
     ...relationshipsPuml(),
     "@enduml",

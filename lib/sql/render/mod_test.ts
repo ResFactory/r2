@@ -83,7 +83,7 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${dbDefn.publServerErrorLog}
 
-    ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0 })}
+    ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0, numeric_enum: dbDefn.numericEnumModel.seedEnum.code1 })}
 
     ${dbDefn.numericEnumModel}
 
@@ -133,13 +133,15 @@ const fixturePrime = ws.unindentWhitespace(`
       "host" TEXT NOT NULL,
       "host_identity" JSON,
       "mutation_count" INTEGER NOT NULL,
+      "numeric_enum" INTEGER NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE("host")
+      UNIQUE("host"),
+      FOREIGN KEY("numeric_enum") REFERENCES "synthetic_enum_numeric"("code")
   );
   -- encountered persistence request for 1_publ-host.sql
 
-  CREATE VIEW IF NOT EXISTS "publ_host_vw"("publ_host_id", "host", "host_identity", "mutation_count", "created_at") AS
-      SELECT "publ_host_id", "host", "host_identity", "mutation_count", "created_at"
+  CREATE VIEW IF NOT EXISTS "publ_host_vw"("publ_host_id", "host", "host_identity", "mutation_count", "numeric_enum", "created_at") AS
+      SELECT "publ_host_id", "host", "host_identity", "mutation_count", "numeric_enum", "created_at"
         FROM "publ_host";
 
   CREATE TABLE IF NOT EXISTS "publ_build_event" (
@@ -152,8 +154,10 @@ const fixturePrime = ws.unindentWhitespace(`
       "resources_originated_count" INTEGER NOT NULL,
       "resources_persisted_count" INTEGER NOT NULL,
       "resources_memoized_count" INTEGER NOT NULL,
+      "text_enum" TEXT NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY("publ_host_id") REFERENCES "publ_host"("publ_host_id")
+      FOREIGN KEY("publ_host_id") REFERENCES "publ_host"("publ_host_id"),
+      FOREIGN KEY("text_enum") REFERENCES "synthetic_enum_text"("code")
   );
 
   CREATE TABLE IF NOT EXISTS "publ_server_service" (
@@ -189,7 +193,7 @@ const fixturePrime = ws.unindentWhitespace(`
       FOREIGN KEY("publ_server_service_id") REFERENCES "publ_server_service"("publ_server_service_id")
   );
 
-  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count") VALUES ('test', 'testHI', 0);
+  INSERT INTO "publ_host" ("host", "host_identity", "mutation_count", "numeric_enum") VALUES ('test', 'testHI', 0, 0);
 
   CREATE TABLE IF NOT EXISTS "synthetic_enum_numeric" (
       "code" INTEGER PRIMARY KEY,

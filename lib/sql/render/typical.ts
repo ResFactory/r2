@@ -1,3 +1,4 @@
+import * as safety from "../../safety/mod.ts";
 import * as ax from "../../safety/axiom.ts";
 import * as SQLa from "./mod.ts";
 
@@ -7,6 +8,14 @@ type Any = any;
 export type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
   readonly created_at: SQLa.AxiomSqlDomain<Date | undefined, Context>;
 };
+
+export interface EnumTableDefn {
+  readonly enumTableNature: "text" | "numeric";
+}
+
+export const isEnumTableDefn = safety.typeGuard<EnumTableDefn>(
+  "enumTableNature",
+);
 
 /**
  * typicalModelsGovn is a "models governer" helpers object that supplies functions
@@ -138,6 +147,7 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
   ) => {
     const entity = mg.table(tableName, props);
     return {
+      isTextLookupTable: true,
       ...entity,
       // seed will be used in SQL interpolation template literal, which accepts
       // either a string, SqlTextSupplier, or array of SqlTextSuppliers; in our
@@ -187,7 +197,9 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
     const tdrf = SQLa.tableDomainsRowFactory(tableName, props, {
       defaultIspOptions: mg.defaultIspOptions,
     });
+    const etn: EnumTableDefn = { enumTableNature: "numeric" };
     return {
+      ...etn,
       ...SQLa.tableDefinition(tableName, props, {
         isIdempotent: true,
         sqlNS: ddlOptions?.sqlNS,
@@ -235,7 +247,9 @@ export function typicalLookupsGovn<Context extends SQLa.SqlEmitContext>(
     const tdrf = SQLa.tableDomainsRowFactory(tableName, props, {
       defaultIspOptions: mg.defaultIspOptions,
     });
+    const etn: EnumTableDefn = { enumTableNature: "text" };
     return {
+      ...etn,
       ...SQLa.tableDefinition(tableName, props, {
         isIdempotent: true,
         sqlNS: ddlOptions?.sqlNS,

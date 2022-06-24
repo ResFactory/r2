@@ -170,6 +170,8 @@ following types of SQL language constructs.
 
 ### Lint Rules
 
+The system generates lint messages:
+
 - [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
 - [ ] Missing indexes for primary keys, foreign keys
@@ -184,7 +186,8 @@ following types of SQL language constructs.
 
 ### Related Code
 
-- [ ] Generate ERDs (PlantUML, draw.io, etc.)
+- [x] Dependency graphs (relationships from FKs, links, etc.)
+- [x] Generate PlantUML Information Engineering diagrams
 - [ ] Generate ORM configurations from SQLa entity definitions
   - [ ] https://mikro-orm.io/
   - [ ] TypeORM

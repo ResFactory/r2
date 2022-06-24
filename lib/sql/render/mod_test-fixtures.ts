@@ -38,12 +38,14 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     host: mod.unique(mod.text()),
     host_identity: mod.jsonTextNullable(),
     mutation_count: mod.integer(),
+    numeric_enum: numericEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
   });
 
-  const publBuildEvent = mg.table("publ_build_event", {
+  const publBuildEventName = "publ_build_event" as const;
+  const publBuildEvent = mg.table(publBuildEventName, {
     publ_build_event_id: mg.primaryKey(),
-    publ_host_id: publHost.foreignKeyRef.publ_host_id(),
+    publ_host_id: publHost.foreignKeyRef.publ_host_id(mod.belongsTo()),
     iteration_index: mod.integer(),
     build_initiated_at: mod.dateTime(),
     build_completed_at: mod.dateTime(),
@@ -51,6 +53,7 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     resources_originated_count: mod.integer(),
     resources_persisted_count: mod.integer(),
     resources_memoized_count: mod.integer(),
+    text_enum: textEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
   });
 
@@ -60,7 +63,9 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     listen_host: mod.text(),
     listen_port: mod.integer(),
     publish_url: mod.text(),
-    publ_build_event_id: publBuildEvent.foreignKeyRef.publ_build_event_id(),
+    publ_build_event_id: publBuildEvent.foreignKeyRef.publ_build_event_id(
+      mod.belongsTo("service"),
+    ),
     ...mg.housekeeping(),
   });
 

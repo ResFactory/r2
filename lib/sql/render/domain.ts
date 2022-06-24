@@ -1,6 +1,7 @@
 import * as safety from "../../safety/mod.ts";
 import * as ax from "../../safety/axiom.ts";
 import * as tmpl from "./template/mod.ts";
+import * as l from "./label.ts";
 
 /**
  * A `domain` is an Axiom-typed "data definition" valuable for many use cases:
@@ -108,7 +109,7 @@ export type LabeledSqlDomain<
   Label extends string,
 > =
   & AxiomSqlDomain<TsValueType, Context>
-  & { readonly labels: Label[] };
+  & l.LabelsSupplier<Label>;
 
 export function isLabeledSqlDomain<
   TsValueType,
