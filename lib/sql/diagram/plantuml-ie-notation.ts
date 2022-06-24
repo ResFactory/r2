@@ -28,8 +28,9 @@ export interface PlantUmlIeOptions<Context extends SQLa.SqlEmitContext> {
 }
 
 export function typicalPlantUmlIeOptions<Context extends SQLa.SqlEmitContext>(
-  inherit: Partial<PlantUmlIeOptions<Context>>,
-): PlantUmlIeOptions<Context> {
+  inherit?: Partial<PlantUmlIeOptions<Context>>,
+) {
+  // we let type inference occur so generics can follow through
   return {
     diagramName: "IE",
     includeEntity: () => true,
