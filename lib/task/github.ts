@@ -53,6 +53,34 @@ export function extractSingleFileFromTarGZ(
   };
 }
 
+export async function gitHubRepoTags(
+  { repo }: { readonly repo: string },
+  options?: {
+    readonly onFetchError?: (error: Error) => Promise<void>;
+  },
+) {
+  try {
+    const resp = await fetch(
+      `https://api.github.com/repos/${repo}/tags`,
+    );
+    return await resp.json() as { name: string }[];
+  } catch (error) {
+    options?.onFetchError?.(error);
+    return undefined;
+  }
+}
+
+export async function latestGitHubRepoTag(
+  options: { readonly repo: string },
+  defaultTag = "main",
+) {
+  const tags = await gitHubRepoTags(options);
+  if (Array.isArray(tags) && tags.length > 0) {
+    return tags[0].name;
+  }
+  return defaultTag;
+}
+
 export async function latestGitHubRepoRelease(
   { repo }: { readonly repo: string },
   options?: {
