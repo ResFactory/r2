@@ -114,10 +114,14 @@ export type TableBelongsToForeignKeyRelNature<
   readonly collectionName?: js.JsTokenSupplier<Context>;
 };
 
+export type TableSelfRefForeignKeyRelNature = {
+  readonly isSelfRef: true;
+};
+
 export type TableForeignKeyRelNature<Context extends tmpl.SqlEmitContext> =
   | TableBelongsToForeignKeyRelNature<Context>
+  | TableSelfRefForeignKeyRelNature
   | { readonly isExtendsRel: true }
-  | { readonly isSelfRef: true }
   | { readonly isInheritsRel: true };
 
 export function belongsTo<
@@ -148,6 +152,10 @@ export function isTableBelongsToForeignKeyRelNature<
   );
   return isTBFKRN(o);
 }
+
+export const isTableSelfRefForeignKeyRelNature = safety.typeGuard<
+  TableSelfRefForeignKeyRelNature
+>("isSelfRef");
 
 export type TableForeignKeyColumnDefn<
   ColumnTsType,
@@ -183,6 +191,8 @@ export function isTableForeignKeyColumnDefn<
   return isTFKCD(o);
 }
 
+const selfRefTableNamePlaceholder = "SELFREF_TABLE_NAME_PLACEHOLDER" as const;
+
 export function foreignKey<
   ColumnTsType,
   ForeignTableName extends string,
@@ -194,6 +204,7 @@ export function foreignKey<
     Context
   >,
   foreignRelNature?: TableForeignKeyRelNature<Context>,
+  domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
 ): TableForeignKeyColumnDefn<
   ColumnTsType,
   ForeignTableName,
@@ -209,12 +220,13 @@ export function foreignKey<
     foreignDomain,
     foreignRelNature,
     ...domain,
+    ...domainOptions,
     sqlPartial: (dest) => {
       if (dest === "create table, after all column definitions") {
         const aacd = domain?.sqlPartial?.(
           "create table, after all column definitions",
         );
-        const unique: tmpl.SqlTextSupplier<Context> = {
+        const fkClause: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
             ? ((ctx) => {
               const ns = ctx.sqlNamingStrategy(ctx, {
@@ -222,14 +234,17 @@ export function foreignKey<
               });
               const tn = ns.tableName;
               const cn = ns.tableColumnName;
+              // don't use the foreignTableName passed in because it could be
+              // mutated for self-refs in table definition phase
+              const ftName = result.foreignTableName;
               return `FOREIGN KEY(${
                 cn({
                   tableName: "TODO",
                   columnName: result.identity,
                 })
-              }) REFERENCES ${tn(foreignTableName)}(${
+              }) REFERENCES ${tn(ftName)}(${
                 cn({
-                  tableName: foreignTableName,
+                  tableName: ftName,
                   columnName: d.isIdentifiableSqlDomain(foreignDomain)
                     ? foreignDomain.identity
                     : "/* FOREIGN KEY REFERENCE is not IdentifiableSqlDomain */",
@@ -241,12 +256,34 @@ export function foreignKey<
               return `/* FOREIGN KEY sqlPartial in "create table, after all column definitions" is not IdentifiableSqlDomain */`;
             }),
         };
-        return aacd ? [...aacd, unique] : [unique];
+        return aacd ? [...aacd, fkClause] : [fkClause];
       }
       return domain.sqlPartial?.(dest);
     },
   };
   return result;
+}
+
+export function selfRefForeignKey<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  domain: d.AxiomSqlDomain<ColumnTsType, Context>,
+  domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
+) {
+  return foreignKey(
+    selfRefTableNamePlaceholder,
+    domain,
+    { isSelfRef: true },
+    domainOptions,
+  );
+}
+
+export function selfRefNullableForeignKey<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(domain: d.AxiomSqlDomain<ColumnTsType, Context>) {
+  return selfRefForeignKey(domain, { isNullable: true });
 }
 
 export type TableUniqueColumnDefn<
@@ -269,7 +306,7 @@ export function unique<
         const aacd = axiom?.sqlPartial?.(
           "create table, after all column definitions",
         );
-        const unique: tmpl.SqlTextSupplier<Context> = {
+        const uniqueClause: tmpl.SqlTextSupplier<Context> = {
           SQL: d.isIdentifiableSqlDomain(result)
             ? ((ctx) => {
               const ns = ctx.sqlNamingStrategy(ctx, {
@@ -287,7 +324,7 @@ export function unique<
               return `/* UNIQUE sqlPartial in "create table, after all column definitions" is not IdentifiableSqlDomain */`;
             }),
         };
-        return aacd ? [...aacd, unique] : [unique];
+        return aacd ? [...aacd, uniqueClause] : [uniqueClause];
       }
       return axiom.sqlPartial?.(dest);
     },
@@ -393,6 +430,15 @@ export function tableDefinition<
   const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
   const sd = d.sqlDomains(props, tdOptions);
   for (const columnDefn of sd.domains) {
+    if (
+      isTableForeignKeyColumnDefn(columnDefn) &&
+      isTableSelfRefForeignKeyRelNature(columnDefn.foreignRelNature)
+    ) {
+      // manually "fix" the table name since self-refs are special
+      (columnDefn as { foreignTableName: string }).foreignTableName = tableName;
+    }
+  }
+  for (const columnDefn of sd.domains) {
     const typicalSQL = typicalTableColumnDefnSQL(tableName, columnDefn);
     if (columnDefn.sqlPartial) {
       const acdPartial = columnDefn.sqlPartial(
@@ -448,7 +494,7 @@ export function tableDefinition<
     };
   }
 
-  const result: TableDefinition<TableName, Context> & {
+  const tableDefnResult: TableDefinition<TableName, Context> & {
     readonly primaryKey: PrimaryKeys;
     readonly foreignKeyRef: ForeignKeyRefs;
     readonly sqlNS?: ns.SqlNamespaceSupplier;
@@ -485,7 +531,7 @@ export function tableDefinition<
   // typed as possible
   return {
     ...sd,
-    ...result,
+    ...tableDefnResult,
   };
 }
 
