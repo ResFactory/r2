@@ -142,18 +142,18 @@ type AxiomObject<
   TType,
   TPropAxioms extends Record<string, Axiom<any>>,
   TIndexType,
-  > = Axiom<TType> & {
-    /**
-     * Re-construct the object/record axiom with all properties as optional.
-     */
-    readonly partial: () => AxiomObject<
-      Simplify<Partial<TType>>,
-      TPropAxioms,
-      TIndexType
-    >;
-    readonly axiomObjectDecl: TPropAxioms;
-    readonly axiomObjectDeclPropNames: (keyof TType & string)[];
-  };
+> = Axiom<TType> & {
+  /**
+   * Re-construct the object/record axiom with all properties as optional.
+   */
+  readonly partial: () => AxiomObject<
+    Simplify<Partial<TType>>,
+    TPropAxioms,
+    TIndexType
+  >;
+  readonly axiomObjectDecl: TPropAxioms;
+  readonly axiomObjectDeclPropNames: (keyof TType & string)[];
+};
 
 const isObject = (value: any): value is Record<string, any> =>
   typeof value === "object" && value !== null;
@@ -233,9 +233,9 @@ const create = <TType>(
 const createObject = <
   TPropAxioms extends Record<string, Axiom<any>>,
   TIndexType,
-  >(
-    props: TPropAxioms,
-    index: Axiom<TIndexType> | undefined,
+>(
+  props: TPropAxioms,
+  index: Axiom<TIndexType> | undefined,
 ): AxiomObject<
   Simplify<AxiomObjectTypeStrict<TPropAxioms, TIndexType>>,
   TPropAxioms,
@@ -344,13 +344,13 @@ const object = <TPropAxioms extends Record<string, Axiom<any>>, TIndexType>(
 // Combinatorial
 const union = <
   TAxioms extends readonly [Axiom<any>, ...(readonly Axiom<any>[])],
-  >(...axioms: TAxioms) =>
+>(...axioms: TAxioms) =>
   create((value): value is AxiomType<TAxioms[number]> =>
     axioms.some((axiom) => axiom.test(value))
   );
 const intersection = <
   TAxioms extends readonly [Axiom<any>, ...(readonly Axiom<any>[])],
-  >(...axioms: TAxioms) =>
+>(...axioms: TAxioms) =>
   create((
     value,
     context,
@@ -387,11 +387,6 @@ const $ = {
 
 export {
   $,
-  type Primitive,
-  type UnionToIntersection,
-  type OptionalKeys,
-  type RequiredKeys,
-  type SmartPartial,
   type Axiom,
   type AxiomContext,
   type AxiomObject,
@@ -402,4 +397,9 @@ export {
   isAxiom,
   isAxiomObjectProperty,
   isAxiomOptional,
+  type OptionalKeys,
+  type Primitive,
+  type RequiredKeys,
+  type SmartPartial,
+  type UnionToIntersection,
 };
