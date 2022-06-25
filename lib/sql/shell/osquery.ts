@@ -112,8 +112,8 @@ export type osQueryATCRecord = {
 };
 
 export type osQueryATCConfig = {
-  readonly auto_table_construction: Record<string, osQueryATCRecord>
-}
+  readonly auto_table_construction: Record<string, osQueryATCRecord>;
+};
 
 /**
  * Create an osQuery Automatic Table Construction (ATC) configuration file
@@ -125,25 +125,37 @@ export type osQueryATCConfig = {
  */
 export function osQueryATCConfigSupplier(tables: {
   readonly tableName: string;
-  readonly columns: Array<{ readonly columnName: string; }>
+  readonly columns: Array<{ readonly columnName: string }>;
   readonly query?: string;
 }[]) {
   const osQueryATCPartials = tables.reduce(
     (result, table) => {
       const columns = table.columns.map((c) => c.columnName);
-      const query = table.query ?? `select ${columns.join(", ")} from ${table.tableName}`
-      result[table.tableName] = { query, columns, };
+      const query = table.query ??
+        `select ${columns.join(", ")} from ${table.tableName}`;
+      result[table.tableName] = { query, columns };
       return result;
     },
     // we don't need the path right now since that's late binding
     {} as Record<string, Omit<osQueryATCRecord, "path">>,
   );
 
-  return (atcRecConfig: (suggested: string, atcPartial: Omit<osQueryATCRecord, "path">) => { readonly osQueryTableName: string; readonly atcRec: osQueryATCRecord }): osQueryATCConfig => {
+  return (
+    atcRecConfig: (
+      suggested: string,
+      atcPartial: Omit<osQueryATCRecord, "path">,
+    ) => {
+      readonly osQueryTableName: string;
+      readonly atcRec: osQueryATCRecord;
+    },
+  ): osQueryATCConfig => {
     const ATC: Record<string, osQueryATCRecord> = {};
     for (const atcPartialEntry of Object.entries(osQueryATCPartials)) {
       const [suggestedTableName, atcPartialRec] = atcPartialEntry;
-      const { osQueryTableName, atcRec } = atcRecConfig(suggestedTableName, atcPartialRec)
+      const { osQueryTableName, atcRec } = atcRecConfig(
+        suggestedTableName,
+        atcPartialRec,
+      );
       ATC[osQueryTableName] = atcRec;
     }
     return {
