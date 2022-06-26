@@ -1,47 +1,22 @@
 import { testingAsserts as ta } from "../render/deps-test.ts";
 import * as SQLa from "../render/mod.ts";
 import * as mod from "./plantuml-ie-notation.ts";
-import * as tf from "../render/mod_test-fixtures.ts";
-import * as typ from "../render/typical.ts";
+import * as tf from "../models/typical_test-fixtures.ts";
+import * as typ from "../models/typical.ts";
 import * as ws from "../../text/whitespace.ts";
 
 Deno.test("PlantUML IE Diagram (full)", () => {
+  const defns = tf.syntheticDatabaseDefn();
   const puml = mod.plantUmlIE(
     SQLa.typicalSqlEmitContext(),
     function* () {
-      const defns = tf.syntheticDatabaseDefn();
       for (const defn of Object.values(defns)) {
         if (SQLa.isTableDefinition(defn)) {
           yield defn;
         }
       }
     },
-    mod.typicalPlantUmlIeOptions({
-      elaborateEntityAttr: (d, td, entity, ns) => {
-        let result = "";
-        if (SQLa.isTableForeignKeyColumnDefn(d)) {
-          const ftd = entity(d.foreignTableName);
-          if (ftd) {
-            result = typ.isEnumTableDefn(ftd)
-              ? ` <<ENUM(${ns.tableName(ftd.tableName)})>>`
-              : ` <<FK(${ns.tableName(ftd.tableName)})>>`;
-          } else {
-            result = ` <<FK(${ns.tableName(d.foreignTableName)})>>`;
-          }
-          if (d.foreignTableName == td.tableName) result = " <<SELF>>";
-        }
-        return result;
-      },
-      relationshipIndicator: (edge) => {
-        const refIsEnum = typ.isEnumTableDefn(edge.ref.entity);
-        // Relationship types see: https://plantuml.com/es/ie-diagram
-        // Zero or One	|o--
-        // Exactly One	||--
-        // Zero or Many	}o--
-        // One or Many	}|--
-        return refIsEnum ? "|o..o|" : "|o..o{";
-      },
-    }),
+    mod.typicalPlantUmlIeOptions(defns.modelsGovn.erdConfig),
   );
 
   // copy the fixtures into https://www.planttext.com/ to see what the output will look like

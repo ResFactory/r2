@@ -1,5 +1,5 @@
-import { path } from "./deps-test.ts";
-import * as mod from "./mod.ts";
+import { path } from "../render/deps-test.ts";
+import * as SQLa from "../render/mod.ts";
 
 // typical.ts is not auto-exported in ./mod.ts because it's not universally
 // applicable, so it should be imported explictly by consumers
@@ -9,9 +9,9 @@ const expectType = <T>(_value: T) => {
   // Do nothing, the TypeScript compiler handles this for us
 };
 
-export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
-  ddlOptions?: mod.SqlTextSupplierOptions<Context> & {
-    readonly sqlNS?: mod.SqlNamespaceSupplier;
+export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
+  ddlOptions?: SQLa.SqlTextSupplierOptions<Context> & {
+    readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   },
 ) {
   const mg = typ.typicalLookupsGovn(ddlOptions);
@@ -35,9 +35,9 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
 
   const publHost = mg.table("publ_host", {
     publ_host_id: mg.primaryKey(),
-    host: mod.unique(mod.text()),
-    host_identity: mod.jsonTextNullable(),
-    mutation_count: mod.integer(),
+    host: SQLa.unique(SQLa.text()),
+    host_identity: SQLa.jsonTextNullable(),
+    mutation_count: SQLa.integer(),
     numeric_enum: numericEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
   });
@@ -45,26 +45,26 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
   const publBuildEventName = "publ_build_event" as const;
   const publBuildEvent = mg.table(publBuildEventName, {
     publ_build_event_id: mg.primaryKey(),
-    publ_host_id: publHost.foreignKeyRef.publ_host_id(mod.belongsTo()),
-    iteration_index: mod.integer(),
-    build_initiated_at: mod.dateTime(),
-    build_completed_at: mod.dateTime(),
-    build_duration_ms: mod.integer(),
-    resources_originated_count: mod.integer(),
-    resources_persisted_count: mod.integer(),
-    resources_memoized_count: mod.integer(),
+    publ_host_id: publHost.foreignKeyRef.publ_host_id(SQLa.belongsTo()),
+    iteration_index: SQLa.integer(),
+    build_initiated_at: SQLa.dateTime(),
+    build_completed_at: SQLa.dateTime(),
+    build_duration_ms: SQLa.integer(),
+    resources_originated_count: SQLa.integer(),
+    resources_persisted_count: SQLa.integer(),
+    resources_memoized_count: SQLa.integer(),
     text_enum: textEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
   });
 
   const publServerService = mg.table("publ_server_service", {
     publ_server_service_id: mg.primaryKey(),
-    service_started_at: mod.dateTime(),
-    listen_host: mod.text(),
-    listen_port: mod.integer(),
-    publish_url: mod.text(),
+    service_started_at: SQLa.dateTime(),
+    listen_host: SQLa.text(),
+    listen_port: SQLa.integer(),
+    publish_url: SQLa.text(),
     publ_build_event_id: publBuildEvent.foreignKeyRef.publ_build_event_id(
-      mod.belongsTo("service"),
+      SQLa.belongsTo("service"),
     ),
     ...mg.housekeeping(),
   });
@@ -74,11 +74,11 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
     "publ_server_static_access_log",
     {
       publ_server_static_access_log_id: mg.primaryKey(),
-      status: mod.integer(),
-      asset_nature: mod.text(),
-      location_href: mod.text(),
-      filesys_target_path: mod.text(),
-      filesys_target_symlink: mod.textNullable(),
+      status: SQLa.integer(),
+      asset_nature: SQLa.text(),
+      location_href: SQLa.text(),
+      filesys_target_path: SQLa.text(),
+      filesys_target_symlink: SQLa.textNullable(),
       publ_server_service_id: publServerService.foreignKeyRef
         .publ_server_service_id(),
       ...mg.housekeeping(),
@@ -88,9 +88,9 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
   // -- TODO: add indexes to improve query performance
   const publServerErrorLog = mg.table("publ_server_error_log", {
     publ_server_error_log_id: mg.primaryKey(),
-    location_href: mod.text(),
-    error_summary: mod.text(),
-    error_elaboration: mod.jsonTextNullable(),
+    location_href: SQLa.text(),
+    error_summary: SQLa.text(),
+    error_elaboration: SQLa.jsonTextNullable(),
     publ_server_service_id: publServerService.foreignKeyRef
       .publ_server_service_id(),
     ...mg.housekeeping(),
@@ -99,14 +99,14 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
   // this is added for testing purposes to make sure Axiom/Domain is creating
   // proper type-safe objects, otherwise will result in Typescript compile error;
   // expectType calls are not required for non-test or production use cases
-  type tablePK = mod.TablePrimaryKeyColumnDefn<number, Context>;
+  type tablePK = SQLa.TablePrimaryKeyColumnDefn<number, Context>;
   expectType<tablePK>(publHost.primaryKey.publ_host_id);
   expectType<
-    mod.AxiomSqlDomain<Date | undefined, Context>
+    SQLa.AxiomSqlDomain<Date | undefined, Context>
   >(publHost.axiomObjectDecl.created_at);
   expectType<tablePK>(publBuildEvent.primaryKey.publ_build_event_id);
   expectType<
-    mod.TableForeignKeyColumnDefn<
+    SQLa.TableForeignKeyColumnDefn<
       number,
       "publ_host",
       Context
@@ -114,10 +114,10 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
   >(publBuildEvent.axiomObjectDecl.publ_host_id);
 
   // deno-fmt-ignore
-  const DDL = mod.SQL<Context>(ddlOptions)`
+  const DDL = SQLa.SQL<Context>(ddlOptions)`
       -- Generated by ${path.basename(import.meta.url)}. DO NOT EDIT.
 
-      ${mod.typicalSqlTextLintSummary}
+      ${SQLa.typicalSqlTextLintSummary}
 
       ${publHost}
 
@@ -131,9 +131,10 @@ export function syntheticDatabaseDefn<Context extends mod.SqlEmitContext>(
 
       ${publServerErrorLog}
 
-      ${mod.typicalSqlTmplEngineLintSummary}`;
+      ${SQLa.typicalSqlTmplEngineLintSummary}`;
 
   return {
+    modelsGovn: mg,
     publHost,
     publBuildEvent,
     publServerService,
@@ -150,6 +151,6 @@ if (import.meta.main) {
   //    deno run -A lib/sql/render/mod_test-fixtures.ts > synthetic.sql
   //    deno run -A lib/sql/render/mod_test-fixtures.ts | sqlite3 synthetic.sqlite.db
   const dbDefn = syntheticDatabaseDefn();
-  const ctx = mod.typicalSqlEmitContext();
+  const ctx = SQLa.typicalSqlEmitContext();
   console.log(dbDefn.DDL.SQL(ctx));
 }

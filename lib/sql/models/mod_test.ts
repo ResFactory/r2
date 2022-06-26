@@ -1,25 +1,25 @@
-import { path, testingAsserts as ta } from "./deps-test.ts";
+import { path, testingAsserts as ta } from "../render/deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
-import * as mdf from "./mod_test-fixtures.ts";
-import * as mod from "./mod.ts";
+import * as mdf from "./typical_test-fixtures.ts";
+import * as SQLa from "../render/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easy on linter
 
 // deno-lint-ignore no-empty-interface
-interface SyntheticTmplContext extends mod.SqlEmitContext {
+interface SyntheticTmplContext extends SQLa.SqlEmitContext {
 }
 
-const stContext = (): SyntheticTmplContext => mod.typicalSqlEmitContext();
+const stContext = (): SyntheticTmplContext => SQLa.typicalSqlEmitContext();
 
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   const ctx = stContext();
   const dbDefn = mdf.syntheticDatabaseDefn<SyntheticTmplContext>();
   const persist = (
-    sts: mod.SqlTextSupplier<SyntheticTmplContext>,
+    sts: SQLa.SqlTextSupplier<SyntheticTmplContext>,
     basename: string,
   ) => {
-    const result: mod.PersistableSqlText<SyntheticTmplContext> = {
+    const result: SQLa.PersistableSqlText<SyntheticTmplContext> = {
       sqlTextSupplier: sts,
       persistDest: (_, index) => `${index}_${basename}`,
     };
@@ -27,24 +27,24 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   };
 
   const tablesDeclared = new Set<
-    mod.TableDefinition<Any, SyntheticTmplContext>
+    SQLa.TableDefinition<Any, SyntheticTmplContext>
   >();
   const viewsDeclared = new Set<
-    mod.ViewDefinition<Any, SyntheticTmplContext>
+    SQLa.ViewDefinition<Any, SyntheticTmplContext>
   >();
 
   // deno-fmt-ignore
-  const catalog = (sts: mod.SqlTextSupplier<SyntheticTmplContext>) => {
-    if (mod.isTableDefinition<Any, SyntheticTmplContext>(sts)) {
+  const catalog = (sts: SQLa.SqlTextSupplier<SyntheticTmplContext>) => {
+    if (SQLa.isTableDefinition<Any, SyntheticTmplContext>(sts)) {
       tablesDeclared.add(sts);
     }
-    if (mod.isViewDefinition<Any, SyntheticTmplContext>(sts)) {
+    if (SQLa.isViewDefinition<Any, SyntheticTmplContext>(sts)) {
       viewsDeclared.add(sts);
     }
   }
 
   // deno-fmt-ignore
-  const DDL = mod.SQL<SyntheticTmplContext>(mod.typicalSqlTextSupplierOptions({
+  const DDL = SQLa.SQL<SyntheticTmplContext>(SQLa.typicalSqlTextSupplierOptions({
     prepareEvents: (spEE) => {
       spEE.on("sqlEmitted", (_, sts) => catalog(sts));
       spEE.on("sqlPersisted", (_ctx, _destPath, psts) => catalog(psts.sqlTextSupplier));
@@ -68,7 +68,7 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
     --       govn_entity_relationship would be a table that stores entity/property relationships (1:N, 1:M, etc.) for literate programming documentation, etc.
     --       govn_entity_activity would be a table that stores governance history and activity data in JSON format for documentation, migration status, etc.
 
-    ${mod.typicalSqlTextLintSummary}
+    ${SQLa.typicalSqlTextLintSummary}
 
     ${dbDefn.publHost}
     ${persist(dbDefn.publHost, "publ-host.sql")}
@@ -95,7 +95,7 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
     -- TypeScript text enum object entries as RDBMS rows
     ${dbDefn.textEnumModel.seedDML}
 
-    ${mod.typicalSqlTmplEngineLintSummary}`;
+    ${SQLa.typicalSqlTmplEngineLintSummary}`;
 
   const syntheticSQL = DDL.SQL(ctx);
   if (DDL.lintIssues?.length) {

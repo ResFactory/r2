@@ -37,6 +37,20 @@ export function typicalPlantUmlIeOptions<Context extends SQLa.SqlEmitContext>(
     includeEntityAttr: () => true,
     includeRelationship: () => true,
     includeChildren: () => true,
+    elaborateEntityAttr: (
+      d: SQLa.IdentifiableSqlDomain<Any, Context>,
+      td: SQLa.TableDefinition<Any, Context>,
+      _entity: (name: string) => SQLa.TableDefinition<Any, Context> | undefined,
+      ns: SQLa.SqlObjectNames,
+    ) => {
+      let result = "";
+      if (SQLa.isTableForeignKeyColumnDefn(d)) {
+        result = d.foreignTableName == td.tableName
+          ? " <<SELF>>"
+          : ` <<FK(${ns.tableName(d.foreignTableName)})>>`;
+      }
+      return result;
+    },
     relationshipIndicator: () => {
       // Relationship types see: https://plantuml.com/es/ie-diagram
       // Zero or One	|o--
@@ -60,6 +74,23 @@ export function plantUmlIE<Context extends SQLa.SqlEmitContext>(
 ) {
   const graph = SQLa.graph(ctx, tableDefns);
   const ns = ctx.sqlNamingStrategy(ctx);
+
+  // protected column(tc: gimRDS.TableColumn): string {
+  //   const required = tc.column.nullable ? "" : "*";
+  //   const name = tc.column.primaryKey
+  //     ? `**${tc.column.name(this.reCtx)}**`
+  //     : tc.column.name(this.reCtx);
+  //   let descr = tc.column.references
+  //     ? (gim.isEnumeration(tc.column.references.table.entity)
+  //       ? ` <<ENUM(${tc.column.references.table.name(this.reCtx)})>> `
+  //       : ` <<FK(${tc.column.references.table.name(this.reCtx)})>>`)
+  //     : "";
+  //   if ("isSelfReference" in tc.column.forAttr) descr = " <<SELF>>";
+  //   const sqlType = tc.column.references
+  //     ? tc.column.references.column.sqlTypes(this.reCtx).fKRefDDL
+  //     : tc.column.sqlTypes(this.reCtx).nonRefDDL;
+  //   return `    ${required} ${name}: ${sqlType}${descr}`;
+  // }
 
   const columnPuml = (
     d: SQLa.IdentifiableSqlDomain<Any, Context>,

@@ -36,6 +36,17 @@ does not rewrite SQL or attempt to remove SQL knowledge.
     table foreign keys then the Order's links could be 1:n `items[]` and 1:1
     `customer`.
 
+## Architecture and Strategy
+
+In order to allow the most flexiblity, prefer composition through functions
+rather than inheritance through classes.
+
+The main SQLa rendering library should not have any opinions about how to
+organize or model relational entities or attributions. That should be left to
+consumers of SQLa. The `$RF_HOME/lib/sql/models` module provides a `typical.ts`
+which is an opinionated strategy for governing "typical" or "standard"
+relational entities and attributes based on "best practices".
+
 ## SQL rendering module organization
 
 This SQL Aide (`SQLa`) library provides type-safe code generation for the
@@ -71,13 +82,16 @@ following types of SQL language constructs.
 - [x] domain labels/tags for grouping
 - [x] SQL reference (for foreign key mirroring)
 - [ ] arrays of domains (e.g. Text[], Integer[], etc.)
+- [ ] JSON Schema properties contributions
+- [ ] CSV Schema properties contributions
 
 ### Entities
 
 - [x] Table
+- [ ] Immutable Table (see _Data-Oriented Programming_ patterns)
 - [x] Enum Table (type-safe text key, text values, automatic seeds)
 - [x] Enum Table (text key, numeric values, automatic seeds)
-- [ ] Data Vault Tables
+- [ ] Data Vault Tables (build on _Immutable Table_ patterns?)
 
 #### Entities (Table) Capabilities
 
@@ -88,6 +102,9 @@ following types of SQL language constructs.
 - [ ] columns referenced as foreign keys (inbound, aggregations, to define 1:M,
       1:1, M:1 "links")
 - [ ] table labels/tags for grouping
+- [ ] JSON Schema
+- [ ] [CSV Schema](http://digital-preservation.github.io/csv-schema/csv-schema-1.1.html),
+      [examples](https://github.com/digital-preservation/csv-schema/tree/master/example-schemas)
 
 ### DDL (Data Definition Language)
 
@@ -106,22 +123,33 @@ following types of SQL language constructs.
 - [ ] [dql/with.ts](https://modern-sql.com/feature/with) similar to how views
       work (type-safe); this will allow us to use
       [transient data](https://modern-sql.com/use-case/unit-tests-on-transient-data)
-      - [ ] Creat CTE-based view or stored function returning SETOF TABLE that
-      would allow storing data in SQL view code or a LANGUAGE SQL STRICT
-      IMMUTABLE function. This would allow us to use to create small "view
-      tables" for storing configuration as code (e.g. confidential password data
-      can be stored in secure location of server as stateless code to be pulled
-      in regularly instead of treated as stateful data in tables). The
-      `dcp_context.context` table as well as many other tiny tables could just
-      be replaced as views or, at worst, materialed views in case performance
-      becomes an issue. The primary benefit of creating rows in small tables as
-      views is stateful vs. stateless maintenance.
+  - [ ] Creat CTE-based view or stored function returning SETOF TABLE that would
+        allow storing data in SQL view code or a LANGUAGE SQL STRICT IMMUTABLE
+        function. This would allow us to use to create small "view tables" for
+        storing configuration as code (e.g. confidential password data can be
+        stored in secure location of server as stateless code to be pulled in
+        regularly instead of treated as stateful data in tables). The
+        `dcp_context.context` table as well as many other tiny tables could just
+        be replaced as views or, at worst, materialed views in case performance
+        becomes an issue. The primary benefit of creating rows in small tables
+        as views is stateful vs. stateless maintenance.
+  - [ ] See if [Kysely](https://koskimas.github.io/kysely/index.html) or similar
+        makes sense as type-safe query builder. SNS is not a big fan of using
+        anything other than SQL string templates but perhaps if it's type-safe
+        enough for non-SQL-experts to use, Kysely could be a candidate.
 
 ### DML(Data Manipulation Language)
 
 - [ ] incorporate data validation using [ow](https://sindresorhus.com/ow/) or
       similar library as inspiration to show how to wrap domains with data
       validators
+- [ ] Use [typebox](https://github.com/sinclairzx81/typebox) or similar to
+      generate JSON Schema for each model independently as well as a unified one
+      for the entire graph.
+  - [ ] If we can generate the JSON Schema tied to Axiom and our domains, then
+        [Ajv JSON schema validator](https://ajv.js.org) and other widely used
+        libraries can be used to manage the validations without us having to do
+        much
 - [x] INSERT single row with `returning` support
 - [ ] INSERT multiple rows in single statement (no `returning` support)
 - [ ] UPDATE
@@ -158,6 +186,8 @@ These dialects are supported:
 
 - [x] ANSI SQL
 - [x] SQLite
+  - [ ] Test with [postlite](https://github.com/benbjohnson/postlite) to allow
+        access to SQLite remotely
 - [x] PostgreSQL
 - [ ] MySQL
 - [ ] Dolt
@@ -166,8 +196,9 @@ These dialects are supported:
 
 #### PostgreSQL
 
-- [x] Anonymous blocks
+- [x] Anonymous PL/pgSQL and PL/SQL blocks
 - [x] Stored procedures definition (namespaced and type-safe)
+  - [ ] Should these be moved to ANSI dialect and not specific to PG only?
 - [x] Stored functions definition (namespaced and type-safe)
 - [ ] Stored routine definition STABLE and other type-safe modifiers
 - [ ] CALL stored procedure (SqlTextSupplier as a new stored routine object
@@ -208,6 +239,8 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] Support DOP principles described in
+      https://www.manning.com/books/data-oriented-programming
 - [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
       https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
       and
