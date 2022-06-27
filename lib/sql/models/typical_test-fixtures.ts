@@ -14,7 +14,7 @@ export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
     readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   },
 ) {
-  const mg = typ.typicalLookupsGovn(ddlOptions);
+  const mg = typ.typicalModelsGovn(ddlOptions);
 
   enum syntheticEnum1 {
     code1, // code is text, value is a number
@@ -24,13 +24,15 @@ export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
     code1 = "value1",
     code2 = "value2",
   }
-  const numericEnumModel = mg.enumTable(
+  const numericEnumModel = SQLa.enumTable(
     "synthetic_enum_numeric",
     syntheticEnum1,
+    { isIdempotent: true },
   );
-  const textEnumModel = mg.enumTextTable(
+  const textEnumModel = SQLa.enumTextTable(
     "synthetic_enum_text",
     syntheticEnum2,
+    { isIdempotent: true },
   );
 
   const publHost = mg.table("publ_host", {

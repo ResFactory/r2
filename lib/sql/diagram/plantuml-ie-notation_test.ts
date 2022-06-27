@@ -2,7 +2,6 @@ import { testingAsserts as ta } from "../render/deps-test.ts";
 import * as SQLa from "../render/mod.ts";
 import * as mod from "./plantuml-ie-notation.ts";
 import * as tf from "../models/typical_test-fixtures.ts";
-import * as typ from "../models/typical.ts";
 import * as ws from "../../text/whitespace.ts";
 
 Deno.test("PlantUML IE Diagram (full)", () => {
@@ -134,7 +133,7 @@ Deno.test("PlantUML IE Diagram (entitites and relationships only, no attributes 
       includeEntityAttr: () => false,
       includeChildren: () => false,
       relationshipIndicator: (edge) => {
-        const refIsEnum = typ.isEnumTableDefn(edge.ref.entity);
+        const refIsEnum = SQLa.isEnumTableDefn(edge.ref.entity);
         // Relationship types see: https://plantuml.com/es/ie-diagram
         // Zero or One	|o--
         // Exactly One	||--

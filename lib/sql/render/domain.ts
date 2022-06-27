@@ -232,6 +232,14 @@ export function dateTimeNullable<
   };
 }
 
+export function createdAt<
+  Context extends tmpl.SqlEmitContext,
+>(): AxiomSqlDomain<Date | undefined, Context> {
+  return dateTimeNullable(undefined, {
+    sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+  });
+}
+
 export function integer<
   Context extends tmpl.SqlEmitContext,
 >(

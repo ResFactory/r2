@@ -14,9 +14,7 @@ function housekeeping<
   Context extends tmpl.SqlEmitContext,
 >(): HousekeepingColumnsDefns<Context> {
   return {
-    created_at: d.dateTimeNullable(undefined, {
-      sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
-    }),
+    created_at: d.createdAt(),
   };
 }
 
