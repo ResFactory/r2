@@ -65,9 +65,10 @@ Resource Factory works with reasonable type-safety using three key concepts:
     any arbitrary sources.
   - Proxying / caching is built-in so that expensive origination can be locally
     cached as JSON (file system) or other "proxies" (e.g. Redis).
-- **Refinement**. _Transformation_ objects, called **middleware** or **refineries**, 
-  supply _resource mutators_. Middleware operates in a pipeline and can mutate 
-  resources as many times as required to reach a _terminal state_.
+- **Refinement**. _Transformation_ objects, called **middleware** or
+  **refineries**, supply _resource mutators_. Middleware operates in a pipeline
+  and can mutate resources as many times as required to reach a _terminal
+  state_.
   - Middleware refineries:
     - Use _resource constructors_ created by originators to construct instances.
     - Perform transformations to further _refine_ or mutate resource instances.
@@ -96,7 +97,20 @@ pages to adhere to a design system, not optimize for making local changes.
 We do not want to encourage the use of anything other than HTML, Web Components,
 JavaScript (with strong type-safety using Typescript or other governance tools).
 This means staying away from all templating tools and using plain Typescript and
-JavaScript is best. 
+JavaScript is best.
 
 Instead of building templates in custom languages, we'll just rely on Javascript
 and `v8`.
+
+## Contributing
+
+PRs are welcome. If you're making changes directly (without a PR), after
+updating and before pushing code, tag the release:
+
+```bash
+# <git commit ...>
+git-chglog --output CHANGELOG.md
+git commit -m "auto generate content" CHANGELOG.md
+git-semtag final && git push
+# or git-semtag final -v "vN.N.N" && git push
+```
