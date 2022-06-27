@@ -91,6 +91,7 @@ following types of SQL language constructs.
 - [ ] Immutable Table (see _Data-Oriented Programming_ patterns)
 - [x] Enum Table (type-safe text key, text values, automatic seeds)
 - [x] Enum Table (text key, numeric values, automatic seeds)
+- [ ] Association Table (relationship between two entities)
 - [ ] Data Vault Tables (build on _Immutable Table_ patterns?)
 
 #### Entities (Table) Capabilities
