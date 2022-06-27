@@ -51,6 +51,7 @@ Deno.test("SQL Aide (SQLa) numeric enum table", async (tc) => {
       code: syntheticEnum1.code1,
       value: "code0-value",
     });
+    expectType<number>(row.code); // should see compile error if this doesn't work
     expectType<string>(row.value); // should see compile error if this doesn't work
   });
 
@@ -115,6 +116,18 @@ Deno.test("SQL Aide (SQLa) text enum table", async (tc) => {
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP
         )`),
     );
+  });
+
+  await tc.step("DML type-safety", () => {
+    const expectType = <T>(_value: T) => {
+      // Do nothing, the TypeScript compiler handles this for us
+    };
+    const row = textEnumModel.prepareInsertable({
+      code: "code1",
+      value: syntheticEnum2.code1,
+    });
+    expectType<string>(row.code); // should see compile error if this doesn't work
+    expectType<string>(row.value); // should see compile error if this doesn't work
   });
 
   await tc.step("typed Typescript objects", () => {
