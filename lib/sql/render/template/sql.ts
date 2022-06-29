@@ -756,9 +756,7 @@ export function SQL<
           typeof expr === "string" || typeof expr === "number" ||
           typeof expr === "bigint"
         ) {
-          interpolated += quoteNakedScalars
-            ? `'${quoteNakedScalars(expr)[1]}'`
-            : expr;
+          interpolated += quoteNakedScalars ? quoteNakedScalars(expr)[1] : expr;
         } else if (isSqlTextBehaviorSupplier<Context>(expr)) {
           const behaviorResult = expr.executeSqlBehavior(ctx);
           if (isSqlTextSupplier<Context>(behaviorResult)) {
