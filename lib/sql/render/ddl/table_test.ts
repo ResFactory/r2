@@ -182,7 +182,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         column_one_text: dql.select(ctx)`select x from y`, // the value will be a SQL expression
         column_unique: "value",
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (select x from y, NULL, 'value', NULL)`,
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ((select x from y), NULL, 'value', NULL)`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),

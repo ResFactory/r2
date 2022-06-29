@@ -131,7 +131,11 @@ export function typicalInsertStmtPreparer<
             const { quotedLiteral } = eo;
             const recordValueRaw = (ir as Any)[c];
             if (tmpl.isSqlTextSupplier(recordValueRaw)) {
-              ec = [c as string, recordValueRaw, recordValueRaw.SQL(ctx)];
+              ec = [
+                c as string,
+                recordValueRaw,
+                `(${recordValueRaw.SQL(ctx)})`, // e.g. `(SELECT x from y) as SQL expr`
+              ];
             } else {
               const qValue = quotedLiteral(recordValueRaw);
               ec = [c as string, ...qValue];
