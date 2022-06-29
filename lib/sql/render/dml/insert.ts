@@ -77,7 +77,9 @@ export interface InsertStmtPreparer<
       ReturnableRecord,
       Context
     >,
-  ): tmpl.SqlTextSupplier<Context>;
+  ): tmpl.SqlTextSupplier<Context> & {
+    insertable: InsertableRecord;
+  };
 }
 
 export function typicalInsertStmtPreparer<
@@ -103,6 +105,7 @@ export function typicalInsertStmtPreparer<
 > {
   return (ir, ispOptions = defaultIspOptions) => {
     return {
+      insertable: ir,
       SQL: (ctx) => {
         const {
           isColumnEmittable,
