@@ -188,12 +188,16 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         String(insertable.created_at)
       }')`,
     );
+    const sdc = syntheticTable1Defn.columns;
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML({
-        column_one_text: dql.select(ctx)`select x from y`, // the value will be a SQL expression
+        // { symbolsFirst: true } means that ${XYZ} in dql.select()`${XYZ}`
+        // will try to find name of object first
+        column_one_text: dql.select(ctx, { symbolsFirst: true })
+          `select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
         column_unique: "value",
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ((select x from y), NULL, 'value', NULL)`,
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), NULL, 'value', NULL)`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),

@@ -50,6 +50,7 @@ export type SelectTemplateOptions<
   SelectStmtName extends string,
   Context extends tmpl.SqlEmitContext,
 > = tmpl.SqlTextSupplierOptions<Context> & {
+  readonly symbolsFirst?: boolean;
   readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) =>
     & Select<SelectStmtName, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context>;
@@ -84,7 +85,17 @@ export function selectTemplateResult<
     }
   }
 
-  const selectStmt = ess.embeddedSQL<Context>()(literals, ...expressions);
+  // symbolsFirst = true means that any embedded expressions should check for
+  // tmpl.SqlSymbolSupplier (e.g. domain, tables, views, etc.) to generate
+  // proper names from Typescript tokens
+  const selectStmt = ess.embeddedSQL<Context>(
+    tmpl.typicalSqlTextSupplierOptions({
+      symbolsFirst: ssOptions?.symbolsFirst,
+    }),
+  )(
+    literals,
+    ...expressions,
+  );
   const { selectStmtName } = ssOptions ?? {};
 
   const result:

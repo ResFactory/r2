@@ -7,6 +7,17 @@ import * as ws from "../../../text/whitespace.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+export interface SqlSymbolSupplier<Context extends SqlEmitContext> {
+  readonly sqlSymbol: (ctx: Context) => string;
+}
+
+export function isSqlSymbolSupplier<Context extends SqlEmitContext>(
+  o: unknown,
+): o is SqlSymbolSupplier<Context> {
+  const isSSS = safety.typeGuard<SqlSymbolSupplier<Context>>("sqlSymbol");
+  return isSSS(o);
+}
+
 export type SafeTemplateStringReturnType<
   T extends (...args: Any) => Any,
 > = T extends (...args: Any) => infer R ? R
@@ -23,6 +34,7 @@ export type NameQualifier = (unqualifiedName: string) => string;
 export interface SqlObjectNames {
   readonly schemaName: (schemaName: string) => string;
   readonly tableName: (tableName: string) => string;
+  readonly domainName: (domainName: string) => string;
   readonly tableColumnName: (
     tc: { tableName: string; columnName: string },
     qualifyTableName?: false | ".",
@@ -53,6 +65,7 @@ export function qualifiedNamingStrategy(
   return {
     schemaName: (name) => q(ns.schemaName(name)),
     tableName: (name) => q(ns.tableName(name)),
+    domainName: (name) => q(ns.domainName(name)),
     tableColumnName: (tc, qtn) => q(ns.tableColumnName(tc, qtn)),
     viewName: (name) => q(ns.viewName(name)),
     viewColumnName: (vc, qtn) => q(ns.viewColumnName(vc, qtn)),
@@ -155,6 +168,7 @@ export function typicalSqlNamingStrategy(): SqlObjectNamesSupplier {
   const quotedIdentifiersNS: SqlObjectNames = {
     schemaName: (name) => `"${name}"`,
     tableName: (name) => `"${name}"`,
+    domainName: (name) => `"${name}"`,
     tableColumnName: (tc, qtn) =>
       qtn
         // deno-fmt-ignore
@@ -178,6 +192,7 @@ export function typicalSqlNamingStrategy(): SqlObjectNamesSupplier {
   const bareIdentifiersNS: SqlObjectNames = {
     schemaName: (name) => name,
     tableName: (name) => name,
+    domainName: (name) => name,
     tableColumnName: (tc, qtn) =>
       qtn
         ? `${bareIdentifiersNS.tableName(tc.tableName)}${qtn}${tc.columnName}`
@@ -375,6 +390,10 @@ export const isPersistableSqlTextIndexSupplier = safety.typeGuard<
 export class SqlPartialExprEventEmitter<
   Context extends SqlEmitContext,
 > extends events.EventEmitter<{
+  symbolEncountered(
+    ctx: Context,
+    sss: SqlSymbolSupplier<Context>,
+  ): void;
   sqlEncountered(
     ctx: Context,
     sts: SqlTextSupplier<Context>,
@@ -386,6 +405,10 @@ export class SqlPartialExprEventEmitter<
   sqlBehaviorEncountered(
     ctx: Context,
     sts: SqlTextBehaviorSupplier<Context>,
+  ): void;
+  symbolEmitted(
+    ctx: Context,
+    sss: SqlSymbolSupplier<Context>,
   ): void;
   sqlEmitted(
     ctx: Context,
@@ -407,6 +430,7 @@ export class SqlPartialExprEventEmitter<
 
 export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
   readonly sqlSuppliersDelimText?: string;
+  readonly symbolsFirst?: boolean;
   readonly exprInArrayDelim?: (entry: unknown, isLast: boolean) => string;
   readonly literalSupplier?: (
     literals: TemplateStringsArray,
@@ -567,6 +591,7 @@ export type SqlPartialExpression<
     ctx: Context,
     options: SqlTextSupplierOptions<Context>,
   ) => string)
+  | SqlSymbolSupplier<Context>
   | SqlTextSupplier<Context>
   | PersistableSqlText<Context>
   | SqlTextBehaviorSupplier<Context>
@@ -594,6 +619,7 @@ export function SQL<
   const { sqlTextLintIssues, sqlTmplEngineLintIssues } = stsOptions;
   return (literals, ...suppliedExprs) => {
     const {
+      symbolsFirst,
       sqlSuppliersDelimText,
       exprInArrayDelim = (_entry: unknown, isLast: boolean) =>
         isLast ? "" : "\n",
@@ -647,6 +673,10 @@ export function SQL<
         if (sqlTextLintIssues && isSqlTextLintIssuesSupplier<Context>(expr)) {
           expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx);
         }
+        if (symbolsFirst && isSqlSymbolSupplier(expr)) {
+          speEE?.emitSync("symbolEncountered", ctx, expr);
+          return;
+        }
         if (isPersistableSqlText<Context>(expr)) {
           speEE?.emitSync(
             "persistableSqlEncountered",
@@ -676,6 +706,12 @@ export function SQL<
         inArray?: boolean,
         isLastArrayEntry?: boolean,
       ) => {
+        if (symbolsFirst && isSqlSymbolSupplier(expr)) {
+          interpolated += expr.sqlSymbol(ctx);
+          speEE?.emitSync("symbolEmitted", ctx, expr);
+          return;
+        }
+
         // if SQL is wrapped in a persistence handler it means that the content
         // should be written to a file and, optionally, the same or alternate
         // content should be emitted as part of this template string

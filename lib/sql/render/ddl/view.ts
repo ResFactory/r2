@@ -73,6 +73,7 @@ export function viewDefinition<
     const selectStmt = ssPartial(literals, ...expressions);
     const viewDefn:
       & ViewDefinition<ViewName, Context>
+      & tmpl.SqlSymbolSupplier<Context>
       & tmpl.SqlTextLintIssuesSupplier<Context> = {
         isValid: selectStmt.isValid,
         viewName,
@@ -80,6 +81,11 @@ export function viewDefinition<
         isIdempotent,
         populateSqlTextLintIssues: (lintIssues, steOptions) =>
           selectStmt.populateSqlTextLintIssues(lintIssues, steOptions),
+        sqlSymbol: (ctx) =>
+          ctx.sqlNamingStrategy(ctx, {
+            quoteIdentifiers: true,
+            qnss: vdOptions?.sqlNS,
+          }).viewName(viewName),
         SQL: (ctx) => {
           const { sqlTextEmitOptions: steOptions } = ctx;
           const rawSelectStmtSqlText = selectStmt.SQL(ctx);
@@ -141,6 +147,7 @@ export function safeViewDefinitionCustom<
     : undefined;
   const viewDefn:
     & ViewDefinition<ViewName, Context>
+    & tmpl.SqlSymbolSupplier<Context>
     & tmpl.SqlTextLintIssuesSupplier<Context> = {
       isValid: selectStmt.isValid,
       viewName,
@@ -148,6 +155,11 @@ export function safeViewDefinitionCustom<
       isIdempotent,
       populateSqlTextLintIssues: (lintIssues, steOptions) =>
         selectStmt.populateSqlTextLintIssues?.(lintIssues, steOptions),
+      sqlSymbol: (ctx) =>
+        ctx.sqlNamingStrategy(ctx, {
+          quoteIdentifiers: true,
+          qnss: vdOptions?.sqlNS,
+        }).viewName(viewName),
       SQL: (ctx) => {
         const { sqlTextEmitOptions: steOptions } = ctx;
         const rawSelectStmtSqlText = selectStmt.SQL(ctx);

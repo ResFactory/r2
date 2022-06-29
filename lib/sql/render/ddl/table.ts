@@ -368,12 +368,7 @@ export function unique<
               const ns = ctx.sqlNamingStrategy(ctx, {
                 quoteIdentifiers: true,
               });
-              return `UNIQUE(${
-                ns.tableColumnName({
-                  tableName: "TODO",
-                  columnName: result.identity,
-                })
-              })`;
+              return `UNIQUE(${ns.domainName(result.identity)})`;
             })
             : (() => {
               console.dir(result);
@@ -494,6 +489,14 @@ export function tableDefinition<
       (columnDefn as { foreignTableName: string }).foreignTableName = tableName;
     }
   }
+
+  type ColumnDefns = {
+    [Property in keyof TPropAxioms]: d.IdentifiableSqlDomain<
+      TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
+      Context
+    >;
+  };
+  const columns: ColumnDefns = {} as Any;
   for (const columnDefn of sd.domains) {
     const typicalSQL = typicalTableColumnDefnSQL(tableName, columnDefn);
     if (columnDefn.sqlPartial) {
@@ -513,6 +516,7 @@ export function tableDefinition<
     } else {
       columnDefnsSS.push({ SQL: typicalSQL });
     }
+    columns[columnDefn.identity as (keyof TPropAxioms)] = columnDefn;
   }
 
   type PrimaryKeys = {
@@ -551,11 +555,17 @@ export function tableDefinition<
   }
 
   const tableDefnResult: TableDefinition<TableName, Context> & {
+    readonly columns: ColumnDefns;
     readonly primaryKey: PrimaryKeys;
     readonly foreignKeyRef: ForeignKeyRefs;
     readonly sqlNS?: ns.SqlNamespaceSupplier;
-  } = {
+  } & tmpl.SqlSymbolSupplier<Context> = {
     tableName,
+    sqlSymbol: (ctx) =>
+      ctx.sqlNamingStrategy(ctx, {
+        quoteIdentifiers: true,
+        qnss: tdOptions?.sqlNS,
+      }).tableName(tableName),
     SQL: (ctx) => {
       const { sqlTextEmitOptions: steOptions } = ctx;
       const ns = ctx.sqlNamingStrategy(ctx, {
@@ -577,6 +587,7 @@ export function tableDefinition<
         "\n)";
       return result;
     },
+    columns,
     primaryKey,
     foreignKeyRef: fkRef,
     sqlNS: tdOptions?.sqlNS,

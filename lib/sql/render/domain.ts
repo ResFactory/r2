@@ -71,7 +71,7 @@ export function isAxiomSqlDomain<
 >(o: unknown): o is AxiomSqlDomain<TsValueType, Context> {
   const isASD = safety.typeGuard<
     AxiomSqlDomain<TsValueType, Context>
-  >("sqlDataType");
+  >("sqlDataType", "referenceASD", "referenceNullableASD");
   return isASD(o);
 }
 
@@ -82,13 +82,14 @@ export type IdentifiableSqlDomain<
 > =
   & AxiomSqlDomain<TsValueType, Context>
   & {
+    readonly identity: DomainIdentity;
     readonly reference: <ForeignIdentity>(
       options?: {
         readonly foreignIdentity?: ForeignIdentity;
       },
     ) => Omit<IdentifiableSqlDomain<Any, Context>, "reference">;
-    readonly identity: DomainIdentity;
-  };
+  }
+  & tmpl.SqlSymbolSupplier<Context>;
 
 export function isIdentifiableSqlDomain<
   TsValueType,
@@ -103,7 +104,7 @@ export function isIdentifiableSqlDomain<
 > {
   const isISD = safety.typeGuard<
     IdentifiableSqlDomain<TsValueType, Context, DomainIdentity>
-  >("identity");
+  >("identity", "sqlSymbol");
   return isAxiomSqlDomain(o) && isISD(o);
 }
 
@@ -392,12 +393,19 @@ export function sqlDomains<
         IdentifiableSqlDomain<Any, Context>
       >;
       mutatableISD.identity = name as Any;
+      mutatableISD.sqlSymbol = (ctx) =>
+        ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true }).domainName(name);
       mutatableISD.reference = (rOptions) => {
+        const refIdentity = (rOptions?.foreignIdentity ?? name) as string;
         const result: Omit<
           IdentifiableSqlDomain<Any, Context>,
           "reference"
         > = {
-          identity: (rOptions?.foreignIdentity ?? name) as string,
+          identity: refIdentity,
+          sqlSymbol: (ctx) =>
+            ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true }).domainName(
+              name,
+            ),
           ...axiom.referenceASD(),
         };
         return result;
