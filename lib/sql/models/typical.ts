@@ -77,6 +77,12 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
         tableName,
         props,
       ),
+      selectPK: (ctx: Context, where: string) => {
+        const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+        return SQLa.select(ctx)`SELECT ${
+          ns.tableColumnName({ tableName, columnName: `${tableName}_id` })
+        } FROM ${ns.tableName(tableName)} WHERE ${where}`;
+      },
       defaultIspOptions, // in case others need to wrap the call
     };
   };
