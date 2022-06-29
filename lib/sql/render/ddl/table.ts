@@ -567,9 +567,12 @@ export function tableDomainsRowFactory<
 ) {
   const sd = d.sqlDomains(props, tdrfOptions);
 
+  type ScalarValueOrSqlExpr<T> = {
+    [K in keyof T]: T[K] | tmpl.SqlTextSupplier<Context>;
+  };
   type EntireRecord =
     & tr.UntypedTabularRecordObject
-    & ax.AxiomType<typeof sd>;
+    & ScalarValueOrSqlExpr<ax.AxiomType<typeof sd>>;
   type ExcludeFromInsert = {
     [
       Property in keyof TPropAxioms as Extract<

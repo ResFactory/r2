@@ -129,8 +129,13 @@ export function typicalInsertStmtPreparer<
             ec = emitColumn(c, ir, tableName, ns, ctx);
           } else {
             const { quotedLiteral } = eo;
-            const qValue = quotedLiteral((ir as Any)[c]);
-            ec = [c as string, ...qValue];
+            const recordValueRaw = (ir as Any)[c];
+            if (tmpl.isSqlTextSupplier(recordValueRaw)) {
+              ec = [c as string, recordValueRaw, recordValueRaw.SQL(ctx)];
+            } else {
+              const qValue = quotedLiteral(recordValueRaw);
+              ec = [c as string, ...qValue];
+            }
           }
           if (ec) {
             const [columNameSqlText, value, valueSqlText] = ec;

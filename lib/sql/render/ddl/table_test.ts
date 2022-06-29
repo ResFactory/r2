@@ -4,6 +4,7 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 import * as ax from "../../../safety/axiom.ts";
 import * as sch from "./schema.ts";
+import * as dql from "../dql/mod.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 type HousekeepingColumnsDefns<Context extends tmpl.SqlEmitContext> = {
@@ -99,7 +100,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       columnOneText: "text",
       columnUnique: "unique",
     });
-    expectType<string>(row.column_one_text); // should see compile error if this doesn't work
+    expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(
+      row.column_one_text,
+    ); // should see compile error if this doesn't work
   });
 
   await tc.step("table 1 wrapper view", () => {
@@ -173,6 +176,13 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
         String(insertable.created_at)
       }')`,
+    );
+    ta.assertEquals(
+      syntheticTable1DefnRF.insertDML({
+        column_one_text: dql.select(ctx)`select x from y`, // the value will be a SQL expression
+        column_unique: "value",
+      }).SQL(ctx),
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES (select x from y, NULL, 'value', NULL)`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),

@@ -51,8 +51,8 @@ Deno.test("SQL Aide (SQLa) numeric enum table", async (tc) => {
       code: syntheticEnum1.code1,
       value: "code0-value",
     });
-    expectType<number>(row.code); // should see compile error if this doesn't work
-    expectType<string>(row.value); // should see compile error if this doesn't work
+    expectType<number | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.code); // should see compile error if this doesn't work
+    expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.value); // should see compile error if this doesn't work
   });
 
   await tc.step("typed Typescript objects", () => {
@@ -126,8 +126,8 @@ Deno.test("SQL Aide (SQLa) text enum table", async (tc) => {
       code: "code1",
       value: syntheticEnum2.code1,
     });
-    expectType<string>(row.code); // should see compile error if this doesn't work
-    expectType<string>(row.value); // should see compile error if this doesn't work
+    expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.code); // should see compile error if this doesn't work
+    expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.value); // should see compile error if this doesn't work
   });
 
   await tc.step("typed Typescript objects", () => {
