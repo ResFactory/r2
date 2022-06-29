@@ -203,7 +203,7 @@ export function foreignKeyCustom<
     ColumnTsType,
     Context
   >,
-  domain = foreignDomain.referenceASD(),
+  domain: d.AxiomSqlDomain<ColumnTsType, Context>,
   foreignRelNature?: TableForeignKeyRelNature<Context>,
   domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
 ): TableForeignKeyColumnDefn<
@@ -308,7 +308,7 @@ export function foreignKeyNullable<
     foreignDomain,
     foreignDomain.referenceNullableASD(),
     foreignRelNature,
-    domainOptions,
+    { isNullable: true, ...domainOptions },
   );
 }
 
@@ -338,15 +338,8 @@ export function selfRefForeignKeyNullable<
     selfRefTableNamePlaceholder,
     domain,
     { isSelfRef: true },
-    domainOptions,
+    { isNullable: true, ...domainOptions },
   );
-}
-
-export function selfRefNullableForeignKey<
-  ColumnTsType,
-  Context extends tmpl.SqlEmitContext,
->(domain: d.AxiomSqlDomain<ColumnTsType, Context>) {
-  return selfRefForeignKey(domain, { isNullable: true });
 }
 
 export type TableUniqueColumnDefn<

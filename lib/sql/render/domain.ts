@@ -149,7 +149,7 @@ export function label<
 export function textNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<string | undefined> = ax.$.string,
+  axiom: ax.Axiom<string | undefined> = ax.$.string.optional(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string | undefined, Context> {
   return {
