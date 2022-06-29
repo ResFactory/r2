@@ -431,6 +431,9 @@ export class SqlPartialExprEventEmitter<
 export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
   readonly sqlSuppliersDelimText?: string;
   readonly symbolsFirst?: boolean;
+  readonly quoteNakedScalars?: (
+    value: unknown,
+  ) => [value: unknown, quoted: string];
   readonly exprInArrayDelim?: (entry: unknown, isLast: boolean) => string;
   readonly literalSupplier?: (
     literals: TemplateStringsArray,
@@ -600,8 +603,10 @@ export type SqlPartialExpression<
     | PersistableSqlText<Context>
     | SqlTextBehaviorSupplier<Context>
     | string
+    | number
   )[]
-  | string;
+  | string
+  | number;
 
 export function SQL<
   Context extends SqlEmitContext,
@@ -621,6 +626,7 @@ export function SQL<
     const {
       symbolsFirst,
       sqlSuppliersDelimText,
+      quoteNakedScalars,
       exprInArrayDelim = (_entry: unknown, isLast: boolean) =>
         isLast ? "" : "\n",
       persistIndexer = { activeIndex: 0 },
@@ -746,8 +752,13 @@ export function SQL<
             interpolated += sqlSuppliersDelimText;
           }
           speEE?.emitSync("sqlEmitted", ctx, expr, SQL);
-        } else if (typeof expr === "string") {
-          interpolated += expr;
+        } else if (
+          typeof expr === "string" || typeof expr === "number" ||
+          typeof expr === "bigint"
+        ) {
+          interpolated += quoteNakedScalars
+            ? `'${quoteNakedScalars(expr)[1]}'`
+            : expr;
         } else if (isSqlTextBehaviorSupplier<Context>(expr)) {
           const behaviorResult = expr.executeSqlBehavior(ctx);
           if (isSqlTextSupplier<Context>(behaviorResult)) {
