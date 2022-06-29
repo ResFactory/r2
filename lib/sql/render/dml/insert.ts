@@ -78,7 +78,7 @@ export interface InsertStmtPreparer<
       Context
     >,
   ): tmpl.SqlTextSupplier<Context> & {
-    insertable: InsertableRecord;
+    readonly insertable: InsertableRecord;
   };
 }
 
