@@ -58,6 +58,10 @@ export type AxiomSqlDomain<
     TsValueType,
     Context
   >;
+  readonly referenceNullableASD: () => AxiomSqlDomain<
+    TsValueType | undefined,
+    Context
+  >;
   readonly isNullable: boolean;
 };
 
@@ -153,6 +157,7 @@ export function textNullable<
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: true,
     referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
     ...asdOptions,
   };
 }
@@ -168,6 +173,7 @@ export function text<
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
     referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
     ...asdOptions,
   };
 }
@@ -183,6 +189,7 @@ export function date<
     sqlDataType: () => ({ SQL: () => `DATE` }),
     isNullable: false,
     referenceASD: () => date(),
+    referenceNullableASD: () => dateNullable(),
     ...asdOptions,
   };
 }
@@ -198,6 +205,7 @@ export function dateNullable<
     sqlDataType: () => ({ SQL: () => `DATE` }),
     isNullable: true,
     referenceASD: () => date(),
+    referenceNullableASD: () => dateNullable(),
     ...asdOptions,
   };
 }
@@ -213,6 +221,7 @@ export function dateTime<
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
     isNullable: false,
     referenceASD: () => dateTime(),
+    referenceNullableASD: () => dateTimeNullable(),
     ...asdOptions,
   };
 }
@@ -228,6 +237,7 @@ export function dateTimeNullable<
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
     isNullable: true,
     referenceASD: () => dateTime(),
+    referenceNullableASD: () => dateTimeNullable(),
     ...asdOptions,
   };
 }
@@ -251,6 +261,7 @@ export function integer<
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: false,
     referenceASD: () => integer(),
+    referenceNullableASD: () => integerNullable(),
     ...asdOptions,
   };
 }
@@ -266,6 +277,7 @@ export function integerNullable<
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
     isNullable: true,
     referenceASD: () => integer(),
+    referenceNullableASD: () => integerNullable(),
     ...asdOptions,
   };
 }
@@ -281,6 +293,7 @@ export function bigint<
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
     isNullable: false,
     referenceASD: () => bigint(),
+    referenceNullableASD: () => bigintNullable(),
     ...asdOptions,
   };
 }
@@ -296,6 +309,7 @@ export function bigintNullable<
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
     isNullable: true,
     referenceASD: () => bigint(),
+    referenceNullableASD: () => bigintNullable(),
     ...asdOptions,
   };
 }
@@ -311,6 +325,7 @@ export function jsonText<
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: false,
     referenceASD: () => jsonText(),
+    referenceNullableASD: () => jsonTextNullable(),
     ...asdOptions,
   };
 }
@@ -326,6 +341,7 @@ export function jsonTextNullable<
     sqlDataType: () => ({ SQL: () => `JSON` }),
     isNullable: true,
     referenceASD: () => jsonText(),
+    referenceNullableASD: () => jsonTextNullable(),
     ...asdOptions,
   };
 }

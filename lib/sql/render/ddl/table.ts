@@ -193,7 +193,7 @@ export function isTableForeignKeyColumnDefn<
 
 const selfRefTableNamePlaceholder = "SELFREF_TABLE_NAME_PLACEHOLDER" as const;
 
-export function foreignKey<
+export function foreignKeyCustom<
   ColumnTsType,
   ForeignTableName extends string,
   Context extends tmpl.SqlEmitContext,
@@ -203,6 +203,7 @@ export function foreignKey<
     ColumnTsType,
     Context
   >,
+  domain = foreignDomain.referenceASD(),
   foreignRelNature?: TableForeignKeyRelNature<Context>,
   domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
 ): TableForeignKeyColumnDefn<
@@ -210,7 +211,6 @@ export function foreignKey<
   ForeignTableName,
   Context
 > {
-  const domain = foreignDomain.referenceASD();
   const result: TableForeignKeyColumnDefn<
     ColumnTsType,
     ForeignTableName,
@@ -264,6 +264,54 @@ export function foreignKey<
   return result;
 }
 
+export function foreignKey<
+  ColumnTsType,
+  ForeignTableName extends string,
+  Context extends tmpl.SqlEmitContext,
+>(
+  foreignTableName: ForeignTableName,
+  foreignDomain: d.AxiomSqlDomain<
+    ColumnTsType,
+    Context
+  >,
+  foreignRelNature?: TableForeignKeyRelNature<Context>,
+  domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
+): TableForeignKeyColumnDefn<
+  ColumnTsType,
+  ForeignTableName,
+  Context
+> {
+  return foreignKeyCustom(
+    foreignTableName,
+    foreignDomain,
+    foreignDomain.referenceASD(),
+    foreignRelNature,
+    domainOptions,
+  );
+}
+
+export function foreignKeyNullable<
+  ColumnTsType,
+  ForeignTableName extends string,
+  Context extends tmpl.SqlEmitContext,
+>(
+  foreignTableName: ForeignTableName,
+  foreignDomain: d.AxiomSqlDomain<
+    ColumnTsType,
+    Context
+  >,
+  foreignRelNature?: TableForeignKeyRelNature<Context>,
+  domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
+) {
+  return foreignKeyCustom(
+    foreignTableName,
+    foreignDomain,
+    foreignDomain.referenceNullableASD(),
+    foreignRelNature,
+    domainOptions,
+  );
+}
+
 export function selfRefForeignKey<
   ColumnTsType,
   Context extends tmpl.SqlEmitContext,
@@ -272,6 +320,21 @@ export function selfRefForeignKey<
   domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
 ) {
   return foreignKey(
+    selfRefTableNamePlaceholder,
+    domain,
+    { isSelfRef: true },
+    domainOptions,
+  );
+}
+
+export function selfRefForeignKeyNullable<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  domain: d.AxiomSqlDomain<ColumnTsType, Context>,
+  domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
+) {
+  return foreignKeyNullable(
     selfRefTableNamePlaceholder,
     domain,
     { isSelfRef: true },

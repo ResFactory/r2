@@ -129,6 +129,7 @@ export function enumTextTable<
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
     referenceASD: () => codeDomain,
+    referenceNullableASD: () => codeDomain,
   };
 
   const valueDomain = {
@@ -136,6 +137,7 @@ export function enumTextTable<
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
     referenceASD: () => valueDomain,
+    referenceNullableASD: () => valueDomain,
   };
 
   const props = {

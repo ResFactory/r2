@@ -54,6 +54,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         syntheticTable1Defn.axiomObjectDecl.column_one_text,
       ),
       column_fk_self_ref: mod.selfRefForeignKey(st2PK),
+      column_fk_self_ref_nullable: mod.selfRefForeignKeyNullable(st2PK),
     },
     { sqlNS: sch.sqlSchemaDefn("synthetic_schema") },
   );
@@ -119,13 +120,14 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     ta.assert(mod.isTableDefinition(syntheticTable2Defn));
     ta.assert(syntheticTable2Defn);
     ta.assertEquals("synthetic_table2", syntheticTable2Defn.tableName);
-    ta.assert(syntheticTable2Defn.domains.length == 4);
+    ta.assert(syntheticTable2Defn.domains.length == 5);
     ta.assertEquals(
       [
         "synthetic_table2_id",
         "column_fk_pk",
         "column_fk_text",
         "column_fk_self_ref",
+        "column_fk_self_ref_nullable",
       ],
       syntheticTable2Defn.domains.map((cd) => cd.identity),
     );
@@ -140,9 +142,11 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
             "column_fk_pk" INTEGER NOT NULL,
             "column_fk_text" TEXT NOT NULL,
             "column_fk_self_ref" INTEGER NOT NULL,
+            "column_fk_self_ref_nullable" INTEGER,
             FOREIGN KEY("column_fk_pk") REFERENCES "synthetic_table1"("synthetic_table1_id"),
             FOREIGN KEY("column_fk_text") REFERENCES "synthetic_table1"("column_one_text"),
-            FOREIGN KEY("column_fk_self_ref") REFERENCES "synthetic_table2"("synthetic_table2_id")
+            FOREIGN KEY("column_fk_self_ref") REFERENCES "synthetic_table2"("synthetic_table2_id"),
+            FOREIGN KEY("column_fk_self_ref_nullable") REFERENCES "synthetic_table2"("synthetic_table2_id")
         )`),
     );
   });
