@@ -51,8 +51,8 @@ export async function srcDepsMutator<OrgRepo extends string>(
       return async (report: dt.DoctorReporter) => {
         report({
           test: () => result.isSandbox(depsTs),
-          pass: `${depsTs} using remote ${label} URLs`,
-          fail: `${depsTs} using sandbox ${label} files`,
+          pass: `${depsTs} using sandbox ${label} URLs`,
+          fail: `${depsTs} using remote ${label} files`,
         });
       };
     },
