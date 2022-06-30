@@ -92,7 +92,6 @@ export async function srcDepsMutator<OrgRepo extends string>(
           `"https://raw.githubusercontent.com/${args.orgRepo}/${await result
             .gitHub.remoteTag()}/`,
         );
-        console.log(mutatedDepsTs);
         if (mutatedDepsTs != origDepsTs) {
           await Deno.writeTextFile(depsTs, mutatedDepsTs);
         } else {
