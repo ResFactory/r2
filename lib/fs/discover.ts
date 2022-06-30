@@ -3,6 +3,7 @@ import { fs, path } from "./deps.ts";
 export interface DiscoverPathResult {
   readonly searchGlob: string;
   readonly startSearchInAbsPath: string;
+  readonly searchedPaths: { absPath: string; searchGlob: string }[];
   readonly found?: fs.WalkEntry & {
     pathRelative: (src: string) => string;
   };
@@ -19,6 +20,7 @@ export async function discoverGlob(
   searchGlob: string,
   startSearchInAbsPath: string,
 ): Promise<DiscoverPathResult> {
+  const searchedPaths: { absPath: string; searchGlob: string }[] = [];
   async function findInDescendants(
     absPath: string,
   ): Promise<
@@ -26,6 +28,7 @@ export async function discoverGlob(
       pathRelative: (src: string) => string;
     } | undefined
   > {
+    searchedPaths.push({ absPath, searchGlob });
     for await (const found of fs.expandGlob(searchGlob, { root: absPath })) {
       return {
         ...found,
@@ -33,17 +36,17 @@ export async function discoverGlob(
       };
     }
     const parent = path.dirname(absPath);
-    if (parent && parent.length > 0) {
+    if (parent && parent.length > 0 && parent != ".") {
       return findInDescendants(parent);
     }
     return undefined;
   }
 
   const found = await findInDescendants(startSearchInAbsPath);
-
   return {
     searchGlob,
     startSearchInAbsPath,
+    searchedPaths,
     found,
   };
 }
