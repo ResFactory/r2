@@ -89,32 +89,27 @@ export function gitTasks(options?: {
         return gitHookExitCode;
       },
       preCommit: async (args?: {
-        readonly depsTs?: string;
-        readonly sandboxDepsFound?: (depsTs: string) => boolean;
+        readonly sandboxGuard?: {
+          readonly isSandboxDeps: () => false | [number, string];
+        };
         readonly denoFmt?: boolean;
         readonly denoLint?: boolean;
         readonly denoTest?: boolean;
       }) => {
         const {
-          depsTs = "deps.ts",
-          sandboxDepsFound,
+          sandboxGuard,
           denoFmt = true,
           denoLint = true,
           denoTest = true,
         } = args ?? {};
-        const commitList = (await $o`git diff --cached --name-only`).split(
-          "\n",
-        );
-        if (sandboxDepsFound) {
-          if (
-            commitList.find((fn) => fn == depsTs) && sandboxDepsFound(depsTs)
-          ) {
-            console.error(
-              $.brightRed(
-                `local (sandbox) URLs found, cannot commit ${depsTs}`,
-              ),
-            );
-            return 100;
+        // if you need the files being committed:
+        // const commitList = (await $o`git diff --cached --name-only`).split("\n");
+        if (sandboxGuard) {
+          const isSandboxDeps = sandboxGuard.isSandboxDeps();
+          if (isSandboxDeps) {
+            const [exitCode, issue] = isSandboxDeps;
+            console.error($.brightRed(issue));
+            return exitCode;
           }
         }
         const OK = { status: { code: 0 } };
