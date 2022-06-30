@@ -19,17 +19,17 @@ export function gitTasks(options?: {
     doctor: async (report: dt.DoctorReporter) => {
       try {
         await Deno.lstat(path.join(repoRoot, gitHooksRelPath));
-        report({ expected: `${gitHooksRelPath} path exists` });
-      } catch (err) {
+        report({ ok: `${gitHooksRelPath} path exists` });
+      } catch (_err) {
         report({
-          unexpected: `${gitHooksRelPath} path does not exist`,
+          warn: `${gitHooksRelPath} path does not exist`,
         });
       }
       if (await $o`git config core.hooksPath` == gitHooksRelPath) {
-        report({ expected: `${gitHooksRelPath} setup properly in git config` });
+        report({ ok: `${gitHooksRelPath} setup properly in git config` });
       } else {
         report({
-          unexpected: `${gitHooksRelPath} not setup properly in git config`,
+          warn: `${gitHooksRelPath} not setup properly in git config`,
         });
       }
     },
@@ -95,7 +95,6 @@ export function gitTasks(options?: {
         readonly denoLint?: boolean;
         readonly denoTest?: boolean;
       }) => {
-        const gitHookExitCode = 0;
         const {
           depsTs = "deps.ts",
           sandboxDepsFound,
@@ -106,7 +105,6 @@ export function gitTasks(options?: {
         const commitList = (await $o`git diff --cached --name-only`).split(
           "\n",
         );
-        $.verbose = true;
         if (sandboxDepsFound) {
           if (
             commitList.find((fn) => fn == depsTs) && sandboxDepsFound(depsTs)
@@ -119,10 +117,13 @@ export function gitTasks(options?: {
             return 100;
           }
         }
-        if (denoFmt) await $`deno fmt`;
-        if (denoLint) await $`deno lint`;
-        if (denoTest) await $`deno test -A --unstable`;
-        return gitHookExitCode;
+        const OK = { status: { code: 0 } };
+        let po = denoFmt ? await $`deno fmt` : OK;
+        if (po.status.code == 0) po = denoLint ? await $`deno lint` : OK;
+        if (po.status.code == 0) {
+          po = denoTest ? await $`deno test -A --unstable` : OK;
+        }
+        return po.status.code;
       },
     },
   };

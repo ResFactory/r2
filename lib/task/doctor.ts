@@ -4,16 +4,16 @@ import "https://deno.land/x/dzx@0.3.1/mod.ts";
 export interface DoctorReporter {
   (
     args: {
-      expected: string;
+      ok: string;
     } | {
-      unexpected: string;
+      warn: string;
     } | {
       test: () => boolean;
-      expected: string;
-      unexpected: string;
+      pass: string;
+      fail: string;
     } | {
       expectText: string;
-      unexpected: string;
+      textNotFound: string;
     },
   ): void;
 }
@@ -41,7 +41,7 @@ export function denoDoctor(): DoctorCategory {
   return doctorCategory("Deno", function* () {
     const deno: DoctorDiagnostic = {
       diagnose: async (report: DoctorReporter) => {
-        report({ expected: (await $o`deno --version`).split("\n")[0] });
+        report({ ok: (await $o`deno --version`).split("\n")[0] });
       },
     };
     yield deno;
@@ -58,19 +58,19 @@ export function doctor(categories: () => Generator<DoctorCategory>) {
             if (options.expectText && options.expectText.trim().length > 0) {
               console.info("  🆗", colors.green(options.expectText));
             } else {
-              console.warn("  🚫", colors.brightRed(options.unexpected));
+              console.warn("  🚫", colors.brightRed(options.textNotFound));
             }
           } else if ("test" in options) {
             if (options.test()) {
-              console.info("  🆗", colors.green(options.expected));
+              console.info("  🆗", colors.green(options.pass));
             } else {
-              console.warn("  🚫", colors.brightRed(options.unexpected));
+              console.warn("  🚫", colors.brightRed(options.fail));
             }
           } else {
-            if ("expected" in options) {
-              console.info("  🆗", colors.green(options.expected));
+            if ("ok" in options) {
+              console.info("  🆗", colors.green(options.ok));
             } else {
-              console.warn("  🚫", colors.brightRed(options.unexpected));
+              console.warn("  🚫", colors.brightRed(options.warn));
             }
           }
         });
