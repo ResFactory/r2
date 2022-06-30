@@ -68,7 +68,7 @@ export async function srcDepsMutator<OrgRepo extends string>(
         const origDepsTs = Deno.readTextFileSync(depsTs);
         const mutatedDepsTs = origDepsTs.replaceAll(
           result.gitHub.remoteRegExp,
-          `"${srcRelPath}/`,
+          `${srcRelPath}/`,
         );
         if (mutatedDepsTs != origDepsTs) {
           await Deno.writeTextFile(depsTs, mutatedDepsTs);
