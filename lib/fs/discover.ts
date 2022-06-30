@@ -1,0 +1,49 @@
+import { fs, path } from "./deps.ts";
+
+export interface DiscoverPathResult {
+  readonly searchGlob: string;
+  readonly startSearchInAbsPath: string;
+  readonly found?: fs.WalkEntry & {
+    pathRelative: (src: string) => string;
+  };
+}
+
+/**
+ * Look for search path, starting in startSearchInPath, and all parents and
+ * descendants of siblings and parents.
+ * @param searchGlob relative path to look for (e.g. resFactory/factory)
+ * @param startSearchInAbsPath abs path of where to start (e.g. path.resolve(".."))
+ * @returns what was searched and whether path was found
+ */
+export async function discoverGlob(
+  searchGlob: string,
+  startSearchInAbsPath: string,
+): Promise<DiscoverPathResult> {
+  async function findInDescendants(
+    absPath: string,
+  ): Promise<
+    fs.WalkEntry & {
+      pathRelative: (src: string) => string;
+    } | undefined
+  > {
+    for await (const found of fs.expandGlob(searchGlob, { root: absPath })) {
+      return {
+        ...found,
+        pathRelative: (src) => path.relative(src, found?.path),
+      };
+    }
+    const parent = path.dirname(absPath);
+    if (parent && parent.length > 0) {
+      return findInDescendants(parent);
+    }
+    return undefined;
+  }
+
+  const found = await findInDescendants(startSearchInAbsPath);
+
+  return {
+    searchGlob,
+    startSearchInAbsPath,
+    found,
+  };
+}
