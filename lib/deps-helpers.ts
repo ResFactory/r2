@@ -1,5 +1,6 @@
 import * as d from "./fs/discover.ts";
 import * as gh from "./task/github.ts";
+import * as dt from "./task/doctor.ts";
 
 export async function srcDepsMutator<OrgRepo extends string>(
   args:
@@ -44,6 +45,16 @@ export async function srcDepsMutator<OrgRepo extends string>(
       // "sandbox" or "local" Resource Factory modules.
       const origDepsTs = Deno.readTextFileSync(depsTs);
       return origDepsTs.indexOf(`../${args.orgRepo}/`) > 0;
+    },
+    doctor: (label: string, depsTs: string) => {
+      // deno-lint-ignore require-await
+      return async (report: dt.DoctorReporter) => {
+        report({
+          test: () => result.isSandbox(depsTs),
+          pass: `${depsTs} using remote ${label} URLs`,
+          fail: `${depsTs} using sandbox ${label} files`,
+        });
+      };
     },
     gitHub: {
       remoteTag: async (defaultTag = "main") => {
