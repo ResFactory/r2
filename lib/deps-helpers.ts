@@ -50,9 +50,9 @@ export async function srcDepsMutator<OrgRepo extends string>(
       // deno-lint-ignore require-await
       return async (report: dt.DoctorReporter) => {
         report({
-          test: () => result.isSandbox(depsTs),
-          pass: `${depsTs} using sandbox ${label} URLs`,
-          fail: `${depsTs} using remote ${label} files`,
+          test: () => !result.isSandbox(depsTs),
+          pass: `${depsTs} using remote ${label} URLs`,
+          fail: `${depsTs} using sandbox ${label} files`,
         });
       };
     },
