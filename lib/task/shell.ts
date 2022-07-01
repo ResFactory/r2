@@ -7,16 +7,17 @@ export function shellTasks(options: {
   const { integrationMarkerEV } = options;
   const result = {
     doctor: async (report: dt.DoctorReporter) => {
-      const evValue = await $o`echo $${integrationMarkerEV}`;
-      report({
-        test: () => evValue ? true : false,
-        pass: "repo-task alias available",
-        fail: `run \`${
-          $.blue(
-            `eval "$(deno run -A --unstable Taskfile.ts shell-contribs)"`,
-          )
-        }\``,
-      });
+      if (await $o`echo $${integrationMarkerEV}`) {
+        report({ ok: "repo-task alias available" });
+      } else {
+        report({
+          suggest: `run \`${
+            $.blue(
+              `eval "$(deno run -A --unstable Taskfile.ts shell-contribs)"`,
+            )
+          }\``,
+        });
+      }
     },
     /**
      * Generate ("contribute") aliases, env vars, CLI completions, etc. useful for
@@ -31,8 +32,12 @@ export function shellTasks(options: {
     // deno-lint-ignore require-await
     shellContribs: async () => {
       console.log(ws.unindentWhitespace(`
+        # run Taskfile.ts in the current path or, if not founce, search parents/ancestors for first available Taskfile.ts
+        alias path-task='${integrationMarkerEV}_PATHTASK=yes deno run --unstable -A $(/bin/bash -c '\\''file=Taskfile.ts; path=$(pwd); while [[ "$path" != "" && ! -e "$path/$file" ]]; do path=\${path%/*}; done; echo "$path/$file"'\\'')'
+
         # run Taskfile.ts in the root of the Git repository
         alias repo-task='${integrationMarkerEV}_REPOTASK=yes deno run --unstable -A $(git rev-parse --show-toplevel)/Taskfile.ts'
+
         # this env var acts as "marker" to indicate whether integration was successful
         export ${integrationMarkerEV}=$SHELL
       `));
