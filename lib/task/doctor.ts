@@ -8,6 +8,8 @@ export interface DoctorReporter {
     } | {
       warn: string;
     } | {
+      suggest: string;
+    } | {
       test: () => boolean;
       pass: string;
       fail: string;
@@ -66,6 +68,8 @@ export function doctor(categories: () => Generator<DoctorCategory>) {
             } else {
               console.warn("  🚫", colors.brightRed(options.fail));
             }
+          } else if ("suggest" in options) {
+            console.info("  💡", colors.yellow(options.suggest));
           } else {
             if ("ok" in options) {
               console.info("  🆗", colors.green(options.ok));

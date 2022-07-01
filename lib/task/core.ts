@@ -4,14 +4,24 @@ import * as events from "https://raw.githubusercontent.com/ihack2712/eventemitte
 // we export this since it's comprises the core Taskfile.ts "Tasks" instance.
 export { EventEmitter } from "https://raw.githubusercontent.com/ihack2712/eventemitter/1.2.4/mod.ts";
 
-const kebabCaseToCamelTaskName = (text: string) =>
-  // find one or more characters after - and replace with single uppercase
-  text.replace(/-./g, (x) => x.toUpperCase()[1]);
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
+function kebabCaseToCamelTaskName(text: string) {
+  return text.replace(/-./g, (x) => x.toUpperCase()[1]);
+}
 
 const camelCaseToKebabTaskName = (text: string) =>
   // find one or more uppercase characters and separate with -
   text.replace(/[A-Z]+/g, (match: string) => `-${match}`)
     .toLocaleLowerCase();
+
+export function eventEmitterInternalMap<EE extends events.EventEmitter<Any>>(
+  ee: EE,
+) {
+  // this is ugly but necessary due to events.EventEmitter making _events_ private :-(
+  return (ee as unknown as { ["_events_"]: Map<Any, unknown> })["_events_"];
+}
 
 /**
  * eventEmitterCLI take an github.com/ihack2712/eventemitter EventEmitter
@@ -44,9 +54,7 @@ export async function eventEmitterCLI<
   if (name.indexOf("-") > 0) name = kebabCaseToCamelTaskName(name);
 
   // this is ugly but necessary due to events.EventEmitter making _events_ private :-(
-  const handlers =
-    // deno-lint-ignore no-explicit-any
-    (ee as unknown as { ["_events_"]: Map<any, unknown> })["_events_"];
+  const handlers = eventEmitterInternalMap(ee);
 
   if (handlers.has(name)) {
     const untypedEE = ee as unknown as {
