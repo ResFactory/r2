@@ -107,6 +107,12 @@ following types of SQL language constructs.
 - [ ] [CSV Schema](http://digital-preservation.github.io/csv-schema/csv-schema-1.1.html),
       [examples](https://github.com/digital-preservation/csv-schema/tree/master/example-schemas)
 
+#### Safety and Security Capabilities
+
+- [x] String literals for injection-safe SQL generation
+  - [ ] Integration of
+        [pg-format](https://github.com/grantcarthew/deno-pg-format)
+
 ### DDL (Data Definition Language)
 
 - [x] CREATE: This command is used to create the database or its objects (like
