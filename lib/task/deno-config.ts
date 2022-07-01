@@ -4,7 +4,7 @@ import * as dt from "./doctor.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-export function denoConfigTasks(options?: {
+export function denoConfigHelpers(options?: {
   srcFilePath?: string;
   exists: () => Promise<Deno.FileInfo | false>;
   acquire?: (
@@ -73,7 +73,9 @@ export function denoConfigTasks(options?: {
     persistTaskAdapters: <EE extends core.EventEmitter<Any>>(
       ee: EE,
       options?: {
-        denoTaskAdapter?: (eeTaskName: string) => string;
+        denoTaskNameToEETaskName?: (denoTaskName: string) => string;
+        eeTaskNameToDenoTaskName?: (eeTaskName: string) => string;
+        denoTaskCliCmdAdapter?: (eeTaskName: string) => string;
         removeDenoTask?: (denoTask: string, isEETaskName: boolean) => boolean;
         finalizeConfig?: (
           denoConfig: Record<string, unknown>,
@@ -91,21 +93,32 @@ export function denoConfigTasks(options?: {
         const denoTasks = denoConfig.tasks as Record<string, string>;
 
         const eeTasks = core.eventEmitterInternalMap(ee);
-        const denoTaskAdapter = options?.denoTaskAdapter ??
+        const denoTaskNameToEETaskName = options?.denoTaskNameToEETaskName ??
+          ((denoTaskName: string) =>
+            core.kebabCaseToCamelTaskName(denoTaskName));
+        const eeTaskNameToDenoTaskName = options?.eeTaskNameToDenoTaskName ??
+          ((eeTaskName: string) => core.camelCaseToKebabTaskName(eeTaskName));
+        const denoTaskCliCmdAdapter = options?.denoTaskCliCmdAdapter ??
           ((eeTaskName: string) =>
             `deno run -A --unstable Taskfile.ts ${eeTaskName}`);
 
         const removeDenoTask = options?.removeDenoTask;
         if (removeDenoTask) {
           for (const denoTaskName of Object.keys(denoTasks)) {
-            if (removeDenoTask(denoTaskName, eeTasks.has(denoTaskName))) {
+            if (
+              removeDenoTask(
+                denoTaskName,
+                eeTasks.has(denoTaskNameToEETaskName(denoTaskName)),
+              )
+            ) {
               delete denoTasks[denoTaskName];
             }
           }
         }
 
-        for (const taskName of eeTasks.keys()) {
-          denoTasks[taskName] = denoTaskAdapter(taskName);
+        for (const eeTaskName of eeTasks.keys()) {
+          denoTasks[eeTaskNameToDenoTaskName(eeTaskName)] =
+            denoTaskCliCmdAdapter(eeTaskName);
         }
 
         persist(
@@ -116,16 +129,23 @@ export function denoConfigTasks(options?: {
         );
       };
     },
-    taskAdaptersMissing: async <EE extends core.EventEmitter<Any>>(ee: EE) => {
+    taskAdaptersMissing: async <EE extends core.EventEmitter<Any>>(
+      ee: EE,
+      options?: {
+        eeTaskNameToDenoTaskName?: (eeTaskName: string) => string;
+      },
+    ) => {
       const denoConfig = await acquire();
       const eeTasks = core.eventEmitterInternalMap(ee);
+      const eeTaskNameToDenoTaskName = options?.eeTaskNameToDenoTaskName ??
+        ((eeTaskName: string) => core.camelCaseToKebabTaskName(eeTaskName));
 
       if (!("tasks" in denoConfig)) return eeTasks.size;
       const denoTasks = denoConfig.tasks as Record<string, string>;
 
       let missing = 0;
       for (const eeTaskName of eeTasks.keys()) {
-        if (!denoTasks[eeTaskName]) missing++;
+        if (!denoTasks[eeTaskNameToDenoTaskName(eeTaskName)]) missing++;
       }
 
       return missing;

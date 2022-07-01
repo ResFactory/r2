@@ -7,11 +7,11 @@ export { EventEmitter } from "https://raw.githubusercontent.com/ihack2712/evente
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-function kebabCaseToCamelTaskName(text: string) {
+export function kebabCaseToCamelTaskName(text: string) {
   return text.replace(/-./g, (x) => x.toUpperCase()[1]);
 }
 
-const camelCaseToKebabTaskName = (text: string) =>
+export const camelCaseToKebabTaskName = (text: string) =>
   // find one or more uppercase characters and separate with -
   text.replace(/[A-Z]+/g, (match: string) => `-${match}`)
     .toLocaleLowerCase();
