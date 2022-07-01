@@ -31,6 +31,11 @@ jobs:
       # as Codecov, Coveralls and Travis CI.
       - run: deno coverage --lcov cov/ > cov.lcov
 
+      - name: Collect coverage
+        uses: codecov/codecov-action@v1.0.10 # upload the report on Codecov
+        with:
+          file: ./cov.lcov
+
       # Check if the code is formatted according to Deno's default formatting conventions.
       - run: deno fmt --check **/*.ts
 
