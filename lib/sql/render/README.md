@@ -67,6 +67,7 @@ following types of SQL language constructs.
 - [x] DateTime
 - [x] BigInt
 - [x] JSON
+- [ ] JSONB
 - [ ] Constrained values using Axiom $.enum
 - [ ] Symmetric encrypted text (for transactional data) See
       https://github.com/FiloSottile/age et. al but use built-in database
@@ -76,11 +77,20 @@ following types of SQL language constructs.
 #### Domain Capabilities
 
 - [x] identity
+- [ ] W3C [Decentralized Identifiers](https://www.w3.org/TR/did-core/) (DIDs)
 - [x] SQL type
 - [x] SQL default values
 - [ ] SQL size
 - [x] domain labels/tags for grouping
+  - [ ] label sensitive ("secrets") columns so separate meta data is not
+        required
+  - [ ] label identity (PII, PHI) columns so separate meta data is not required
+  - [ ] label validation and other policy
+  - [ ] information model labels in case a domain is defined in regulatory or
+        external standards (e.g. X12, HL7, FHIR, etc.)
 - [x] SQL reference (for foreign key mirroring)
+- [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
+      auto-generate synthetic data)
 - [ ] arrays of domains (e.g. Text[], Integer[], etc.)
 - [ ] JSON Schema properties contributions
 - [ ] CSV Schema properties contributions
@@ -103,6 +113,9 @@ following types of SQL language constructs.
 - [ ] columns referenced as foreign keys (inbound, aggregations, to define 1:M,
       1:1, M:1 "links")
 - [ ] table labels/tags for grouping
+  - [ ] rollup sensitive-labeled columns and auto-label tables as sensitive
+  - [ ] rollup identity-labeled (PII, PHI) columns and auto-label tables as
+        PII/PHI
 - [ ] JSON Schema
 - [ ] [CSV Schema](http://digital-preservation.github.io/csv-schema/csv-schema-1.1.html),
       [examples](https://github.com/digital-preservation/csv-schema/tree/master/example-schemas)
@@ -201,6 +214,10 @@ These dialects are supported:
 - [ ] SQL*Server
 - [ ] ORACLE
 
+References:
+
+- [PostgreSQL Vs MySQL Syntax](https://tipseason.com/postgres-vs-mysql-syntax-comparision/)
+
 #### PostgreSQL
 
 - [x] Anonymous PL/pgSQL and PL/SQL blocks
@@ -222,9 +239,14 @@ The system generates lint messages:
 
 - [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
+- [ ] Suggest foreign keys when column name and table names are simialr to each
+      other but fkey is not defined
 - [ ] Missing indexes for primary keys, foreign keys
 - [ ] `_id` attributes that are not foreign keys (might be OK, might be a
       mistake)
+- [ ] Plural vs. singular naming checks
+- [ ] [Soda Checks Language](https://docs.soda.io/soda-cl/soda-cl-overview.html)
+      (SodaCL) style validation rules
 
 ### Tasks
 
