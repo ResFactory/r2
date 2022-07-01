@@ -240,6 +240,9 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
+      ideas around "stateful programs" and their built-in relationships (vs.
+      objects capabilities)
 - [ ] Support DOP principles described in
       https://www.manning.com/books/data-oriented-programming
 - [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
