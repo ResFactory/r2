@@ -40,11 +40,13 @@ export async function srcDepsMutator<OrgRepo extends string>(
     src,
     srcRelPath,
     isSandbox: (depsTs: string) => {
-      // Test to see if any of the imports in deps.ts contains relative paths URIs
-      // such as ../resFactory/factory/. If so, it means that the deps.ts refers to
-      // "sandbox" or "local" Resource Factory modules.
+      // Test to see if any of the imports in deps.ts contains relative paths
+      // URIs such as ../resFactory/factory/ or ../github.com/resFactory/factory/.
+      // If so, it means that the deps.ts refers to "sandbox" or "local"
+      // Resource Factory modules.
       const origDepsTs = Deno.readTextFileSync(depsTs);
-      return origDepsTs.indexOf(`../${args.orgRepo}/`) > 0;
+      const relRegExp = new RegExp(`\.\.\/.*?${args.orgRepo}\/`);
+      return relRegExp.test(origDepsTs);
     },
     doctor: (label: string, depsTs: string) => {
       // deno-lint-ignore require-await
