@@ -32,6 +32,8 @@ export interface GitHookDefn<
   readonly hookName: HookNameCamelCase;
   readonly hookNameKC: HookNameKebabCase;
   readonly hookTaskName: HookTaskNameCamelCase;
+  readonly bashScriptEnvVarsPrefix: string;
+  readonly bashScriptContent: (purpose: "on-fail") => string;
   readonly bashScriptDestPath: (destRoot: () => string) => string;
   readonly bashScriptSrc: () => string;
   readonly persistBashScriptSrc: (hooksHome: () => string) => Promise<void>;
@@ -45,15 +47,13 @@ export interface GitHookDefn<
 export function gitHookIntegration<HookName extends GitHookName>(
   hookName: HookName,
   hookLogic: () => Promise<number>,
-  options?: {
-    readonly gitHookEnvVarPrefix?: string;
-    readonly bashScriptContent: (purpose: "on-fail") => string;
-  },
+  options?: Partial<GitHookDefn<HookName>>,
 ): GitHookDefn<HookName> {
   const {
-    gitHookEnvVarPrefix: ghEVP = "GITHOOK",
+    bashScriptEnvVarsPrefix = "GITHOOK",
     bashScriptContent = () => "cancel",
   } = options ?? {};
+  const ghEVP = bashScriptEnvVarsPrefix;
   const result: GitHookDefn<HookName> = {
     hookName,
     hookNameKC: camelCaseToKebabHookName(
@@ -62,6 +62,8 @@ export function gitHookIntegration<HookName extends GitHookName>(
     hookTaskName: `gitHook${
       hookName.replace(/^[a-z]/, hookName.toUpperCase()[0])
     }` as Any,
+    bashScriptEnvVarsPrefix,
+    bashScriptContent,
     bashScriptDestPath: (destRoot: () => string) =>
       path.join(destRoot(), result.hookNameKC),
     //deno-fmt-ignore
@@ -100,12 +102,13 @@ export function gitHookIntegration<HookName extends GitHookName>(
         return false;
       }
     },
+    ...options, // if anything is passed in, it will override the above
   };
   return result;
 }
 
 export function prepareCommitMsgGitHook() {
-  return gitHookIntegration(
+  const result: GitHookDefn<"prepareCommitMsg"> = gitHookIntegration(
     "prepareCommitMsg",
     // deno-lint-ignore require-await
     async (): Promise<number> => {
@@ -147,8 +150,19 @@ export function prepareCommitMsgGitHook() {
       }
       return gitHookExitCode;
     },
-    { bashScriptContent: () => `cancels commit` },
+    {
+      bashScriptContent: () => `cancels commit`,
+      bashScriptSrc: () => {
+        const ghEVP = result.bashScriptEnvVarsPrefix;
+        return ws.unindentWhitespace(`
+          #!/bin/bash
+          set -e    # cancels commit if Taskfile.ts git-hook-${result.hookNameKC} returns non-zero
+          ${ghEVP}_COMMITMSG_HEAD="$(head -1 $1)" ${ghEVP}_CWD=\`pwd\` ${ghEVP}_SCRIPT=$0 \\
+            deno run -A --unstable Taskfile.ts git-hook-${result.hookNameKC}`);
+      },
+    },
   );
+  return result;
 }
 
 export function preCommitGitHook(args?: {
