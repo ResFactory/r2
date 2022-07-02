@@ -1,4 +1,5 @@
 import * as path from "https://deno.land/std@0.145.0/path/mod.ts";
+import * as colors from "https://deno.land/std@0.145.0/fmt/colors.ts";
 import "https://deno.land/x/dzx@0.3.1/mod.ts";
 import * as core from "./core.ts";
 import * as dt from "./doctor.ts";
@@ -79,7 +80,14 @@ export function gitHookIntegration<HookName extends GitHookName>(
         const exitCode = await hookLogic();
         if (exitCode) {
           console.error(
-            onInvalidMsg?.(exitCode) ?? `git hook failed: ${exitCode}`,
+            onInvalidMsg?.(exitCode) ??
+              colors.dim(
+                `Git ${result.hookNameKC} hook failed: Deno exit code ${exitCode} (${
+                  import.meta.url.slice(
+                    import.meta.url.indexOf("resFactory/factory"),
+                  )
+                })`,
+              ),
           );
           Deno.exit(exitCode);
         }
@@ -111,7 +119,9 @@ export function prepareCommitMsgGitHook() {
       const scopeRegEx = `[a-z0-9_.-]{${scopeMinLen},${scopeMaxLen}}`;
       const subjectMinLen = 4;
       const subjectMaxLen = 120;
-      const subjectRegEx = `[a-z0-9_. -]{${subjectMinLen},${subjectMaxLen}}`;
+      // start with lowercase or number, then some constrained characters
+      const subjectRegEx =
+        `[a-z0-9][A-Za-z0-9_. -]{${subjectMinLen},${subjectMaxLen}}`;
 
       //# Build the Regular Expression String.
       const commitHeadRegEx = new RegExp(
@@ -122,17 +132,17 @@ export function prepareCommitMsgGitHook() {
       if (commitMsgHead && commitMsgHead.trim().length > 0) {
         //deno-fmt-ignore
         if(!commitHeadRegEx.test(commitMsgHead)) {
-          console.info($.red("The commit message was not formatted correctly. Rejecting the commit request."));
-          console.info($.dim(" - https://www.conventionalcommits.org/en/v1.0.0/"));
-          console.info($.dim(" - https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional\n"));
-          console.info($.dim(" Having trouble with the format? Just not sure of how to commit correctly? https://commitlint.io/"));
-          console.info($.dim(" Something else happening? Use https://regexr.com/ with the following expression to validate your commit."));
-          console.info($.dim(`  - RegEx: /${commitHeadRegEx}/`));
+          console.info($.red("💡 The commit message was not formatted correctly. Rejecting the commit request."));
+          console.info($.dim("    - https://www.conventionalcommits.org/en/v1.0.0/"));
+          console.info($.dim("    - https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional\n"));
+          console.info($.dim("    Having trouble with the format? Just not sure of how to commit correctly? https://commitlint.io/"));
+          console.info($.dim("    Something else happening? Use https://regexr.com/ with the following expression to validate your commit."));
+          console.info($.dim(`    - RegEx: /${commitHeadRegEx}/`));
           gitHookExitCode = 101;
         }
       } else {
         //deno-fmt-ignore
-        console.info($.red("No commit message supplied. Rejecting the commit request."));
+        console.info($.red("💡 No commit message supplied. Rejecting the commit request."));
         gitHookExitCode = 102;
       }
       return gitHookExitCode;
