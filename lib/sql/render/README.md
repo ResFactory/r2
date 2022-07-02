@@ -81,7 +81,10 @@ following types of SQL language constructs.
 - [x] SQL type
 - [x] SQL default values
 - [ ] SQL size
-- [x] domain labels/tags for grouping
+- [ ] domain documentation for goverance ([DataHub](https://datahubproject.io/)
+      style ERD documentation)
+- [x] domain labels/tags for governance ([DataHub](https://datahubproject.io/)
+      style meta data)
   - [ ] label sensitive ("secrets") columns so separate meta data is not
         required
   - [ ] label identity (PII, PHI) columns so separate meta data is not required
@@ -165,8 +168,8 @@ following types of SQL language constructs.
 
 - [x] Type-safe INSERT single TS/JS object row with `returning` support
 - [ ] Type-safe INSERT single TS/JS array row with `returning` support
-- [ ] Type-safe INSERT single TS/JS delimited string (e.g. CSV) row with
-      `returning` support
+  - [ ] Type-safe INSERT single TS/JS delimited string (e.g. CSV) row with
+        `returning` support using string to array transformer
 - [ ] Auto-generated SELECT from INSERT or UPDATE DML to allow programmatic
       access to already inserted data. For example, typed INSERTs should create
       automatic `selectPK` which would take the same data and generate a SQL
@@ -175,8 +178,8 @@ following types of SQL language constructs.
       `returning` support)
 - [ ] Type-safe INSERT multiple TS/JS array rows in single statement (no
       `returning` support)
-- [ ] Type-safe INSERT multiple delimited string (e.g. CSV) rows in single
-      statement (no `returning` support)
+  - [ ] Type-safe INSERT multiple delimited string (e.g. CSV) rows in single
+        statement (no `returning` support)
 - [ ] Support two different kinds of default data: `data storage default` (DSD)
       vs. `user agent session default` (UAD). DSDs are good for values such as
       `created_at` which don't have security policy implications but need to be
@@ -282,6 +285,8 @@ The system generates lint messages:
 
 - [x] Dependency graphs (relationships from FKs, links, etc.)
 - [x] Generate PlantUML Information Engineering diagrams
+- [ ] Generate [DataHub](https://datahubproject.io/)-ingestable governance meta
+      data
 - [ ] Generate ORM configurations from SQLa entity definitions
   - [ ] https://mikro-orm.io/
   - [ ] TypeORM
