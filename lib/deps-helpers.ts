@@ -45,8 +45,7 @@ export async function srcDepsMutator<OrgRepo extends string>(
       // If so, it means that the deps.ts refers to "sandbox" or "local"
       // Resource Factory modules.
       const origDepsTs = Deno.readTextFileSync(depsTs);
-      const relRegExp = new RegExp(`["'].*?\.\.\/.*?${args.orgRepo}\/`);
-      console.log(relRegExp);
+      const relRegExp = new RegExp(`["'].*?\\.\\.\\/.*?${args.orgRepo}\\/`);
       return relRegExp.test(origDepsTs);
     },
     doctor: (label: string, depsTs: string) => {
