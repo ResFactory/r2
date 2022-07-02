@@ -36,7 +36,13 @@ export interface GitHookDefn<
   readonly bashScriptContent: (purpose: "on-fail") => string;
   readonly bashScriptDestPath: (destRoot: () => string) => string;
   readonly bashScriptSrc: () => string;
-  readonly persistBashScriptSrc: (hooksHome: () => string) => Promise<void>;
+  readonly persistBashScriptSrc: (
+    hooksHome: () => string,
+    options?: {
+      ensureHome?: (hooksHome: string) => Promise<void>;
+      chmod?: (destPath: string) => Promise<void>;
+    },
+  ) => Promise<void>;
   readonly hookLogic: () => Promise<number>;
   readonly hookTask: (
     onInvalidMsg?: (exitCode: number) => string,
@@ -72,9 +78,17 @@ export function gitHookIntegration<HookName extends GitHookName>(
       set -e    # ${bashScriptContent("on-fail")} if Taskfile.ts git-hook-${result.hookNameKC} returns non-zero
       ${ghEVP}_CWD=\`pwd\` ${ghEVP}_SCRIPT=$0 \\
         deno run -A --unstable Taskfile.ts git-hook-${result.hookNameKC}`),
-    persistBashScriptSrc: async (hooksHome) => {
+    persistBashScriptSrc: async (hooksHome, options) => {
+      const {
+        ensureHome = async (destHome: string) =>
+          await Deno.mkdir(destHome, { recursive: true }),
+        chmod = async (destPath: string) => await Deno.chmod(destPath, 0o755),
+      } = options ?? {};
       const src = result.bashScriptSrc();
-      await Deno.writeTextFile(result.bashScriptDestPath(hooksHome), src);
+      const destPath = result.bashScriptDestPath(hooksHome);
+      await ensureHome(path.dirname(destPath));
+      await Deno.writeTextFile(destPath, src);
+      await chmod(destPath);
     },
     hookLogic,
     hookTask: (onInvalidMsg) => {
