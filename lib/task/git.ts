@@ -167,7 +167,7 @@ export function prepareCommitMsgGitHook() {
 
 export function preCommitGitHook(args?: {
   readonly sandboxGuard?: {
-    readonly isSandboxDeps: () => false | [number, string];
+    readonly isSandboxDeps: () => Promise<false | [number, string]>;
   };
   readonly denoFmt?: boolean;
   readonly denoLint?: boolean;
@@ -185,7 +185,7 @@ export function preCommitGitHook(args?: {
       // if you need the files being committed:
       // const commitList = (await $o`git diff --cached --name-only`).split("\n");
       if (sandboxGuard) {
-        const isSandboxDeps = sandboxGuard.isSandboxDeps();
+        const isSandboxDeps = await sandboxGuard.isSandboxDeps();
         if (isSandboxDeps) {
           const [exitCode, issue] = isSandboxDeps;
           console.error($.brightRed(issue));
