@@ -139,7 +139,10 @@ following types of SQL language constructs.
 
 ### DQL (Data Query Language)
 
-- [@] SELECT: It is used to retrieve data from the database.
+- [x] Trusted SELECT statement to read typed data
+- [ ] Untrusted SELECT statement auto-wrapped in CTE for multi-tenant or other
+      security policy adherence. This allows aribtrary SQL to be sent from
+      untrusted clients but additional where criteria is added via CTE wrapper.
 - [ ] [dql/with.ts](https://modern-sql.com/feature/with) similar to how views
       work (type-safe); this will allow us to use
       [transient data](https://modern-sql.com/use-case/unit-tests-on-transient-data)
@@ -160,6 +163,29 @@ following types of SQL language constructs.
 
 ### DML(Data Manipulation Language)
 
+- [x] Type-safe INSERT single TS/JS object row with `returning` support
+- [ ] Type-safe INSERT single TS/JS array row with `returning` support
+- [ ] Type-safe INSERT single TS/JS delimited string (e.g. CSV) row with
+      `returning` support
+- [ ] Auto-generated SELECT from INSERT or UPDATE DML to allow programmatic
+      access to already inserted data. For example, typed INSERTs should create
+      automatic `selectPK` which would take the same data and generate a SQL
+      select from it so it can be retrieved for foreign key IDs, etc.
+- [ ] Type-safe INSERT multiple TS/JS object rows in single statement (no
+      `returning` support)
+- [ ] Type-safe INSERT multiple TS/JS array rows in single statement (no
+      `returning` support)
+- [ ] Type-safe INSERT multiple delimited string (e.g. CSV) rows in single
+      statement (no `returning` support)
+- [ ] Support two different kinds of default data: `data storage default` (DSD)
+      vs. `user agent session default` (UAD). DSDs are good for values such as
+      `created_at` which don't have security policy implications but need to be
+      set before storing into the database. UASDs are useful for things like
+      `tenant_id`, `fingerprint`, `person_id`, `user_id`, `party_id` or
+      multi-tenant / security policy information that comes from user agent
+      sessions. UASDs would allow unsafe SQL DML to come from user agents (apps,
+      services) but automatically get filled in with _user agent session
+      default_ data.
 - [ ] incorporate data validation using [ow](https://sindresorhus.com/ow/) or
       similar library as inspiration to show how to wrap domains with data
       validators
@@ -170,8 +196,6 @@ following types of SQL language constructs.
         [Ajv JSON schema validator](https://ajv.js.org) and other widely used
         libraries can be used to manage the validations without us having to do
         much
-- [x] INSERT single row with `returning` support
-- [ ] INSERT multiple rows in single statement (no `returning` support)
 - [ ] UPDATE
 - [ ] DELETE
 - [ ] CALL: Call a PL/SQL or JAVA subprogram.
