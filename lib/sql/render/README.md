@@ -24,17 +24,22 @@ does not rewrite SQL or attempt to remove SQL knowledge.
     attribute or column.
   - `text`, `integer`, etc. are generic domains but a domain may also be
     `person_id`, `daily_purchase_amount`, or any custom business data.
-- `attribute` refers to a named instance of a specific domain. For example,
-  `person_id` can be a domain but once it's a named column of a table it becomes
-  an _attribute_.
-- `entity` is a concrete instance of a group of domains, this is usally a
-  _table_ in SQL but might also be represented as a view or a stored function.
+- `attribute` or `property` refers to a named instance of a specific domain. For
+  example, `person_id` can be a domain but once it's a named column of a table
+  it becomes an _attribute_ or a _property_.
+- `entity` is a concrete instance of a group of domain instances such as
+  _attributes_ or _properties_. An _entity_ is usally a _table_ in SQL but might
+  also be represented as a view or a stored function.
 - `link` is a 1:n, n:1, or n:n relationship between entities.
   - Links are typically defined as foreign keys in SQL but could be represented
     as arrays in stored procedures or an ORM.
   - For example, if you had an Order entity (table) with order line and customer
     table foreign keys then the Order's links could be 1:n `items[]` and 1:1
     `customer`.
+- `namespace` refers to _physical_ storage grouping (e.g. `schemas` in some
+  databases).
+- `information model module` (`IMM`) is a _logical_ grouping of multiple
+  domains, entities, tables, views, schemas, namespaces, etc.
 
 ## Architecture and Strategy
 
@@ -62,6 +67,7 @@ following types of SQL language constructs.
 ### Domains
 
 - [x] Text
+- [ ] VARCHAR(x)
 - [x] Integer
 - [x] Date
 - [x] DateTime
@@ -69,10 +75,11 @@ following types of SQL language constructs.
 - [x] JSON
 - [ ] JSONB
 - [ ] Constrained values using Axiom $.enum
-- [ ] Symmetric encrypted text (for transactional data) See
-      https://github.com/FiloSottile/age et. al but use built-in database
-      capabilities through SQL whenever possible
-- [ ] Asymmetric encrypted text (for passwords)
+- [ ] Symmetric encrypted text (for transactional data) with automatic
+      `sensitive` labeling. See https://github.com/FiloSottile/age et. al but
+      use built-in database capabilities through SQL whenever possible
+- [ ] Asymmetric encrypted text (for passwords) with automatic `sensitive`
+      labeling
 
 #### Domain Capabilities
 
@@ -337,12 +344,6 @@ The system generates lint messages:
 
 ## TODO
 
-- [ ] Nomenclature: group domains, entities, tables, views, schemas, namespaces
-      into _information model modules_ or `IMM`s.
-- [ ] Nomenclature: generalize logical foreign keys into _links_; when dealing
-      with physical RDBMs and physical foreign keys it's ok to refer to them as
-      FKs but when talking about `IMM`s refer to foreign keys with parent/child,
-      association, etc. relationships as _links_.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
