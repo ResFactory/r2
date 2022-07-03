@@ -69,7 +69,7 @@ export function viewDefinition<
   ) => {
     const { isTemp, isIdempotent = true, embeddedSQL = tmpl.SQL } = vdOptions ??
       {};
-    const ssPartial = ss.select<Any, Context>({ embeddedSQL });
+    const ssPartial = ss.untypedSelect<Any, Context>({ embeddedSQL });
     const selectStmt = ssPartial(literals, ...expressions);
     const viewDefn:
       & ViewDefinition<ViewName, Context>
@@ -224,7 +224,7 @@ export function safeViewDefinition<
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ) => {
     const { embeddedSQL = tmpl.SQL } = vdOptions ?? {};
-    const selectStmt = ss.safeSelect<Any, TPropAxioms, Context>(props, {
+    const selectStmt = ss.typedSelect<Any, TPropAxioms, Context>(props, {
       embeddedSQL,
     });
     return safeViewDefinitionCustom(

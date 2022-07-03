@@ -115,7 +115,7 @@ export function selectTemplateResult<
   return result;
 }
 
-export function select<
+export function untypedSelect<
   SelectStmtName extends string,
   Context extends tmpl.SqlEmitContext,
 >(
@@ -130,7 +130,7 @@ export function select<
   };
 }
 
-export function safeSelect<
+export function typedSelect<
   SelectStmtName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context extends tmpl.SqlEmitContext,

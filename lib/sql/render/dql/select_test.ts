@@ -6,7 +6,7 @@ import * as d from "../domain.ts";
 
 Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
-  const SQL = mod.select(ctx);
+  const SQL = mod.untypedSelect(ctx);
 
   await tc.step("invalid SELECT statement (misspelled token)", () => {
     const select = SQL`
@@ -23,7 +23,7 @@ Deno.test("SQL Aide (SQLa) select statement", async (tc) => {
   });
 
   await tc.step("valid named SELECT statement with typed column names", () => {
-    const select = mod.safeSelect(
+    const select = mod.typedSelect(
       {
         customer_name: d.text(),
         order_count: d.integerNullable(),

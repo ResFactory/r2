@@ -82,7 +82,7 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
         where: string | SQLa.SqlTextSupplier<Context>,
       ) => {
         const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
-        return SQLa.select(ctx)`SELECT ${
+        return SQLa.untypedSelect(ctx)`SELECT ${
           ns.tableColumnName({ tableName, columnName: `${tableName}_id` })
         } FROM ${ns.tableName(tableName)} WHERE ${
           typeof where === "string" ? where : where.SQL(ctx)
