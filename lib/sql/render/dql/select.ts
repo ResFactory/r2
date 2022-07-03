@@ -3,6 +3,8 @@ import * as ax from "../../../safety/axiom.ts";
 import * as tmpl from "../template/mod.ts";
 import * as l from "../lint.ts";
 import * as d from "../domain.ts";
+import * as ws from "../../../text/whitespace.ts";
+import * as cr from "./criteria.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -146,6 +148,189 @@ export function typedSelect<
     return {
       ...d.sqlDomains(props, ssOptions),
       ...selectTemplateResult(literals, ess, ssOptions, ...expressions),
+    };
+  };
+}
+
+export type SelectCriteriaReturn = { isReturning: true };
+
+export const isSelectCriteriaReturn = safety.typeGuard<SelectCriteriaReturn>(
+  "isReturning",
+);
+
+export function selectCriteriaHelpers<
+  FilterableRecord,
+  Context extends tmpl.SqlEmitContext,
+>() {
+  return {
+    ...cr.filterCriteriaHelpers<FilterableRecord, Context>(),
+    return: (
+      value: cr.FilterCriteriaValue | unknown,
+    ): cr.FilterCriteriaValue & SelectCriteriaReturn => {
+      if (cr.isFilterCriteriaValue(value)) {
+        return { ...value, isReturning: true };
+      }
+      return { ...cr.fcValue(value), isReturning: true };
+    },
+  };
+}
+
+export type SelectStmtReturning<
+  ReturnableRecord,
+  Context extends tmpl.SqlEmitContext,
+  ReturnableAttrName extends keyof ReturnableRecord = keyof ReturnableRecord,
+> =
+  | "*"
+  | "primary-keys"
+  | (ReturnableAttrName | tmpl.SqlTextSupplier<Context>)[];
+
+export interface SelectStmtPreparerOptions<
+  EntityName extends string,
+  FilterableRecord,
+  ReturnableRecord,
+  Context extends tmpl.SqlEmitContext,
+  SelectStmtName extends string = string,
+  FilterableAttrName extends keyof FilterableRecord = keyof FilterableRecord,
+  ReturnableAttrName extends keyof ReturnableRecord = keyof ReturnableRecord,
+> {
+  readonly identity?: SelectStmtName;
+  readonly returning?:
+    | SelectStmtReturning<ReturnableRecord, Context>
+    | ((
+      ctx: Context,
+    ) => SelectStmtReturning<ReturnableRecord, Context>);
+  readonly entityNameSupplier?: (
+    name: EntityName,
+    ns: tmpl.SqlObjectNames,
+  ) => string;
+  readonly attrNameSupplier?: (
+    name: EntityName,
+    attrName: FilterableAttrName | ReturnableAttrName,
+    ns: tmpl.SqlObjectNames,
+  ) => string;
+}
+
+export interface SelectStmtPreparer<
+  EntityName extends string,
+  FilterableRecord,
+  ReturnableRecord,
+  Context extends tmpl.SqlEmitContext,
+  SelectStmtName extends string = string,
+> {
+  (
+    fr: FilterableRecord,
+    options?: SelectStmtPreparerOptions<
+      EntityName,
+      FilterableRecord,
+      ReturnableRecord,
+      Context,
+      SelectStmtName
+    >,
+  ): tmpl.SqlTextSupplier<Context> & {
+    readonly filterable: FilterableRecord;
+  };
+}
+
+export function entitySelectStmtPreparer<
+  EntityName extends string,
+  FilterableRecord,
+  ReturnableRecord,
+  Context extends tmpl.SqlEmitContext,
+  SelectStmtName extends string = string,
+  FilterableAttrName extends keyof FilterableRecord = keyof FilterableRecord,
+  ReturnableAttrName extends keyof ReturnableRecord = keyof ReturnableRecord,
+>(
+  entityName: EntityName,
+  fcp: cr.FilterCriteriaPreparer<FilterableRecord, Context>,
+  defaultSspOptions?: SelectStmtPreparerOptions<
+    EntityName,
+    FilterableRecord,
+    ReturnableRecord,
+    Context,
+    SelectStmtName
+  >,
+): SelectStmtPreparer<
+  EntityName,
+  FilterableRecord,
+  ReturnableRecord,
+  Context,
+  SelectStmtName
+> {
+  return (fr, sspOptions = defaultSspOptions) => {
+    const selectStmt: tmpl.SqlTextSupplier<Context> = {
+      SQL: (ctx) => {
+        const {
+          returning: returningArg,
+          entityNameSupplier = (name: EntityName, ns: tmpl.SqlObjectNames) =>
+            ns.tableName(name),
+          attrNameSupplier = (
+            en: EntityName,
+            an: FilterableAttrName | ReturnableAttrName,
+            ns: tmpl.SqlObjectNames,
+          ) => ns.tableColumnName({ tableName: en, columnName: String(an) }),
+        } = sspOptions ?? {};
+        const fc = fcp(ctx, fr);
+        const fcSTS = cr.filterCriteriaSQL(fc, {
+          attrNameSupplier: (attrName, ns) =>
+            attrNameSupplier(entityName, attrName as Any, ns), // TODO: how to properly type attrName and not use 'Any'?
+        });
+        const ns = ctx.sqlNamingStrategy(ctx, {
+          quoteIdentifiers: true,
+        });
+        const returnableIFCCs = fc.criteria.filter((cc) =>
+          isSelectCriteriaReturn(cc)
+        );
+        const returning = returningArg
+          ? (typeof returningArg === "function"
+            ? returningArg(ctx)
+            : returningArg)
+          : (returnableIFCCs.length > 0
+            ? returnableIFCCs.map((cc) => cc.identity)
+            : "primary-keys");
+        let returningSQL = "";
+        if (typeof returning === "string") {
+          switch (returning) {
+            case "*":
+              returningSQL = `*`;
+              break;
+            case "primary-keys":
+              returningSQL = fc.candidateAttrs("primary-keys")
+                // TODO: how to properly type attrName and not use 'Any'?
+                .map((n) => attrNameSupplier(entityName, n as Any, ns)).join(
+                  ", ",
+                );
+              break;
+          }
+        } else {
+          const returningExprs: string[] = [];
+          for (const r of returning) {
+            if (tmpl.isSqlTextSupplier<Context>(r)) {
+              returningExprs.push(r.SQL(ctx));
+            } else {
+              returningExprs.push(
+                attrNameSupplier(
+                  entityName,
+                  r as (FilterableAttrName | ReturnableAttrName),
+                  ns,
+                ),
+              );
+            }
+          }
+          returningSQL = returningExprs.join(", ");
+        }
+        // deno-fmt-ignore
+        return ws.unindentWhitespace(`
+          SELECT ${returningSQL}
+            FROM ${entityNameSupplier(entityName, ns)}
+           WHERE ${fcSTS.SQL(ctx)}`);
+      },
+    };
+    return {
+      selectStmtName: sspOptions?.identity,
+      isValid: true,
+      filterable: fr,
+      selectStmt,
+      SQL: selectStmt.SQL,
     };
   };
 }
