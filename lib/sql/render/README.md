@@ -91,12 +91,24 @@ following types of SQL language constructs.
   - [ ] label validation and other policy
   - [ ] information model labels in case a domain is defined in regulatory or
         external standards (e.g. X12, HL7, FHIR, etc.)
-- [x] SQL reference (for foreign key mirroring)
+- [x] SQL reference (for foreign key type mirroring where one columns knows
+      another column's type automatically)
+- [x] Data storage computed values using SQL (e.g. for defaults)
+- [ ] User agent computed values for _business logic_
+- [ ] User agent computed values for _presentation_
 - [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
       auto-generate synthetic data)
 - [ ] arrays of domains (e.g. Text[], Integer[], etc.)
 - [ ] JSON Schema properties contributions
-- [ ] CSV Schema properties contributions
+- [ ] Delimited text (e.g. CSV) schema properties contributions
+- [ ] SQL constraints at storage layer
+- [ ] TS/JS constraints for user agent business logic and presentation layers
+
+### Multi-domain Capabilities
+
+When two or more domains need to be coordinated, they are called multi-domains.
+
+- [ ] Multi-domain computed properties
 
 ### Entities
 
@@ -105,7 +117,7 @@ following types of SQL language constructs.
 - [x] Enum Table (type-safe text key, text values, automatic seeds)
 - [x] Enum Table (text key, numeric values, automatic seeds)
 - [ ] Association Table (relationship between two entities)
-- [ ] Data Vault Tables (build on _Immutable Table_ patterns?)
+- [ ] Data Vault 2.0 Tables (build on _Immutable Table_ patterns?)
 
 #### Entities (Table) Capabilities
 
@@ -129,8 +141,18 @@ following types of SQL language constructs.
   - [ ] Integration of
         [pg-format](https://github.com/grantcarthew/deno-pg-format)
 
+#### Information Model Evolution (migrations, etc.)
+
+See [EdgeDB Migrations](https://www.edgedb.com/showcase/migrations) for some
+interesting ideas.
+
 ### DDL (Data Definition Language)
 
+There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
+
+- [x] Support non-idempotent _seed_ DDL generation using string literal
+      templates
+- [ ] Support idempotent _evolution_ (_migration_) DDL generation
 - [x] CREATE: This command is used to create the database or its objects (like
       table, index, function, views, store procedure, and triggers).
 - [x] DROP: This command is used to delete objects from the database.
@@ -143,6 +165,18 @@ following types of SQL language constructs.
 ### DQL (Data Query Language)
 
 - [x] Trusted SELECT statement to read typed data
+- [ ] Basic single-entity focused SELECT generated using `table.select({})`
+      where object has typed-column names and values are just like INSERT
+      (literals and SQL) but DQL is generated instead of DML. Pattern this after
+      our existing `InsertStmtPreparer` for complete type-safety. See
+      [EdgeDB selecting objects](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder)
+      strategy for better ideas.
+- [ ] Simplified type-safe NEFS Axiom-style _query builder_ (select generator)
+      using links and filters for typical needs while full SQL is available as
+      complexity increases. See [EdgeDB](edgedb.com) for interesting ideas (such
+      as _composition_, _aggregation functions_, and _nested filters_). Read
+      more about the query builder at
+      [Designing the ultimate TypeScript query builder](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder).
 - [ ] Untrusted SELECT statement auto-wrapped in CTE for multi-tenant or other
       security policy adherence. This allows aribtrary SQL to be sent from
       untrusted clients but additional where criteria is added via CTE wrapper.
@@ -167,13 +201,15 @@ following types of SQL language constructs.
 ### DML(Data Manipulation Language)
 
 - [x] Type-safe INSERT single TS/JS object row with `returning` support
+  - [ ] Nested INSERTs with automatic foreign-key support (see
+        [EdgeDB nested inserts](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder#nested-inserts))
+  - [ ] Auto-generated SELECT from INSERT or UPDATE DML to allow programmatic
+        access to already inserted data. For example, typed INSERTs should
+        create automatic `selectPK` which would take the same data and generate
+        a SQL select from it so it can be retrieved for foreign key IDs, etc.
 - [ ] Type-safe INSERT single TS/JS array row with `returning` support
   - [ ] Type-safe INSERT single TS/JS delimited string (e.g. CSV) row with
         `returning` support using string to array transformer
-- [ ] Auto-generated SELECT from INSERT or UPDATE DML to allow programmatic
-      access to already inserted data. For example, typed INSERTs should create
-      automatic `selectPK` which would take the same data and generate a SQL
-      select from it so it can be retrieved for foreign key IDs, etc.
 - [ ] Type-safe INSERT multiple TS/JS object rows in single statement (no
       `returning` support)
 - [ ] Type-safe INSERT multiple TS/JS array rows in single statement (no
@@ -199,7 +235,10 @@ following types of SQL language constructs.
         [Ajv JSON schema validator](https://ajv.js.org) and other widely used
         libraries can be used to manage the validations without us having to do
         much
-- [ ] UPDATE
+- [ ] Logical UPDATE (support immutable records by _updating_ values using
+      _inserts_)
+- [ ] Physical UPDATE
+- [ ] Upsert
 - [ ] DELETE
 - [ ] CALL: Call a PL/SQL or JAVA subprogram.
 - [ ] EXPLAIN PLAN
@@ -240,6 +279,7 @@ These dialects are supported:
 - [ ] Dolt
 - [ ] SQL*Server
 - [ ] ORACLE
+- [ ] EdgeDB
 
 References:
 
@@ -297,6 +337,12 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] Nomenclature: group domains, entities, tables, views, schemas, namespaces
+      into _information model modules_ or `IMM`s.
+- [ ] Nomenclature: generalize logical foreign keys into _links_; when dealing
+      with physical RDBMs and physical foreign keys it's ok to refer to them as
+      FKs but when talking about `IMM`s refer to foreign keys with parent/child,
+      association, etc. relationships as _links_.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
