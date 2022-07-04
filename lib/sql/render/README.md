@@ -325,6 +325,7 @@ The system generates lint messages:
 - [ ] Generate [DataHub](https://datahubproject.io/)-ingestable governance meta
       data
 - [ ] Generate ORM configurations from SQLa entity definitions
+  - [ ] [Kysely](https://github.com/koskimas/kysely)
   - [ ] https://mikro-orm.io/
   - [ ] TypeORM
 
