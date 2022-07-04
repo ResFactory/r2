@@ -207,10 +207,6 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 - [x] Type-safe INSERT single TS/JS object row with `returning` support
   - [ ] Nested INSERTs with automatic foreign-key support (see
         [EdgeDB nested inserts](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder#nested-inserts))
-  - [ ] Auto-generated SELECT from INSERT or UPDATE DML to allow programmatic
-        access to already inserted data. For example, typed INSERTs should
-        create automatic `selectPK` which would take the same data and generate
-        a SQL select from it so it can be retrieved for foreign key IDs, etc.
 - [ ] Type-safe INSERT single TS/JS array row with `returning` support
   - [ ] Type-safe INSERT single TS/JS delimited string (e.g. CSV) row with
         `returning` support using string to array transformer
