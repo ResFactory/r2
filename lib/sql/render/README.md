@@ -101,8 +101,8 @@ following types of SQL language constructs.
 - [x] SQL reference (for foreign key type mirroring where one columns knows
       another column's type automatically)
 - [x] Data storage computed values using SQL (e.g. for defaults)
-- [ ] User agent computed values for _business logic_
-- [ ] User agent computed values for _presentation_
+- [ ] User agent computed values for _business logic_ (similar to NEFS Axiom)
+- [ ] User agent computed values for _presentation_ (similar to NEFS Axiom)
 - [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
       auto-generate synthetic data)
 - [ ] arrays of domains (e.g. Text[], Integer[], etc.)
@@ -123,8 +123,8 @@ When two or more domains need to be coordinated, they are called multi-domains.
 - [ ] Immutable Table (see _Data-Oriented Programming_ patterns)
 - [x] Enum Table (type-safe text key, text values, automatic seeds)
 - [x] Enum Table (text key, numeric values, automatic seeds)
-- [ ] Association Table (relationship between two entities)
-- [ ] Data Vault 2.0 Tables (build on _Immutable Table_ patterns?)
+- [ ] Association Table (`M:M` relationship between two entities)
+- [ ] Data Vault 2.0 Tables (build on _Immutable Table_ patterns)
 
 #### Entities (Table) Capabilities
 
@@ -304,6 +304,8 @@ References:
 
 The system generates lint messages:
 
+- [ ] Integrate [SQLFluff](https://github.com/sqlfluff/sqlfluff) or learn from
+      their rules.
 - [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
 - [ ] Suggest foreign keys when column name and table names are simialr to each
@@ -315,16 +317,11 @@ The system generates lint messages:
 - [ ] [Soda Checks Language](https://docs.soda.io/soda-cl/soda-cl-overview.html)
       (SodaCL) style validation rules
 
-### Tasks
-
-- [ ] Migrate PgDCP `SQLa` Justfile to pure Typescript modules with a
-      Taskfile.ts if necessary and incorporate CLI capabilities like
-      https://github.com/hyperqueryhq/whale
-
 ### Related Code
 
 - [x] Dependency graphs (relationships from FKs, links, etc.)
 - [x] Generate PlantUML Information Engineering diagrams
+- [ ] Generate `IMM` markdown files as human-readable documentation
 - [ ] Generate [DataHub](https://datahubproject.io/)-ingestable governance meta
       data
 - [ ] Generate ORM configurations from SQLa entity definitions
