@@ -194,6 +194,7 @@ export interface SelectStmtPreparerOptions<
   ReturnableAttrName extends keyof ReturnableRecord = keyof ReturnableRecord,
 > {
   readonly identity?: SelectStmtName;
+  readonly sqlFmt?: "single-line" | "multi-line";
   readonly returning?:
     | SelectStmtReturning<ReturnableRecord, Context>
     | ((
@@ -260,6 +261,7 @@ export function entitySelectStmtPreparer<
     const selectStmt: tmpl.SqlTextSupplier<Context> = {
       SQL: (ctx) => {
         const {
+          sqlFmt = "single-line",
           returning: returningArg,
           entityNameSupplier = (name: EntityName, ns: tmpl.SqlObjectNames) =>
             ns.tableName(name),
@@ -319,10 +321,12 @@ export function entitySelectStmtPreparer<
           returningSQL = returningExprs.join(", ");
         }
         // deno-fmt-ignore
-        return ws.unindentWhitespace(`
-          SELECT ${returningSQL}
-            FROM ${entityNameSupplier(entityName, ns)}
-           WHERE ${fcSTS.SQL(ctx)}`);
+        return sqlFmt == "single-line"
+          ? `SELECT ${returningSQL} FROM ${entityNameSupplier(entityName, ns)} WHERE ${fcSTS.SQL(ctx)}`
+          : ws.unindentWhitespace(`
+              SELECT ${returningSQL}
+                FROM ${entityNameSupplier(entityName, ns)}
+               WHERE ${fcSTS.SQL(ctx)}`);
       },
     };
     return {

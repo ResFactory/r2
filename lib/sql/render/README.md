@@ -172,12 +172,9 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 ### DQL (Data Query Language)
 
 - [x] Trusted SELECT statement to read typed data
-- [ ] Basic single-entity focused SELECT generated using `table.select({})`
-      where object has typed-column names and values are just like INSERT
-      (literals and SQL) but DQL is generated instead of DML. Pattern this after
-      our existing `InsertStmtPreparer` for complete type-safety. See
-      [EdgeDB selecting objects](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder)
-      strategy for better ideas.
+- [x] Basic single-entity focused SELECT generated using `table.select({})`
+      where object has typed-column names and values are either JS literals or
+      SQL expressions.
 - [ ] Simplified type-safe NEFS Axiom-style _query builder_ (select generator)
       using links and filters for typical needs while full SQL is available as
       complexity increases. See [EdgeDB](edgedb.com) for interesting ideas (such

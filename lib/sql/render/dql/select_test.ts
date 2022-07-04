@@ -51,7 +51,7 @@ Deno.test("SQL Aide (SQLa) custom SELECT statement", async (tc) => {
   });
 });
 
-Deno.test("SQL Aide (SQLa) entity SELECT statement", async (tc) => {
+Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
   const sch = mod.selectCriteriaHelpers();
   type EntityName = "customers";
@@ -84,15 +84,24 @@ Deno.test("SQL Aide (SQLa) entity SELECT statement", async (tc) => {
       first_name: "Shahid",
       last_name: "Shah",
     }, { returning: "*" });
-    console.log(select.SQL(ctx));
+    ta.assertEquals(
+      select.SQL(ctx),
+      `SELECT * FROM "customers" WHERE "customer_id" = 1 AND "first_name" = 'Shahid' AND "last_name" = 'Shah'`,
+    );
   });
 
   await tc.step("return primary key(s)", () => {
     const select = essp({
       first_name: "Shahid",
       last_name: "Shah",
-    });
-    console.log(select.SQL(ctx));
+    }, { sqlFmt: "multi-line" });
+    ta.assertEquals(
+      select.SQL(ctx),
+      uws(`
+        SELECT "customer_id"
+          FROM "customers"
+         WHERE "first_name" = 'Shahid' AND "last_name" = 'Shah'`),
+    );
   });
 
   await tc.step("return primary key(s), explicit NULL for zip_code", () => {
@@ -100,25 +109,38 @@ Deno.test("SQL Aide (SQLa) entity SELECT statement", async (tc) => {
       first_name: "Shahid",
       last_name: "Shah",
       zip_code: undefined,
-    });
-    console.log(select.SQL(ctx));
+    }, { sqlFmt: "multi-line" });
+    ta.assertEquals(
+      select.SQL(ctx),
+      uws(`
+        SELECT "customer_id"
+          FROM "customers"
+         WHERE "first_name" = 'Shahid' AND "last_name" = 'Shah' AND "zip_code" = NULL`),
+    );
   });
 
   await tc.step("return specific custom columns (explicit return)", () => {
     const select = essp({
       first_name: "Shahid",
       last_name: "Shah",
-      zip_code: undefined,
     }, { returning: ["first_name", "last_name"] });
-    console.log(select.SQL(ctx));
+    ta.assertEquals(
+      select.SQL(ctx),
+      `SELECT "first_name", "last_name" FROM "customers" WHERE "first_name" = 'Shahid' AND "last_name" = 'Shah'`,
+    );
   });
 
-  await tc.step("return specific custom columns (implicit return)", () => {
-    const select = essp({
-      first_name: sch.return("Shahid"),
-      last_name: sch.return("Shah"),
-      zip_code: undefined,
-    });
-    console.log(select.SQL(ctx));
-  });
+  await tc.step(
+    "return specific custom columns (implicit return via value decorator)",
+    () => {
+      const select = essp({
+        first_name: sch.return("Shahid"),
+        last_name: sch.return("Shah"),
+      });
+      ta.assertEquals(
+        select.SQL(ctx),
+        `SELECT "first_name", "last_name" FROM "customers" WHERE "first_name" = 'Shahid' AND "last_name" = 'Shah'`,
+      );
+    },
+  );
 });

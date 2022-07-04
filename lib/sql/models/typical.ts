@@ -72,22 +72,12 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
         sqlNS: ddlOptions?.sqlNS,
       }),
       ...SQLa.tableDomainsRowFactory(tableName, props, { defaultIspOptions }),
+      ...SQLa.tableSelectFactory(tableName, props),
       view: SQLa.tableDomainsViewWrapper(
         `${tableName}_vw`,
         tableName,
         props,
       ),
-      selectPK: (
-        ctx: Context,
-        where: string | SQLa.SqlTextSupplier<Context>,
-      ) => {
-        const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
-        return SQLa.untypedSelect(ctx)`SELECT ${
-          ns.tableColumnName({ tableName, columnName: `${tableName}_id` })
-        } FROM ${ns.tableName(tableName)} WHERE ${
-          typeof where === "string" ? where : where.SQL(ctx)
-        }`;
-      },
       defaultIspOptions, // in case others need to wrap the call
     };
   };

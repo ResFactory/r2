@@ -8,6 +8,7 @@ import * as vw from "./view.ts";
 import * as ss from "../dql/select.ts";
 import * as ns from "../namespace.ts";
 import * as js from "../js.ts";
+import * as cr from "../dql/criteria.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easier on Deno linting
@@ -44,14 +45,30 @@ export function isTableColumnInsertDmlExclusionSupplier<
   Context extends tmpl.SqlEmitContext,
 >(
   o: unknown,
-): o is TableColumnInsertDmlExclusionSupplier<
-  ColumnTsType,
-  Context
-> {
+): o is TableColumnInsertDmlExclusionSupplier<ColumnTsType, Context> {
   const isIDES = safety.typeGuard<
     TableColumnInsertDmlExclusionSupplier<ColumnTsType, Context>
   >("isExcludedFromInsertDML");
   return isIDES(o);
+}
+
+export type TableColumnFilterCriteriaDqlExclusionSupplier<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
+  readonly isExcludedFromFilterCriteriaDql: true;
+};
+
+export function isTableColumnFilterCriteriaDqlExclusionSupplier<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  o: unknown,
+): o is TableColumnFilterCriteriaDqlExclusionSupplier<ColumnTsType, Context> {
+  const isFCDES = safety.typeGuard<
+    TableColumnFilterCriteriaDqlExclusionSupplier<ColumnTsType, Context>
+  >("isExcludedFromFilterCriteriaDql");
+  return isFCDES(o);
 }
 
 export function primaryKey<
@@ -688,6 +705,74 @@ export function tableDomainsRowFactory<
         ).map((d) => d.identity) as InsertableColumnName[];
       },
       tdrfOptions?.defaultIspOptions,
+    ),
+  };
+}
+
+export function tableSelectFactory<
+  TableName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+>(
+  tableName: TableName,
+  props: TPropAxioms,
+  tdrfOptions?: TableDefnOptions<Context> & {
+    defaultFcpOptions?: cr.FilterCriteriaPreparerOptions<Any, Context>;
+    defaultSspOptions?: ss.SelectStmtPreparerOptions<
+      TableName,
+      Any,
+      Any,
+      Context
+    >;
+  },
+) {
+  const sd = d.sqlDomains(props, tdrfOptions);
+
+  type ScalarValueOrSqlExprOrCC<T> = {
+    [K in keyof T]?:
+      | T[K]
+      | tmpl.SqlTextSupplier<Context>
+      | cr.FilterCriteriaValue
+      | cr.FilterCriteriaComponent;
+  };
+  type EntireRecord =
+    & tr.UntypedTabularRecordObject
+    & ScalarValueOrSqlExprOrCC<ax.AxiomType<typeof sd>>;
+
+  type FilterableRecord = EntireRecord;
+  type FilterableColumnName = keyof FilterableRecord & string;
+  type FilterableObject = tr.TabularRecordToObject<FilterableRecord>;
+
+  // we let Typescript infer function return to allow generics in sqlDomains to
+  // be more effective but we want other parts of the `result` to be as strongly
+  // typed as possible
+  return {
+    prepareFilterable: (
+      o: FilterableObject,
+      rowState?: tr.TransformTabularRecordsRowState<FilterableRecord>,
+      options?: tr.TransformTabularRecordOptions<FilterableRecord>,
+    ) => tr.transformTabularRecord(o, rowState, options),
+    select: ss.entitySelectStmtPreparer<
+      TableName,
+      FilterableRecord,
+      EntireRecord,
+      Context
+    >(
+      tableName,
+      cr.filterCriteriaPreparer((group) => {
+        if (group === "primary-keys") {
+          return sd.domains.filter((d) =>
+            isTablePrimaryKeyColumnDefn(d) ? true : false
+          ).map((d) => d.identity) as FilterableColumnName[];
+        }
+        return sd.domains.filter((d) =>
+          isTableColumnFilterCriteriaDqlExclusionSupplier(d) &&
+            d.isExcludedFromFilterCriteriaDql
+            ? false
+            : true
+        ).map((d) => d.identity) as FilterableColumnName[];
+      }, tdrfOptions?.defaultFcpOptions),
+      tdrfOptions?.defaultSspOptions,
     ),
   };
 }

@@ -85,6 +85,8 @@ Deno.test("SQL Aide (SQLa) type-safe string template", () => {
 
     ${dbDefn.publHost.insertDML({ host: "test", host_identity: "testHI", mutation_count: 0, numeric_enum: dbDefn.numericEnumModel.seedEnum.code1 })}
 
+    ${dbDefn.publHost.select({ host_identity: "testHI" })}
+
     ${dbDefn.numericEnumModel}
 
     ${dbDefn.textEnumModel}
@@ -194,6 +196,8 @@ const fixturePrime = ws.unindentWhitespace(`
   );
 
   INSERT INTO "publ_host" ("host", "host_identity", "mutation_count", "numeric_enum") VALUES ('test', 'testHI', 0, 0);
+
+  SELECT "publ_host_id" FROM "publ_host" WHERE "host_identity" = 'testHI';
 
   CREATE TABLE IF NOT EXISTS "synthetic_enum_numeric" (
       "code" INTEGER PRIMARY KEY,
