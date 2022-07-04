@@ -4,15 +4,16 @@ import * as tmpl from "../template/mod.ts";
 
 Deno.test("SQL Aide (SQLa) where-like criteria SQL fragments", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
+  type Context = typeof ctx;
   const fch = mod.filterCriteriaHelpers();
-  type FilterableRecord = {
+  type FilterableRecord = mod.FilterableRecordValues<{
     customer_id?: number;
     first_name: string;
-    last_name: string | mod.FilterCriteriaValue;
+    last_name: string;
     address?: string;
     zip_code?: number;
-  };
-  const fcp = mod.filterCriteriaPreparer<FilterableRecord, typeof ctx>(
+  }, Context>;
+  const fc = mod.filterCriteriaPreparer<FilterableRecord, Context>(
     (group) => {
       if (group === "primary-keys") {
         return ["customer_id"];
@@ -21,8 +22,8 @@ Deno.test("SQL Aide (SQLa) where-like criteria SQL fragments", async (tc) => {
     },
   );
 
-  await tc.step("some with no NULL values", () => {
-    const where = mod.filterCriteriaSQL(fcp(ctx, {
+  await tc.step("some implicit equals with no NULL values", () => {
+    const where = mod.filterCriteriaSQL(fc(ctx, {
       customer_id: 1,
       first_name: "Shahid",
       last_name: fch.or("Shah"),
@@ -33,15 +34,31 @@ Deno.test("SQL Aide (SQLa) where-like criteria SQL fragments", async (tc) => {
     );
   });
 
-  await tc.step("some with explicit NULL for zip_code", () => {
-    const where = mod.filterCriteriaSQL(fcp(ctx, {
+  await tc.step("some explicit equals with explicit NULL for zip_code", () => {
+    const where = mod.filterCriteriaSQL(fc(ctx, {
       first_name: "Shahid",
-      last_name: "Shah",
+      last_name: fch.or(fch.is("=", "Shah")),
       zip_code: undefined,
     }));
     ta.assertEquals(
       where.SQL(ctx),
-      `"first_name" = 'Shahid' AND "last_name" = 'Shah' AND "zip_code" = NULL`,
+      `"first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" = NULL`,
     );
   });
+
+  await tc.step(
+    "TODO: some explicit equals with explicit IS NOT NULL for zip_code",
+    () => {
+      const _where = mod.filterCriteriaSQL(fc(ctx, {
+        first_name: "Shahid",
+        last_name: fch.or(fch.is("=", "Shah")),
+        zip_code: fch.not(undefined),
+      }));
+      // TODO:
+      // ta.assertEquals(
+      //   where.SQL(ctx),
+      //   `"first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" IS NOT NULL`,
+      // );
+    },
+  );
 });

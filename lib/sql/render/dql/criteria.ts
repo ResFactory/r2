@@ -11,56 +11,119 @@ export type FilterableRecordValues<
   [K in keyof T]?:
     | T[K]
     | tmpl.SqlTextSupplier<Context>
-    | FilterCriteriaValue
-    | FilterCriteriaComponent;
+    | FilterCriteriaValue<Any, Context>
+    | FilterCriteriaComponent<Any, Context>;
 };
 
-export type FilterCriteriaValue = {
-  readonly join?: "AND" | "OR" | "NOT";
+export type FilterCriteriaConnect = "AND" | "OR" | "NOT";
+
+export type FilterCriteriaCompareNature = "=" | ">" | "<" | ">=" | "<=" | "in";
+
+export interface FilterCriteriaCompare<
+  Value,
+  Context extends tmpl.SqlEmitContext,
+> {
+  readonly nature: FilterCriteriaCompareNature;
+  readonly sqlText: (
+    leftHandSide: string,
+    value: Value,
+    options?: { purpose?: "select-where" },
+  ) => tmpl.SqlTextSupplier<Context>;
+}
+
+export function fccEquals<Context extends tmpl.SqlEmitContext>() {
+  const result: FilterCriteriaCompare<Any, Context> = {
+    nature: "=",
+    sqlText: (lhs, value) => {
+      return {
+        SQL: () => {
+          return `${lhs} = ${value}`;
+        },
+      };
+    },
+  };
+  return result;
+}
+
+export function filterCriteriaCompareHelpers<
+  Context extends tmpl.SqlEmitContext,
+>() {
+  return {
+    "=": () => fccEquals<Context>(),
+    equals: () => fccEquals<Context>(),
+  };
+}
+
+export type FilterCriteriaValue<Value, Context extends tmpl.SqlEmitContext> = {
+  readonly connect?: FilterCriteriaConnect;
+  readonly compare: FilterCriteriaCompare<Value, Context>;
   readonly filterCriteriaValue: unknown;
 };
 
-export function fcValue(
-  value: unknown,
-  options?: Partial<Omit<FilterCriteriaValue, "filterCriteriaValue">>,
+export function fcValue<Value, Context extends tmpl.SqlEmitContext>(
+  value: Value,
+  options?: Partial<
+    Omit<FilterCriteriaValue<Value, Context>, "filterCriteriaValue">
+  >,
 ) {
-  const result: FilterCriteriaValue = {
+  const result: FilterCriteriaValue<Value, Context> = {
     filterCriteriaValue: value,
+    compare: options?.compare ?? fccEquals(),
     ...options,
   };
   return result;
 }
 
-export const isFilterCriteriaValue = safety.typeGuard<FilterCriteriaValue>(
-  "filterCriteriaValue",
-);
+export function isFilterCriteriaValue<
+  Value,
+  Context extends tmpl.SqlEmitContext,
+>(o: unknown): o is FilterCriteriaValue<Value, Context> {
+  const isFCV = safety.typeGuard<FilterCriteriaValue<Value, Context>>(
+    "filterCriteriaValue",
+  );
+  return isFCV(o);
+}
 
-export type FilterCriteriaComponent = {
+export type FilterCriteriaComponent<
+  Value,
+  Context extends tmpl.SqlEmitContext,
+> = {
   readonly isFilterCriteriaComponent: true;
-  readonly join?: "AND" | "OR" | "NOT";
+  readonly connect?: FilterCriteriaConnect;
+  readonly compare: FilterCriteriaCompare<Value, Context>;
   readonly values: [value: unknown, valueSqlText: string];
 };
 
-export const isFilterCriteriaComponent = safety.typeGuard<
-  FilterCriteriaComponent
->(
-  "isFilterCriteriaComponent",
-  "values",
-);
+export function isFilterCriteriaComponent<
+  Value,
+  Context extends tmpl.SqlEmitContext,
+>(o: unknown): o is FilterCriteriaComponent<Value, Context> {
+  const isFCV = safety.typeGuard<FilterCriteriaComponent<Value, Context>>(
+    "isFilterCriteriaComponent",
+    "values",
+  );
+  return isFCV(o);
+}
 
 export type IdentifiableFilterCriteriaComponent<
+  Value,
   FilterableRecord,
+  Context extends tmpl.SqlEmitContext,
   FilterableAttrName extends keyof FilterableRecord = keyof FilterableRecord,
-> = FilterCriteriaComponent & {
+> = FilterCriteriaComponent<Value, Context> & {
   readonly isFilterCriteriaComponent: true;
   readonly identity: FilterableAttrName;
 };
 
-export function isIdentifiableFilterCriteriaComponent<FilterableRecord>(
+export function isIdentifiableFilterCriteriaComponent<
+  Value,
+  FilterableRecord,
+  Context extends tmpl.SqlEmitContext,
+>(
   o: unknown,
-): o is IdentifiableFilterCriteriaComponent<FilterableRecord> {
+): o is IdentifiableFilterCriteriaComponent<Value, FilterableRecord, Context> {
   const isIFCC = safety.typeGuard<
-    IdentifiableFilterCriteriaComponent<FilterableRecord>
+    IdentifiableFilterCriteriaComponent<Value, FilterableRecord, Context>
   >(
     "isFilterCriteriaComponent",
     "identity",
@@ -83,7 +146,9 @@ export interface FilterCriteriaPreparerOptions<
     record: FilterableRecord,
     ns: tmpl.SqlObjectNames,
     ctx: Context,
-  ) => IdentifiableFilterCriteriaComponent<FilterableRecord> | undefined;
+  ) =>
+    | IdentifiableFilterCriteriaComponent<Any, FilterableRecord, Context>
+    | undefined;
 }
 
 export interface FilterCriteria<
@@ -95,7 +160,11 @@ export interface FilterCriteria<
   readonly candidateAttrs: (
     group?: "all" | "primary-keys",
   ) => FilterableAttrName[];
-  readonly criteria: IdentifiableFilterCriteriaComponent<FilterableRecord>[];
+  readonly criteria: IdentifiableFilterCriteriaComponent<
+    Any,
+    FilterableRecord,
+    Context
+  >[];
   readonly fcpOptions?: FilterCriteriaPreparerOptions<
     FilterableRecord,
     Context
@@ -117,15 +186,34 @@ export interface FilterCriteriaPreparer<
 }
 
 export function filterCriteriaHelpers<
+  Value,
   FilterableRecord,
   Context extends tmpl.SqlEmitContext,
 >() {
+  const fcch = filterCriteriaCompareHelpers();
   return {
-    and: (andValue: Any): FilterCriteriaValue =>
-      fcValue(andValue, { join: "AND" }),
-    or: (orValue: Any): FilterCriteriaValue => fcValue(orValue, { join: "OR" }),
-    not: (notValue: Any): FilterCriteriaValue =>
-      fcValue(notValue, { join: "NOT" }),
+    compare: fcch,
+    is: (
+      compare: FilterCriteriaCompareNature,
+      value: Value,
+    ): FilterCriteriaValue<Any, Context> => {
+      switch (compare) {
+        default:
+          return fcValue(value, { compare: fcch.equals() });
+      }
+    },
+    and: (andValue: Any): FilterCriteriaValue<Value, Context> =>
+      isFilterCriteriaValue(andValue)
+        ? { ...andValue, connect: "AND" }
+        : fcValue(andValue, { connect: "AND" }),
+    or: (orValue: Any): FilterCriteriaValue<Value, Context> =>
+      isFilterCriteriaValue(orValue)
+        ? { ...orValue, connect: "OR" }
+        : fcValue(orValue, { connect: "OR" }),
+    not: (notValue: Any): FilterCriteriaValue<Value, Context> =>
+      isFilterCriteriaValue(notValue)
+        ? { ...notValue, connect: "NOT" }
+        : fcValue(notValue, { connect: "NOT" }),
   };
 }
 
@@ -161,14 +249,19 @@ export function filterCriteriaPreparer<
       }
     };
 
-    const criteria: IdentifiableFilterCriteriaComponent<FilterableRecord>[] =
-      [];
+    const criteria: IdentifiableFilterCriteriaComponent<
+      Any,
+      FilterableRecord,
+      Context
+    >[] = [];
     candidateAttrs().forEach((c) => {
       if (isAttrFilterable && !isAttrFilterable(c, fr)) {
         return;
       }
 
-      let ec: IdentifiableFilterCriteriaComponent<FilterableRecord> | undefined;
+      let ec:
+        | IdentifiableFilterCriteriaComponent<Any, FilterableRecord, Context>
+        | undefined;
       if (filterAttr) {
         ec = filterAttr(c, fr, ns, ctx);
       } else {
@@ -189,13 +282,14 @@ export function filterCriteriaPreparer<
             isFilterCriteriaComponent: true,
             identity: c,
             values: values(recordValueRaw),
+            compare: fccEquals(),
           };
         }
       }
       if (ec) {
         criteria.push({
           ...ec,
-          join: criteria.length > 0 ? (ec.join ?? `AND`) : undefined,
+          connect: criteria.length > 0 ? (ec.connect ?? `AND`) : undefined,
         });
       }
     });
@@ -228,7 +322,7 @@ export function filterCriteriaSQL<
       const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
       // TODO: figure out why 'c.identity as Any' is needed in typed attrNameSupplier
       // deno-fmt-ignore
-      return `${fc.criteria.map((c) => `${c.join ? ` ${c.join} ` : ""}${attrNameSupplier(c.identity as Any, ns)} = ${c.values[1]}`).join("")
+      return `${fc.criteria.map((c) => `${c.connect ? ` ${c.connect} ` : ""}${c.compare.sqlText(attrNameSupplier(c.identity as Any, ns), c.values[1]).SQL(ctx)}`).join("")
       }`;
     },
   };

@@ -163,10 +163,10 @@ export function selectCriteriaHelpers<
   Context extends tmpl.SqlEmitContext,
 >() {
   return {
-    ...cr.filterCriteriaHelpers<FilterableRecord, Context>(),
+    ...cr.filterCriteriaHelpers<Any, FilterableRecord, Context>(),
     return: (
-      value: cr.FilterCriteriaValue | unknown,
-    ): cr.FilterCriteriaValue & SelectCriteriaReturn => {
+      value: cr.FilterCriteriaValue<Any, Context> | unknown,
+    ): cr.FilterCriteriaValue<Any, Context> & SelectCriteriaReturn => {
       if (cr.isFilterCriteriaValue(value)) {
         return { ...value, isReturning: true };
       }

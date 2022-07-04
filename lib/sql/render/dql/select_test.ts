@@ -53,15 +53,16 @@ Deno.test("SQL Aide (SQLa) custom SELECT statement", async (tc) => {
 
 Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
+  type Context = typeof ctx;
   const sch = mod.selectCriteriaHelpers();
   type EntityName = "customers";
-  type EntireRecord = {
+  type EntireRecord = cr.FilterableRecordValues<{
     customer_id?: number;
-    first_name: string | cr.FilterCriteriaValue;
-    last_name: string | cr.FilterCriteriaValue;
-    address?: string | cr.FilterCriteriaValue;
-    zip_code?: number | cr.FilterCriteriaValue;
-  };
+    first_name: string;
+    last_name: string;
+    address?: string;
+    zip_code?: number;
+  }, Context>;
   type FilterableRecord = EntireRecord;
   const essp = mod.entitySelectStmtPreparer<
     EntityName,
@@ -81,7 +82,7 @@ Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
   await tc.step("return *", () => {
     const select = essp({
       customer_id: 1,
-      first_name: "Shahid",
+      first_name: sch.is("=", "Shahid"),
       last_name: "Shah",
     }, { returning: "*" });
     ta.assertEquals(
@@ -107,7 +108,7 @@ Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
   await tc.step("return primary key(s), explicit NULL for zip_code", () => {
     const select = essp({
       first_name: "Shahid",
-      last_name: "Shah",
+      last_name: sch.or("Shah"),
       zip_code: undefined,
     }, { sqlFmt: "multi-line" });
     ta.assertEquals(
@@ -115,7 +116,7 @@ Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
       uws(`
         SELECT "customer_id"
           FROM "customers"
-         WHERE "first_name" = 'Shahid' AND "last_name" = 'Shah' AND "zip_code" = NULL`),
+         WHERE "first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" = NULL`),
     );
   });
 

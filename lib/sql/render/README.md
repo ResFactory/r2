@@ -175,6 +175,14 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 - [x] Basic single-entity focused SELECT generated using `table.select({})`
       where object has typed-column names and values are either JS literals or
       SQL expressions.
+  - [ ] composable `eq` ("="), `in`, `lt` (less than), `gt` (greater than),
+        `lteq`, `gteq`, etc. helpers for choosing criteria conditions for
+        values; or, a single `is('=', value)`, `is('>=', value)`,
+        `is('in', [...])`, etc.
+  - [ ] composable `join` helper for links - without creating yet another DSL on
+        to of SQL, allow simple `filter` key on the criteria record similar to
+        EdgeDB to introduce JOINs.
+  - [ ] composable `order` and `page` helpers.
 - [ ] Simplified type-safe NEFS Axiom-style _query builder_ (select generator)
       using links and filters for typical needs while full SQL is available as
       complexity increases. See [EdgeDB](edgedb.com) for interesting ideas (such
