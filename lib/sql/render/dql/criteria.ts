@@ -4,6 +4,17 @@ import * as tmpl from "../template/mod.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+export type FilterableRecordValues<
+  T,
+  Context extends tmpl.SqlEmitContext,
+> = {
+  [K in keyof T]?:
+    | T[K]
+    | tmpl.SqlTextSupplier<Context>
+    | FilterCriteriaValue
+    | FilterCriteriaComponent;
+};
+
 export type FilterCriteriaValue = {
   readonly join?: "AND" | "OR" | "NOT";
   readonly filterCriteriaValue: unknown;

@@ -728,18 +728,11 @@ export function tableSelectFactory<
 ) {
   const sd = d.sqlDomains(props, tdrfOptions);
 
-  type ScalarValueOrSqlExprOrCC<T> = {
-    [K in keyof T]?:
-      | T[K]
-      | tmpl.SqlTextSupplier<Context>
-      | cr.FilterCriteriaValue
-      | cr.FilterCriteriaComponent;
-  };
   type EntireRecord =
     & tr.UntypedTabularRecordObject
-    & ScalarValueOrSqlExprOrCC<ax.AxiomType<typeof sd>>;
+    & cr.FilterableRecordValues<ax.AxiomType<typeof sd>, Context>;
 
-  type FilterableRecord = EntireRecord;
+  type FilterableRecord = EntireRecord; // nothing is excluded for now, maybe later?
   type FilterableColumnName = keyof FilterableRecord & string;
   type FilterableObject = tr.TabularRecordToObject<FilterableRecord>;
 
