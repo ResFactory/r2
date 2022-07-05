@@ -3,6 +3,8 @@ import * as ax from "../../../safety/axiom.ts";
 import * as d from "../domain.ts";
 import * as tmpl from "../template/mod.ts";
 import * as tbl from "./table.ts";
+import * as ss from "../dql/select.ts";
+import * as cr from "../dql/criteria.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any; // make it easier on Deno linting
@@ -38,6 +40,8 @@ export function enumTable<
     readonly code: number;
     readonly value: string;
   }[] = [];
+  type EnumRecord = typeof seedRows;
+  type FilterableColumnName = keyof (EnumRecord);
   for (const e of Object.entries(seedEnum)) {
     const [key, value] = e;
     if (typeof value === "number") {
@@ -61,9 +65,10 @@ export function enumTable<
     },
   });
   const etn: EnumTableDefn = { enumTableNature: "numeric" };
+  const td = tbl.tableDefinition(tableName, props, tdOptions);
   return {
     ...etn,
-    ...tbl.tableDefinition(tableName, props, tdOptions),
+    ...td,
     ...tdrf,
     // seed will be used in SQL interpolation template literal, which accepts
     // either a string, SqlTextSupplier, or array of SqlTextSuppliers; in our
@@ -73,6 +78,27 @@ export function enumTable<
       ? seedRows.map((s) => tdrf.insertDML(s as Any))
       : `-- no ${tableName} seed rows`,
     seedEnum,
+    select: ss.entitySelectStmtPreparer<
+      TableName,
+      EnumRecord,
+      EnumRecord,
+      Context
+    >(
+      tableName,
+      cr.filterCriteriaPreparer((group) => {
+        if (group === "primary-keys") {
+          return td.domains.filter((d) =>
+            tbl.isTablePrimaryKeyColumnDefn(d) ? true : false
+          ).map((d) => d.identity) as FilterableColumnName[];
+        }
+        return td.domains.filter((d) =>
+          tbl.isTableColumnFilterCriteriaDqlExclusionSupplier(d) &&
+            d.isExcludedFromFilterCriteriaDql
+            ? false
+            : true
+        ).map((d) => d.identity) as FilterableColumnName[];
+      }),
+    ),
   };
 }
 
@@ -99,6 +125,8 @@ export function enumTextTable<
     readonly code: string;
     readonly value: string;
   }[] = [];
+  type EnumRecord = typeof seedRows;
+  type FilterableColumnName = keyof (EnumRecord);
   for (const e of Object.entries(seedEnum)) {
     const code = e[0] as TEnumCode;
     const value = e[1] as TEnumValue;
@@ -153,9 +181,10 @@ export function enumTextTable<
     },
   });
   const etn: EnumTableDefn = { enumTableNature: "text" };
+  const td = tbl.tableDefinition(tableName, props, tdOptions);
   return {
     ...etn,
-    ...tbl.tableDefinition(tableName, props, tdOptions),
+    ...td,
     ...tdrf,
     // seed will be used in SQL interpolation template literal, which accepts
     // either a string, SqlTextSupplier, or array of SqlTextSuppliers; in our
@@ -165,5 +194,26 @@ export function enumTextTable<
       ? seedRows.map((s) => tdrf.insertDML(s as Any))
       : `-- no ${tableName} seed rows`,
     seedEnum,
+    select: ss.entitySelectStmtPreparer<
+      TableName,
+      EnumRecord,
+      EnumRecord,
+      Context
+    >(
+      tableName,
+      cr.filterCriteriaPreparer((group) => {
+        if (group === "primary-keys") {
+          return td.domains.filter((d) =>
+            tbl.isTablePrimaryKeyColumnDefn(d) ? true : false
+          ).map((d) => d.identity) as FilterableColumnName[];
+        }
+        return td.domains.filter((d) =>
+          tbl.isTableColumnFilterCriteriaDqlExclusionSupplier(d) &&
+            d.isExcludedFromFilterCriteriaDql
+            ? false
+            : true
+        ).map((d) => d.identity) as FilterableColumnName[];
+      }),
+    ),
   };
 }
