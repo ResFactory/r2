@@ -213,6 +213,7 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 ### DML(Data Manipulation Language)
 
 - [x] Type-safe INSERT single TS/JS object row with `returning` support
+  - [x] INSERTS with auto-selected foreign key IDs using `table.select()`
   - [ ] Nested INSERTs with automatic foreign-key support (see
         [EdgeDB nested inserts](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder#nested-inserts))
 - [ ] Type-safe INSERT single TS/JS array row with `returning` support
@@ -292,6 +293,13 @@ These dialects are supported:
 References:
 
 - [PostgreSQL Vs MySQL Syntax](https://tipseason.com/postgres-vs-mysql-syntax-comparision/)
+
+### Dialect Engines
+
+- [ ] Create `SqlEngine` and `SqlEngineConnection` interfaces and
+      engine-specific implementations to prepare SQL, send into a specific
+      database driver and return typed rows (array) or object lists as
+      `SqlEngineResult`s.
 
 #### PostgreSQL
 
