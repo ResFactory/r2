@@ -55,6 +55,10 @@ export interface EnvTogglesOptions<
   Context,
 > {
   readonly ctx?: Context;
+  readonly initValues?: {
+    [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
+      ax.Axiom<infer T> ? T : never;
+  };
   readonly evNS?: EnvVarNamingStrategy;
   readonly onPropertyNotAxiomToggle?: (
     name: string,
@@ -63,7 +67,7 @@ export interface EnvTogglesOptions<
   ) => void;
 }
 
-export function envToggles<
+export function individualEnvToggles<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
@@ -90,7 +94,7 @@ export function envToggles<
   };
   const envVarDefns: EnvVarDefns = {} as Any;
   const envVarValues: EnvVarValues = {} as Any;
-  const toggleValues: ToggleValues = {} as Any;
+  const toggleValues: ToggleValues = etOptions?.initValues ?? {} as Any;
   const envVarsSearched: {
     propName: keyof EnvVarDefns;
     envVarName: string;
@@ -158,6 +162,34 @@ export function envToggles<
     envVarDefns,
     envVarValues,
     envVarsSearched,
+    toggleValues,
+  };
+}
+
+export function omnibusEnvToggles<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context,
+>(
+  props: TPropAxioms,
+  omnibusEnvVarName: string,
+  etOptions?: EnvTogglesOptions<TPropAxioms, Context>,
+) {
+  const tt = t.typedToggles(props, etOptions);
+  type ToggleValues = {
+    [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
+      ax.Axiom<infer T> ? T : never;
+  };
+  let toggleValues: ToggleValues = etOptions?.initValues ?? {} as Any;
+
+  const omnibusEnvVarValue = Deno.env.get(omnibusEnvVarName);
+  if (omnibusEnvVarValue) {
+    toggleValues = JSON.parse(omnibusEnvVarValue);
+  }
+
+  return {
+    ...tt,
+    omnibusEnvVarName,
+    omnibusEnvVarValue,
     toggleValues,
   };
 }
