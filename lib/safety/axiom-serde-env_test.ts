@@ -1,31 +1,31 @@
 import { testingAsserts as ta } from "./deps-test.ts";
-import * as t from "./toggle.ts";
-import * as mod from "./env.ts";
+import * as axsd from "./axiom-serde.ts";
+import * as mod from "./axiom-serde-env.ts";
 
 const syntheticNS = (name: string) =>
   `CFGTEST_${mod.camelCaseToEnvVarName(name)}`;
 
-Deno.test(`individualEnvToggles`, async (tc) => {
+Deno.test(`deserializeIndividualEnv`, async (tc) => {
   await tc.step("invalid config, missing required properties", () => {
-    const syntheticToggles = {
-      text: t.text(),
-      number: t.integer(),
-      maxAgeInMS: t.bigint(),
-      bool: t.boolean(),
-      complexType: t.object({
-        innerText: t.text(),
-        innerNumber: t.integer(),
+    const syntheticRecord = {
+      text: axsd.text(),
+      number: axsd.integer(),
+      maxAgeInMS: axsd.bigint(),
+      bool: axsd.boolean(),
+      complexType: axsd.object({
+        innerText: axsd.text(),
+        innerNumber: axsd.integer(),
       }),
     };
 
     const testTextPropValue = "test";
     Deno.env.set("CFGTEST_TEXT", testTextPropValue);
 
-    const iet = mod.individualEnvToggles(syntheticToggles, {
+    const iet = mod.deserializeIndividualEnv(syntheticRecord, {
       evNS: syntheticNS,
     });
-    const { toggleValues: config } = iet;
-    ta.assertEquals(false, iet.test(iet.toggleValues));
+    const { serDeAxiomRecord: config } = iet;
+    ta.assertEquals(false, iet.test(config));
     ta.assertEquals(5, iet.envVarsSearched.length);
     ta.assertEquals(1, iet.envVarsSearched.filter((s) => s.found).length);
     ta.assertEquals(4, iet.envVarsSearched.filter((s) => !s.found).length);
@@ -36,14 +36,14 @@ Deno.test(`individualEnvToggles`, async (tc) => {
   });
 
   await tc.step("valid config, all required properties defined", () => {
-    const syntheticToggles = {
-      text: t.text(),
-      number: t.integer(),
-      maxAgeInMS: t.bigint(),
-      bool: t.boolean(),
-      complexType: t.object({
-        innerText: t.text(),
-        innerNumber: t.integer(),
+    const syntheticRecord = {
+      text: axsd.text(),
+      number: axsd.integer(),
+      maxAgeInMS: axsd.bigint(),
+      bool: axsd.boolean(),
+      complexType: axsd.object({
+        innerText: axsd.text(),
+        innerNumber: axsd.integer(),
       }),
     };
 
@@ -56,11 +56,11 @@ Deno.test(`individualEnvToggles`, async (tc) => {
       JSON.stringify({ innerText: "testInner", innerNumber: 25 }),
     );
 
-    const iet = mod.individualEnvToggles(syntheticToggles, {
+    const iet = mod.deserializeIndividualEnv(syntheticRecord, {
       evNS: syntheticNS,
     });
-    const { toggleValues: config } = iet;
-    ta.assert(iet.test(iet.toggleValues, {
+    const { serDeAxiomRecord: config } = iet;
+    ta.assert(iet.test(config, {
       onInvalid: (reason) => {
         console.log(reason);
       },
@@ -89,25 +89,28 @@ Deno.test(`individualEnvToggles`, async (tc) => {
   await tc.step(
     "valid config with single required property, an alias, others optional with defaults",
     () => {
-      const syntheticToggles = {
-        text: t.text(),
-        number: t.defaultable(t.integerOptional(), () => 47),
-        maxAgeInMS: mod.alias(t.bigintOptional(), "CFGTEST_MAXAGEINMS_ALIAS"),
-        bool: t.defaultable(t.boolean(), () => true),
-        complexType: t.objectOptional({
-          innerText: t.text(),
-          innerNumber: t.integer(),
+      const syntheticRecord = {
+        text: axsd.text(),
+        number: axsd.defaultable(axsd.integerOptional(), () => 47),
+        maxAgeInMS: mod.alias(
+          axsd.bigintOptional(),
+          "CFGTEST_MAXAGEINMS_ALIAS",
+        ),
+        bool: axsd.defaultable(axsd.boolean(), () => true),
+        complexType: axsd.objectOptional({
+          innerText: axsd.text(),
+          innerNumber: axsd.integer(),
         }),
       };
 
       Deno.env.set("CFGTEST_TEXT", "test");
       Deno.env.set("CFGTEST_MAXAGEINMS_ALIAS", String(2456));
 
-      const iet = mod.individualEnvToggles(syntheticToggles, {
+      const iet = mod.deserializeIndividualEnv(syntheticRecord, {
         evNS: syntheticNS,
       });
-      const { toggleValues: config } = iet;
-      ta.assert(iet.test(iet.toggleValues, {
+      const { serDeAxiomRecord: config } = iet;
+      ta.assert(iet.test(config, {
         onInvalid: (reason) => {
           console.log(reason);
         },
@@ -126,16 +129,16 @@ Deno.test(`individualEnvToggles`, async (tc) => {
   );
 });
 
-Deno.test(`omnibusEnvToggles`, async (tc) => {
+Deno.test(`deserializeOmnibusEnv`, async (tc) => {
   await tc.step("invalid config, missing required properties", () => {
-    const syntheticToggles = {
-      text: t.text(),
-      number: t.integer(),
-      maxAgeInMS: t.bigint(),
-      bool: t.boolean(),
-      complexType: t.object({
-        innerText: t.text(),
-        innerNumber: t.integer(),
+    const syntheticRecord = {
+      text: axsd.text(),
+      number: axsd.integer(),
+      maxAgeInMS: axsd.bigint(),
+      bool: axsd.boolean(),
+      complexType: axsd.object({
+        innerText: axsd.text(),
+        innerNumber: axsd.integer(),
       }),
     };
 
@@ -147,9 +150,9 @@ Deno.test(`omnibusEnvToggles`, async (tc) => {
       ),
     );
 
-    const oet = mod.omnibusEnvToggles(syntheticToggles, "CFGTEST_OMNIBUS");
-    const { toggleValues: config } = oet;
-    ta.assertEquals(false, oet.test(oet.toggleValues));
+    const oet = mod.deserializeOmnibusEnv(syntheticRecord, "CFGTEST_OMNIBUS");
+    const { serDeAxiomRecord: config } = oet;
+    ta.assertEquals(false, oet.test(config));
     ta.assert(oet.omnibusEnvVarName);
     ta.assert(oet.omnibusEnvVarValue);
 
@@ -158,14 +161,14 @@ Deno.test(`omnibusEnvToggles`, async (tc) => {
   });
 
   await tc.step("valid config, all required properties defined", () => {
-    const syntheticToggles = {
-      text: t.text(),
-      number: t.integer(),
-      // maxAgeInMS: t.bigint(), TODO: bigint in omnibus doesn't work yet
-      bool: t.boolean(),
-      complexType: t.object({
-        innerText: t.text(),
-        innerNumber: t.integer(),
+    const syntheticRecord = {
+      text: axsd.text(),
+      number: axsd.integer(),
+      // maxAgeInMS: axsd.bigint(), TODO: bigint in omnibus JSON doesn't work yet
+      bool: axsd.boolean(),
+      complexType: axsd.object({
+        innerText: axsd.text(),
+        innerNumber: axsd.integer(),
       }),
     };
 
@@ -180,9 +183,9 @@ Deno.test(`omnibusEnvToggles`, async (tc) => {
       ),
     );
 
-    const oet = mod.omnibusEnvToggles(syntheticToggles, "CFGTEST_OMNIBUS");
-    const { toggleValues: config } = oet;
-    ta.assert(oet.test(oet.toggleValues, {
+    const oet = mod.deserializeOmnibusEnv(syntheticRecord, "CFGTEST_OMNIBUS");
+    const { serDeAxiomRecord: config } = oet;
+    ta.assert(oet.test(config, {
       onInvalid: (reason) => {
         console.log(reason);
       },

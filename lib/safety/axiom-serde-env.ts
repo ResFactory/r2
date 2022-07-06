@@ -1,6 +1,6 @@
 import * as safety from "../safety/mod.ts";
 import * as ax from "../safety/axiom.ts";
-import * as t from "./toggle.ts";
+import * as axsd from "./axiom-serde.ts";
 
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
@@ -27,86 +27,75 @@ export function isEnvVarNamesSupplier<Name extends string>(
   return isLSD(o);
 }
 
-export type AliasedToggle<TsValueType, Alias extends string> =
-  & t.AxiomToggle<TsValueType>
+export type AliasedAxiomSerDe<TsValueType, Alias extends string> =
+  & axsd.AxiomSerDe<TsValueType>
   & EnvVarNamesSupplier<Alias>;
 
-export function isAliasedToggle<TsValueType, Name extends string>(
+export function isAliasedAxiomSerDe<TsValueType, Name extends string>(
   o: unknown,
-): o is AliasedToggle<TsValueType, Name> {
-  const isLT = safety.typeGuard<AliasedToggle<TsValueType, Name>>(
+): o is AliasedAxiomSerDe<TsValueType, Name> {
+  const isLT = safety.typeGuard<AliasedAxiomSerDe<TsValueType, Name>>(
     "envVarNames",
   );
-  return t.isAxiomToggle(o) && isLT(o);
+  return axsd.isAxiomSerDe(o) && isLT(o);
 }
 
 export function alias<TsValueType, Name extends string>(
-  toggle: t.AxiomToggle<TsValueType>,
+  toggle: axsd.AxiomSerDe<TsValueType>,
   ...envVarNames: Name[]
-): AliasedToggle<TsValueType, Name> {
+): AliasedAxiomSerDe<TsValueType, Name> {
   return {
     ...toggle,
     envVarNames,
   };
 }
 
-export interface EnvTogglesOptions<
+export interface DeserializeIndividualEnvOptions<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 > {
   readonly ctx?: Context;
-  readonly initValues?: {
-    [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
-      ax.Axiom<infer T> ? T : never;
-  };
+  readonly initValues?: axsd.SerDeAxiomRecord<TPropAxioms>;
   readonly evNS?: EnvVarNamingStrategy;
-  readonly onPropertyNotAxiomToggle?: (
+  readonly onPropertyNotSerDeAxiom?: (
     name: string,
     axiom: ax.Axiom<Any>,
-    toggles: t.IdentifiableToggle<Any>[],
+    toggles: axsd.IdentifiableAxiomSerDe<Any>[],
   ) => void;
 }
 
-export function individualEnvToggles<
+export function deserializeIndividualEnv<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
   props: TPropAxioms,
-  etOptions?: EnvTogglesOptions<TPropAxioms, Context>,
+  dieOptions?: DeserializeIndividualEnvOptions<TPropAxioms, Context>,
 ) {
-  const { evNS = camelCaseToEnvVarName } = etOptions ?? {};
-  const tt = t.typedToggles(props, etOptions);
+  const { evNS = camelCaseToEnvVarName } = dieOptions ?? {};
+  const tt = axsd.serDeAxioms(props, dieOptions);
 
-  type EnvVarDefns = {
-    [Property in keyof TPropAxioms]: t.IdentifiableToggle<
-      TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never
-    >;
-  };
   type EnvVarValues = {
     [Property in keyof TPropAxioms]: {
       readonly envVarName: string;
       readonly envVarValue: string;
     };
   };
-  type ToggleValues = {
-    [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
-      ax.Axiom<infer T> ? T : never;
-  };
-  const envVarDefns: EnvVarDefns = {} as Any;
+  const envVarDefns: axsd.SerDeAxiomDefns<TPropAxioms> = {} as Any;
   const envVarValues: EnvVarValues = {} as Any;
-  const toggleValues: ToggleValues = etOptions?.initValues ?? {} as Any;
+  const serDeAxiomRecord: axsd.SerDeAxiomRecord<TPropAxioms> =
+    dieOptions?.initValues ?? {} as Any;
   const envVarsSearched: {
-    propName: keyof EnvVarDefns;
+    propName: keyof axsd.SerDeAxiomDefns<TPropAxioms>;
     envVarName: string;
     found: boolean;
     defaulted: boolean;
     defaultValue?: unknown;
-    evDefn: t.IdentifiableToggle<Any, string>;
+    evDefn: axsd.IdentifiableAxiomSerDe<Any, string>;
   }[] = [];
 
   const attempt = (
     envVarName: string,
-    evDefn: t.IdentifiableToggle<Any, string>,
+    evDefn: axsd.IdentifiableAxiomSerDe<Any, string>,
   ) => {
     const envVarValue = Deno.env.get(envVarName);
     const searched = {
@@ -123,7 +112,9 @@ export function individualEnvToggles<
         envVarName,
         envVarValue,
       };
-      toggleValues[evDefn.identity as (keyof ToggleValues)] = evDefn.fromText(
+      serDeAxiomRecord[
+        evDefn.identity as (keyof axsd.SerDeAxiomRecord<TPropAxioms>)
+      ] = evDefn.fromText(
         envVarValue,
         "env",
       );
@@ -131,11 +122,11 @@ export function individualEnvToggles<
     return searched;
   };
 
-  for (const evDefn of tt.toggles) {
+  for (const evDefn of tt.serDeAxioms) {
     const searched = attempt(evNS(evDefn.identity), evDefn);
     if (!searched.found) {
       let aliasFound = false;
-      if (isAliasedToggle(evDefn)) {
+      if (isAliasedAxiomSerDe(evDefn)) {
         for (const alias of evDefn.envVarNames) {
           const searchedAlias = attempt(alias, evDefn);
           if (searchedAlias.found) {
@@ -147,8 +138,10 @@ export function individualEnvToggles<
 
       if (!aliasFound) {
         if (evDefn.defaultValue) {
-          const dv = evDefn.defaultValue<Context>(etOptions?.ctx);
-          toggleValues[evDefn.identity as (keyof ToggleValues)] = dv;
+          const dv = evDefn.defaultValue<Context>(dieOptions?.ctx);
+          serDeAxiomRecord[
+            evDefn.identity as (keyof axsd.SerDeAxiomRecord<TPropAxioms>)
+          ] = dv;
           searched.defaulted = true;
           searched.defaultValue = dv;
         }
@@ -162,34 +155,37 @@ export function individualEnvToggles<
     envVarDefns,
     envVarValues,
     envVarsSearched,
-    toggleValues,
+    serDeAxiomRecord,
   };
 }
 
-export function omnibusEnvToggles<
+export function deserializeOmnibusEnv<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
   props: TPropAxioms,
   omnibusEnvVarName: string,
-  etOptions?: EnvTogglesOptions<TPropAxioms, Context>,
+  sdaOptions?: {
+    readonly ctx?: Context;
+    readonly initValues?: (ctx?: Context) => axsd.SerDeAxiomRecord<TPropAxioms>;
+    readonly onPropertyNotSerDeAxiom?: (
+      name: string,
+      axiom: Any,
+      iasd: axsd.IdentifiableAxiomSerDe<Any>[],
+    ) => void;
+  },
 ) {
-  const tt = t.typedToggles(props, etOptions);
-  type ToggleValues = {
-    [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
-      ax.Axiom<infer T> ? T : never;
-  };
-  let toggleValues: ToggleValues = etOptions?.initValues ?? {} as Any;
-
   const omnibusEnvVarValue = Deno.env.get(omnibusEnvVarName);
-  if (omnibusEnvVarValue) {
-    toggleValues = JSON.parse(omnibusEnvVarValue);
-  }
+  const djt = axsd.deserializeJsonText<TPropAxioms, Context>(
+    props,
+    () => omnibusEnvVarValue ?? "{}",
+    sdaOptions?.initValues ?? (() => ({} as Any)),
+    sdaOptions,
+  );
 
   return {
-    ...tt,
+    ...djt,
     omnibusEnvVarName,
     omnibusEnvVarValue,
-    toggleValues,
   };
 }

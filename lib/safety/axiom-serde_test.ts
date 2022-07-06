@@ -1,12 +1,12 @@
 import { testingAsserts as ta } from "./deps-test.ts";
-import * as mod from "./toggle.ts";
-import * as ax from "../safety/axiom.ts";
-import { $ } from "../safety/axiom.ts";
+import * as mod from "./axiom-serde.ts";
+import * as ax from "./axiom.ts";
+import { $ } from "./axiom.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-Deno.test("type-safe toggles", async (tc) => {
+Deno.test("serializable/deserializable axioms", async (tc) => {
   // use these for type-testing in IDE
   const syntheticDecl = {
     text: mod.text(),
@@ -29,9 +29,9 @@ Deno.test("type-safe toggles", async (tc) => {
     dateTimeCustom: mod.dateTime($.date),
     dateTimeNullable: mod.dateTimeOptional(),
 
-    // passing in Axiom without toggle wrapper will be a "lint" error for
-    // mod.typedToggles but OK for Axiom
-    notAToggle: $.string.optional(),
+    // passing in Axiom without SerDe wrapper will be a "lint" error for
+    // mod.serDeAxioms but OK for Axiom
+    notSerDe: $.string.optional(),
   };
 
   const syntheticDefn = $.object(syntheticDecl);
@@ -63,12 +63,12 @@ Deno.test("type-safe toggles", async (tc) => {
     };
   });
 
-  await tc.step("toggle-wrapped axiom", async (tc) => {
+  await tc.step("SerDe-wrapped axiom", async (tc) => {
     let lintIssuesCount = 0;
-    const syntheticDomains = mod.typedToggles(syntheticDecl, {
-      onPropertyNotAxiomToggle: (name) => {
+    const syntheticDomains = mod.serDeAxioms(syntheticDecl, {
+      onPropertyNotSerDeAxiom: (name) => {
         lintIssuesCount++;
-        ta.assertEquals("notAToggle", name);
+        ta.assertEquals("notSerDe", name);
       },
     });
 
@@ -78,14 +78,16 @@ Deno.test("type-safe toggles", async (tc) => {
 
     await tc.step("IDE experiments", () => {
       // hover over 'names' to see quasi-typed names
-      const _sdNames = syntheticDomains.toggles.map((t) => t.identity);
-      const _sdDefault = syntheticDomains.toggles.map((t) => t.defaultValue);
+      const _sdNames = syntheticDomains.serDeAxioms.map((sda) => sda.identity);
+      const _sdDefault = syntheticDomains.serDeAxioms.map((sda) =>
+        sda.defaultValue
+      );
     });
 
     await tc.step("labeled", () => {
-      const syntheticDomains = mod.typedToggles(syntheticDecl);
+      const syntheticDomains = mod.serDeAxioms(syntheticDecl);
       const labeled = Array.from(
-        mod.labeledToggles(syntheticDomains, (test) => {
+        mod.labeledSerDeAxioms(syntheticDomains, (test) => {
           return test.labels.includes("synthetic_label1") ? true : false;
         }),
       );
@@ -130,5 +132,73 @@ Deno.test("type-safe toggles", async (tc) => {
     expectType<Date>(synthetic.dateCustom);
     expectType<Date>(synthetic.dateTime);
     expectType<Date>(synthetic.dateTimeCustom);
+  });
+});
+
+Deno.test(`deserialize JSON text`, async (tc) => {
+  await tc.step("invalid config, missing required properties", () => {
+    const syntheticSerDe = {
+      text: mod.text(),
+      number: mod.integer(),
+      maxAgeInMS: mod.bigint(),
+      bool: mod.boolean(),
+      complexType: mod.object({
+        innerText: mod.text(),
+        innerNumber: mod.integer(),
+      }),
+    };
+
+    const syntheticJsonText = JSON.stringify(
+      { text: "test" },
+      (_, value) => typeof value === "bigint" ? value.toString() : value, // return everything else unchanged
+    );
+
+    const djt = mod.deserializeJsonText(
+      syntheticSerDe,
+      () => syntheticJsonText,
+    );
+    const { serDeAxiomRecord: sdaRec } = djt;
+    ta.assertEquals(false, djt.test(sdaRec));
+    ta.assertEquals(sdaRec.text, "test");
+  });
+
+  await tc.step("valid config, all required properties defined", () => {
+    const syntheticSerDe = {
+      text: mod.text(),
+      number: mod.integer(),
+      // maxAgeInMS: mod.bigint(), TODO: bigint in omnibus doesn't work yet
+      bool: mod.boolean(),
+      complexType: mod.object({
+        innerText: mod.text(),
+        innerNumber: mod.integer(),
+      }),
+    };
+
+    const syntheticJsonText = JSON.stringify({
+      text: "test",
+      number: 100,
+      bool: true,
+      complexType: { innerText: "testInner", innerNumber: 25 },
+    }, (_, value) => typeof value === "bigint" ? value.toString() : value // return everything else unchanged
+    );
+
+    const djt = mod.deserializeJsonText(
+      syntheticSerDe,
+      () => syntheticJsonText,
+    );
+    const { serDeAxiomRecord: config } = djt;
+    ta.assert(djt.test(config, {
+      onInvalid: (reason) => {
+        console.log(reason);
+      },
+    }));
+
+    ta.assertEquals(config.text, "test");
+    ta.assertEquals(config.number, 100);
+    ta.assertEquals(config.bool, true);
+    ta.assertEquals(config.complexType, {
+      innerText: "testInner",
+      innerNumber: 25,
+    });
   });
 });
