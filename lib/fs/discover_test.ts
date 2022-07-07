@@ -4,10 +4,7 @@ import * as mod from "./discover.ts";
 
 Deno.test("discover path in ancestors", async () => {
   const moduleAbsPath = path.fromFileUrl(import.meta.url);
-  const resFactoryCanonical = moduleAbsPath.slice(
-    0,
-    moduleAbsPath.indexOf("/lib/fs"),
-  );
+  const resFactoryCanonical = path.resolve(moduleAbsPath, "..", "..", "..");
   const result = await mod.discoverGlob(
     "**/resFactory/factory",
     path.dirname(path.fromFileUrl(import.meta.url)),
