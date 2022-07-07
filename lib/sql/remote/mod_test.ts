@@ -5,6 +5,8 @@ import * as p from "./proxy.ts";
 import * as mod from "./flexible.ts";
 import * as shG from "../shell/governance.ts";
 
+const isCICD = Deno.env.get("CI") ? true : false;
+
 export function testInventory(
   identity = "typicalSqlStmts",
 ): govn.ServerRuntimeSqlStmtInventory<
@@ -159,18 +161,18 @@ Deno.test("SQL proxy", async (tc) => {
     ta.assert(result.proxyResult.data.records);
     ta.assert(Array.isArray(result.proxyResult.data.records));
     // TODO: not sure why it's failing in CI/CD (GitHub Actions)
-    if (!Deno.env.get("CI")) {
+    if (!isCICD) {
       ta.assert(result.proxyResult.data.records.length > 0);
+
+      const authorRecord = result.proxyResult.data.records[0];
+      ta.assert(authorRecord);
+      ta.assert(authorRecord.author_email);
+      ta.assert(authorRecord.author_name);
     } else {
       console.log(
-        "Running in CI/CD, skipping `ta.assert(result.proxyResult.data.records.length > 0)`",
+        "Running in CI/CD, skipping authorRecord test",
       );
     }
-
-    const authorRecord = result.proxyResult.data.records[0];
-    ta.assert(authorRecord);
-    ta.assert(authorRecord.author_email);
-    ta.assert(authorRecord.author_name);
   });
 
   await tc.step("fselect directly without inventory", async () => {

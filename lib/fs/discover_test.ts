@@ -2,14 +2,17 @@ import { path } from "./deps.ts";
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./discover.ts";
 
+const isCICD = Deno.env.get("CI") ? true : false;
+
 Deno.test("discover path in ancestors", async () => {
   const moduleAbsPath = path.fromFileUrl(import.meta.url);
   const resFactoryCanonical = path.resolve(moduleAbsPath, "..", "..", "..");
+  // when running in GitHub actions, the root of the repo is factory/factory
+  // not resFactory/factory
   const result = await mod.discoverGlob(
-    "**/resFactory/factory",
+    isCICD ? "**/factory/factory" : "**/resFactory/factory",
     path.dirname(path.fromFileUrl(import.meta.url)),
   );
-  console.dir({ moduleAbsPath, resFactoryCanonical, result });
   ta.assert(result);
   ta.assert(result.found);
   ta.assert(result.found.isDirectory);
