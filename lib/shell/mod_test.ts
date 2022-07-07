@@ -97,7 +97,7 @@ Deno.test(`Test sh with command -v`, async () => {
     "command -v bash || which bash || type -p bash",
   );
   ta.assert(result);
-  ta.assertEquals(result.trim(), "/bin/bash");
+  ta.assert(result.trim() == "/bin/bash" || result.trim() == "/usr/bin/bash");
 });
 
 Deno.test(`Test bash with echo`, async () => {
