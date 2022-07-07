@@ -26,7 +26,7 @@ Deno.test(`OKRs`, async () => {
     });
   });
 
-  console.dir(okrs, { depth: undefined });
+  // console.dir(okrs, { depth: undefined });
 
   const objectives = Array.from(okrs.objectives);
   const kr1 = Array.from(objectives[0].keyResults);
