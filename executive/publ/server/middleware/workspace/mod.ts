@@ -29,7 +29,7 @@ export class WorkspaceTunnel<
   serverFileImpact(fsAbsPathAndFileName: string, url?: string): void;
 }> {
   #connections: Connection[] = [];
-  #onlyOpen: ((value: Connection) => boolean) = (c) =>
+  #onlyOpen: (value: Connection) => boolean = (c) =>
     c.sseTarget.closed ? false : true;
 
   constructor(

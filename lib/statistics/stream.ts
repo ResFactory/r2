@@ -28,7 +28,11 @@ export class StreamStatistics {
   encounter(value: number) {
     this.valueCount++;
     if (this.valueCount == 1) {
-      this.oldMean = this.newMean = this.currentMin = this.currentMax = value;
+      this.oldMean =
+        this.newMean =
+        this.currentMin =
+        this.currentMax =
+          value;
       this.oldVariance = 0;
     } else {
       this.newMean = this.oldMean +

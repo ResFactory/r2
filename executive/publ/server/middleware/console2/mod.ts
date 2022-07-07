@@ -176,7 +176,7 @@ export class ConsoleTunnel<
   uaOpenWindow(location: string, target: "console-prime"): void;
 }> {
   #connections: Connection[] = [];
-  #onlyOpen: ((value: Connection) => boolean) = (c) =>
+  #onlyOpen: (value: Connection) => boolean = (c) =>
     c.sseTarget.closed ? false : true;
   #isAccessLoggingEnabled = false; // this can be slow so be careful
 

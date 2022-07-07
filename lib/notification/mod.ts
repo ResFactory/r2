@@ -40,9 +40,7 @@ export function isNotificationsSupplier<T extends Notification>(
 export function prepareNotifications<T extends Notification = Notification>(
   source: unknown,
   notFound: () => Notifications<T>,
-  found?: ((
-    lnn: Notifications<T>,
-  ) => Notifications<T>),
+  found?: (lnn: Notifications<T>) => Notifications<T>,
   assignmentFailed?: (diagnostic: string) => void,
 ): Notifications<T> {
   const result = isNotificationsSupplier<T>(source)

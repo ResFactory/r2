@@ -10,8 +10,8 @@ type Any = any;
 
 export type GitHookNameCamelToKebabCase<S extends string> = S extends
   `${infer T}${infer U}` ? `${T extends Capitalize<T> ? "-" : ""}${Lowercase<
-  T
->}${GitHookNameCamelToKebabCase<U>}`
+    T
+  >}${GitHookNameCamelToKebabCase<U>}`
   : S;
 
 export const camelCaseToKebabHookName = (text: string) =>
