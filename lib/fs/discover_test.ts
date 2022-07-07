@@ -9,6 +9,7 @@ Deno.test("discover path in ancestors", async () => {
     "**/resFactory/factory",
     path.dirname(path.fromFileUrl(import.meta.url)),
   );
+  console.dir({ moduleAbsPath, resFactoryCanonical, result });
   ta.assert(result);
   ta.assert(result.found);
   ta.assert(result.found.isDirectory);
