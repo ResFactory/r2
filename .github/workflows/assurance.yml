@@ -16,8 +16,6 @@ jobs:
 
       - name: "setup" # check: https://github.com/actions/virtual-environments/issues/1777
         uses: denolib/setup-deno@v2
-        with:
-         deno-version: v1.21.3
 
       - run: deno --version
 
