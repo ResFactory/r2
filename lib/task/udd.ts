@@ -1,5 +1,5 @@
-import * as colors from "https://deno.land/std@0.137.0/fmt/colors.ts";
-import * as fs from "https://deno.land/std@0.137.0/fs/mod.ts";
+import * as colors from "https://deno.land/std@0.147.0/fmt/colors.ts";
+import * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
 import * as udd from "https://deno.land/x/udd@0.7.3/mod.ts";
 
 export function updateDenoDepsTask() {

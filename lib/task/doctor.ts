@@ -1,4 +1,4 @@
-import * as colors from "https://deno.land/std@0.145.0/fmt/colors.ts";
+import * as colors from "https://deno.land/std@0.147.0/fmt/colors.ts";
 import "https://deno.land/x/dzx@0.3.1/mod.ts";
 
 export interface DoctorReporter {

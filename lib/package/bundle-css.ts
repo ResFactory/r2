@@ -44,7 +44,6 @@ export class TransformStylesheetEventEmitter extends events.EventEmitter<{
   ): Promise<void>;
   notBundledToCSS(
     evt: NotBundledTypescriptEvent<unknown> & {
-      readonly er?: Deno.EmitResult;
       readonly error?: Error;
     },
   ): Promise<void>;
@@ -247,11 +246,6 @@ export interface CssTargetTsTwinSupplier {
   (): AsyncGenerator<CssTargetTsTwin>;
 }
 
-/**
- * Bundle given *.js.ts supply of JsTargets and re-generate the JsTarget's
- * "twin" *.{js,cjs,mjs} file by using Deno.emit().
- * @param supplier which directory to start in, defaults to Deno.cwd()
- */
 export async function bundleCssTargets(
   supplier: CssTargetTsTwinSupplier,
   observer: TransformStylesheetEventEmitter,

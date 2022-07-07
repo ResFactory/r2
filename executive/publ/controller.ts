@@ -199,9 +199,6 @@ export class Executive<
       }
       // deno-fmt-ignore
       console.info(colors.magenta(`*** ${colors.yellow(event.tsSrcRootSpecifier)} not generated: ${colors.blue(event.reason)}`));
-      if (event.er) {
-        console.warn("    ", Deno.formatDiagnostics(event.er.diagnostics));
-      }
       if (event.error) {
         console.error("   ", colors.red(event.error.toString()));
       }

@@ -1,8 +1,5 @@
-// deno-fmt-ignore-file
-// deno-lint-ignore-file
-// This code was bundled using `deno bundle` and it's not recommended to edit it manually
-
 const textFn = ()=>{
     return "test4";
 };
 console.log("from mod.js.ts", textFn());
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImZpbGU6Ly8vaG9tZS9zbnNoYWgvd29ya3NwYWNlcy9naXRodWIuY29tL3Jlc0ZhY3RvcnkvZmFjdG9yeS9leGVjdXRpdmUvcHVibC9zZXJ2ZXIvbWlkZGxld2FyZS93b3Jrc3BhY2UvcHVibGljL2V4cGVyaW1lbnQvbW9kLmpzLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImNvbnN0IHRleHRGbjogKCkgPT4gc3RyaW5nID0gKCkgPT4ge1xuICByZXR1cm4gXCJ0ZXN0NFwiO1xufTtcblxuY29uc29sZS5sb2coXCJmcm9tIG1vZC5qcy50c1wiLCB0ZXh0Rm4oKSk7XG4iXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsTUFBTSxNQUFNLEdBQWlCLElBQU07SUFDakMsT0FBTyxPQUFPLENBQUM7Q0FDaEIsQUFBQztBQUVGLE9BQU8sQ0FBQyxHQUFHLENBQUMsZ0JBQWdCLEVBQUUsTUFBTSxFQUFFLENBQUMsQ0FBQyJ9

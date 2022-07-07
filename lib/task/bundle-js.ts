@@ -4,8 +4,8 @@ import {
   red,
   white,
   yellow,
-} from "https://deno.land/std@0.137.0/fmt/colors.ts";
-import * as path from "https://deno.land/std@0.137.0/path/mod.ts";
+} from "https://deno.land/std@0.147.0/fmt/colors.ts";
+import * as path from "https://deno.land/std@0.147.0/path/mod.ts";
 import * as bjs from "../package/bundle-js.ts";
 
 const relativeToCWD = (absPath: string) => path.relative(Deno.cwd(), absPath);
@@ -102,11 +102,11 @@ function consoleEE() {
         } not generated: ${blue(event.reason)}`,
       ),
     );
-    if (event.er) {
-      console.warn("    ", Deno.formatDiagnostics(event.er.diagnostics));
-    }
     if (event.error) {
       console.error("   ", red(event.error.toString()));
+    }
+    if (event.bundleEmit?.map) {
+      console.warn("    ", event.bundleEmit?.map);
     }
   });
   return ttConsoleEE;

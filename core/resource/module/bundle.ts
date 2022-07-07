@@ -1,4 +1,4 @@
-import { fs } from "../../deps.ts";
+import { denoEmit as de, fs } from "../../deps.ts";
 import * as govn from "../../../governance/mod.ts";
 import * as c from "../../../core/std/content.ts";
 import * as fsrf from "../../originate/file-sys-globs.ts";
@@ -111,16 +111,18 @@ export function bundleFileSysResourceFactory(
       let content = "// bundler did not run?";
       if (imported.isValid) {
         try {
-          const { files, diagnostics } = await Deno.emit(origination.path, {
-            bundle: "classic",
-            compilerOptions: {
-              lib: ["deno.unstable", "deno.window"],
-            },
+          const { files, diagnostics } = await de.emit(origination.path, {
+            // bundle: "classic", // TODO: not supported by deno_emit
+            // compilerOptions: { // TODO: not supported by deno_emit
+            //   lib: ["deno.unstable", "deno.window"],
+            // },
           });
           if (diagnostics.length) {
-            content = Deno.formatDiagnostics(diagnostics);
+            content = diagnostics;
+            // content = Deno.formatDiagnostics(diagnostics); // TODO: not supported by deno_emit
           } else {
-            content = files["deno:///bundle.js"];
+            content = files;
+            // content = files["deno:///bundle.js"]; // TODO: not supported by deno_emit
           }
         } catch (e) {
           content = `// Error emitting ${origination.path}: ${e}`;

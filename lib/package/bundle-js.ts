@@ -1,5 +1,5 @@
-import { events } from "./deps.ts";
-import * as terser from "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.12.2/deno/mod.js";
+import { denoEmit as de, events } from "./deps.ts";
+import * as terser from "https://cdn.jsdelivr.net/gh/lumeland/terser-deno@v5.13.1/deno/mod.js";
 import * as fsi from "../fs/inspect.ts";
 import * as graph from "../module/graph.ts";
 
@@ -109,7 +109,7 @@ export interface JsTargetTsTwin extends JsTarget, TypescriptSupplier {
 }
 
 export interface BundledTypescriptEvent extends TypescriptSupplier {
-  readonly er: Deno.EmitResult;
+  readonly bundleEmit: de.BundleEmit;
 }
 
 export interface BundledJavascriptSupplier {
@@ -138,7 +138,7 @@ export class TransformTypescriptEventEmitter extends events.EventEmitter<{
   ): Promise<void>;
   notBundledToJS(
     evt: NotBundledTypescriptEvent<unknown> & {
-      readonly er?: Deno.EmitResult;
+      readonly bundleEmit?: de.BundleEmit;
       readonly error?: Error;
     },
   ): Promise<void>;
@@ -155,6 +155,7 @@ export interface TransformTypescriptOptions {
   readonly onBundledToJS?: (
     evt: BundledTypescriptEvent & BundledJavascriptSupplier,
   ) => Promise<void>;
+  readonly bundleOptions?: de.BundleOptions;
 }
 
 export async function transformTypescriptToJS(
@@ -190,39 +191,33 @@ export async function transformTypescriptToJS(
 
   try {
     const bundle = ts.tsEmitBundle || "module";
-    const er = await Deno.emit(tsSrcRootSpecifier, {
-      bundle,
+    const bundleEmit = await de.bundle(tsSrcRootSpecifier, {
+      type: bundle,
       compilerOptions: {
-        lib: ["deno.unstable", "deno.window", "deno.web"],
+        checkJs: true,
+        sourceMap: false,
+        inlineSourceMap: false,
       },
+      ...options?.bundleOptions,
     });
-    if (er.diagnostics.length) {
-      await options?.ee?.emit("diagnosableBundleIssue", { ...ts, er });
-      await options?.ee?.emit("notBundledToJS", {
-        reason: "diagnosable-issue",
-        ...ts,
-        er,
-      });
-    } else {
-      const event = {
-        ...ts,
-        er,
-        // deno-lint-ignore require-await
-        bundledJS: async () => er.files["deno:///bundle.js"],
-        minifiedJS: async () => {
-          const minified = await terser.minify({
-            ["jsCode"]: er.files["deno:///bundle.js"],
-          }, {
-            module: bundle == "module" ? true : false,
-            compress: true,
-            mangle: false,
-          });
-          return minified.code;
-        },
-      };
-      options?.onBundledToJS?.(event);
-      await options?.ee?.emit("bundledToJS", event);
-    }
+    const event = {
+      ...ts,
+      bundleEmit,
+      // deno-lint-ignore require-await
+      bundledJS: async () => bundleEmit.code,
+      minifiedJS: async () => {
+        const minified = await terser.minify({
+          ["jsCode"]: bundleEmit.code,
+        }, {
+          module: bundle == "module" ? true : false,
+          compress: true,
+          mangle: false,
+        });
+        return minified.code;
+      },
+    };
+    options?.onBundledToJS?.(event);
+    await options?.ee?.emit("bundledToJS", event);
   } catch (error) {
     await options?.ee?.emit("undiagnosableBundleError", ts, error);
     await options?.ee?.emit("notBundledToJS", {

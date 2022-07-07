@@ -5,6 +5,8 @@ import * as mod from "./route.ts";
 import { CachedExtensions } from "../../lib/module/mod.ts";
 import * as fsr from "../../lib/fs/fs-route.ts";
 
+type ComparableRoute = Omit<govn.RouteNode, "resolve" | "location" | "inRoute">;
+
 const testPath = path.relative(
   Deno.cwd(),
   path.dirname(import.meta.url).substr("file://".length),
@@ -141,13 +143,16 @@ Deno.test(`human friendly file sys route parser`, () => {
 
 Deno.test(`root route with replacement`, () => {
   const route = assertable(routeFactory.route(homeRoute));
-  ta.assertEquals(route.units, [{
-    level: 0,
-    qualifiedPath: "/home",
-    unit: "home",
-    label: "Home",
-    isIntermediate: false,
-  }]);
+  ta.assertEquals<ComparableRoute[]>(
+    route.units,
+    [{
+      level: 0,
+      qualifiedPath: "/home",
+      unit: "home",
+      label: "Home",
+      isIntermediate: false,
+    }],
+  );
 
   ta.assert(mod.isParsedRouteConsumer(route));
   const replaceRS: govn.ParsedRouteSupplier = {
@@ -157,7 +162,7 @@ Deno.test(`root route with replacement`, () => {
     },
   };
   route.consumeParsedRoute(replaceRS);
-  ta.assertEquals(route.units, [{
+  ta.assertEquals<ComparableRoute[]>(route.units, [{
     level: 0,
     qualifiedPath: "/new",
     unit: "new",
@@ -169,7 +174,7 @@ Deno.test(`root route with replacement`, () => {
 Deno.test(`first level route`, () => {
   const route = assertable(routeFactory.route(module1Route));
   ta.assertEquals(route.units[0].isIntermediate, true);
-  ta.assertEquals(route.units[1], {
+  ta.assertEquals<ComparableRoute>(route.units[1], {
     level: 1,
     qualifiedPath: "/home/module1",
     unit: "module1",
@@ -182,7 +187,7 @@ Deno.test(`second level route`, () => {
   const route = assertable(routeFactory.route(m1Component1Route));
   ta.assertEquals(route.units[0].isIntermediate, true);
   ta.assertEquals(route.units[1].isIntermediate, true);
-  ta.assertEquals(route.units[2], {
+  ta.assertEquals<ComparableRoute>(route.units[2], {
     level: 2,
     qualifiedPath: "/home/module1/component1",
     unit: "component1",
@@ -203,7 +208,7 @@ Deno.test(`create child routes`, () => {
   ta.assertEquals(route1.units.length, 3);
   ta.assertEquals(route1.units[0].isIntermediate, true);
   ta.assertEquals(route1.units[1].isIntermediate, true);
-  ta.assertEquals(route1.units[2], {
+  ta.assertEquals<ComparableRoute>(route1.units[2], {
     level: 2,
     qualifiedPath: "/home/module1/replacedChild",
     unit: "replacedChild",
@@ -214,7 +219,7 @@ Deno.test(`create child routes`, () => {
     routeFactory.childRoute(replaceTerminal, mod.emptyRouteSupplier, true),
   );
   ta.assertEquals(emptyRoute1.units.length, 1);
-  ta.assertEquals(emptyRoute1.units[0], {
+  ta.assertEquals<ComparableRoute>(emptyRoute1.units[0], {
     level: 0,
     qualifiedPath: "/replacedChild",
     unit: "replacedChild",
@@ -231,7 +236,7 @@ Deno.test(`create child routes`, () => {
   ta.assertEquals(route2.units[0].isIntermediate, true);
   ta.assertEquals(route2.units[1].isIntermediate, true);
   ta.assertEquals(route2.units[2].isIntermediate, true);
-  ta.assertEquals(route2.units[3], {
+  ta.assertEquals<ComparableRoute>(route2.units[3], {
     level: 3,
     qualifiedPath: "/home/module1/component1/newChild",
     unit: "newChild",
@@ -242,7 +247,7 @@ Deno.test(`create child routes`, () => {
     routeFactory.childRoute(newChild, mod.emptyRouteSupplier),
   );
   ta.assertEquals(emptyRoute2.units.length, 1);
-  ta.assertEquals(emptyRoute2.units[0], {
+  ta.assertEquals<ComparableRoute>(emptyRoute2.units[0], {
     level: 0,
     qualifiedPath: "/newChild",
     unit: "newChild",
@@ -256,7 +261,7 @@ Deno.test(`third level route with replacement`, () => {
   ta.assertEquals(route.units[0].isIntermediate, true);
   ta.assertEquals(route.units[1].isIntermediate, true);
   ta.assertEquals(route.units[2].isIntermediate, true);
-  ta.assertEquals(route.units[3], {
+  ta.assertEquals<ComparableRoute>(route.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/service1",
     unit: "service1",
@@ -273,7 +278,7 @@ Deno.test(`third level route with replacement`, () => {
     },
   };
   route.consumeParsedRoute(replaceRS);
-  ta.assertEquals(route.units[3], {
+  ta.assertEquals<ComparableRoute>(route.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/newService1",
     unit: "newService1",
@@ -294,7 +299,7 @@ Deno.test(`third level route with replacement and aliases`, () => {
   ta.assertEquals(route.units[0].isIntermediate, true);
   ta.assertEquals(route.units[1].isIntermediate, true);
   ta.assertEquals(route.units[2].isIntermediate, true);
-  ta.assertEquals(route.units[3], {
+  ta.assertEquals<ComparableRoute>(route.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/service1",
     unit: "service1",
@@ -311,7 +316,7 @@ Deno.test(`third level route with replacement and aliases`, () => {
     },
   };
   route.consumeParsedRoute(replaceRS);
-  ta.assertEquals(route.units[3], {
+  ta.assertEquals<ComparableRoute>(route.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/newService1",
     unit: "newService1",
@@ -332,7 +337,7 @@ Deno.test(`third level route with replacement and aliases`, () => {
     },
   };
   route2.consumeParsedRoute(replaceRS2);
-  ta.assertEquals(route2.units[3], {
+  ta.assertEquals<ComparableRoute>(route2.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/newService1",
     unit: "newService1",
@@ -359,7 +364,7 @@ Deno.test(`third level route with replacement and aliases`, () => {
     },
   };
   route3.consumeParsedRoute(replaceRS3);
-  ta.assertEquals(route3.units[3], {
+  ta.assertEquals<ComparableRoute>(route3.units[3], {
     level: 3,
     qualifiedPath: "/home/module2/component1/newService1",
     unit: "newService1",

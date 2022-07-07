@@ -1,5 +1,5 @@
-import * as path from "https://deno.land/std@0.145.0/path/mod.ts";
-import * as colors from "https://deno.land/std@0.145.0/fmt/colors.ts";
+import * as path from "https://deno.land/std@0.147.0/path/mod.ts";
+import * as colors from "https://deno.land/std@0.147.0/fmt/colors.ts";
 import "https://deno.land/x/dzx@0.3.1/mod.ts";
 import * as core from "./core.ts";
 import * as dt from "./doctor.ts";

@@ -1,5 +1,5 @@
-export * as path from "https://deno.land/std@0.137.0/path/mod.ts";
-export * as fs from "https://deno.land/std@0.137.0/fs/mod.ts";
+export * as path from "https://deno.land/std@0.147.0/path/mod.ts";
+export * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
 
 export * as rflSafety from "../../../lib/safety/mod.ts";
 export * as rflModule from "../../../lib/module/mod.ts";
