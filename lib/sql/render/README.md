@@ -351,6 +351,9 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] `$RF_HOME/lib/safety/axiom-serde.ts` was recently introduced and is quite
+      similar this module. Check to see if it makes sense to build
+      AxiomSqlDomain on top of AxiomSerDe instead of Axiom directly.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
