@@ -36,15 +36,13 @@ import * as mod from "./fs-tree.ts";
 //         ├───i
 //         └───j
 
-const testPathAbs = path.dirname(import.meta.url).substr("file://".length);
+const testPathAbs = path.dirname(path.fromFileUrl(import.meta.url));
 const _testPathRel = path.relative(Deno.cwd(), testPathAbs);
 
 Deno.test("TODO: filesystem tree", async () => {
   const assetsTree = new mod.FileSysAssetsTree();
-  const srcRoot = `/home/${
-    Deno.env.get("USER")
-  }/workspaces/gl.infra.medigy.com/medigy-digital-properties/gpm.medigy.com/content`;
-  const src = await assetsTree.consumeAssets({
+  const srcRoot = testPathAbs;
+  const _src = await assetsTree.consumeAssets({
     identity: "content",
     root: srcRoot,
     rootIsAbsolute: path.isAbsolute(srcRoot),
@@ -52,10 +50,8 @@ Deno.test("TODO: filesystem tree", async () => {
       followSymlinks: true,
     },
   });
-  const destRoot = `/home/${
-    Deno.env.get("USER")
-  }/workspaces/gl.infra.medigy.com/medigy-digital-properties/gpm.medigy.com/public`;
-  const dest = await assetsTree.consumeAssets({
+  const destRoot = testPathAbs;
+  const _dest = await assetsTree.consumeAssets({
     identity: "public",
     root: destRoot,
     rootIsAbsolute: path.isAbsolute(destRoot),
