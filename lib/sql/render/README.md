@@ -101,6 +101,8 @@ following types of SQL language constructs.
 - [x] SQL reference (for foreign key type mirroring where one columns knows
       another column's type automatically)
 - [x] Data storage computed values using SQL (e.g. for defaults)
+- [ ] `lintIgnore(domain)` wrapper functions to skip certain lint warnings (like
+      naming conventions for fkey columns ending in `_id`)
 - [ ] User agent computed values for _business logic_ (similar to NEFS Axiom)
 - [ ] User agent computed values for _presentation_ (similar to NEFS Axiom)
 - [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
@@ -183,6 +185,8 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
         to of SQL, allow simple `filter` key on the criteria record similar to
         EdgeDB to introduce JOINs.
   - [ ] composable `order` and `page` helpers.
+- [ ] Embed SQL statement identities into SQL comments so that slow query
+      analyzers and other query planners can distinguish between statements.
 - [ ] Simplified type-safe NEFS Axiom-style _query builder_ (select generator)
       using links and filters for typical needs while full SQL is available as
       complexity increases. See [EdgeDB](edgedb.com) for interesting ideas (such
@@ -351,9 +355,9 @@ The system generates lint messages:
 
 ## TODO
 
-- [ ] `$RF_HOME/lib/safety/axiom-serde.ts` was recently introduced and is quite
-      similar this module. Check to see if it makes sense to build
-      AxiomSqlDomain on top of AxiomSerDe instead of Axiom directly.
+- [ ] `$RF_HOME/lib/axiom/axiom-serde.ts` was recently introduced and is quite
+      similar SQLa's `domain.ts` module. Check to see if it makes sense to build
+      `AxiomSqlDomain` on top of AxiomSerDe instead of Axiom directly.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
