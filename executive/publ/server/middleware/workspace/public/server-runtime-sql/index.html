@@ -5,17 +5,17 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="//codemirror.net/lib/codemirror.css">
-    <link rel="stylesheet" href="//codemirror.net/addon/hint/show-hint.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/hint/show-hint.css">
     <link rel="stylesheet" href="../path.actuate.css">
-    <script src="//codemirror.net/lib/codemirror.js"></script>
-    <script src="//codemirror.net/addon/edit/matchbrackets.js"></script>
-    <script src="//codemirror.net/mode/sql/sql.js"></script>
-    <script src="//codemirror.net/addon/hint/show-hint.js"></script>
-    <script src="//codemirror.net/addon/hint/sql-hint.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/codemirror@5.65.6/lib/codemirror.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/codemirror@5.65.6/mode/sql/sql.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/hint/show-hint.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/codemirror@5.65.6/addon/hint/sql-hint.js"></script>
     <script src="//unpkg.com/ag-grid-community/dist/ag-grid-community.min.js"></script>
     <style>
-        /* see https://codemirror.net/demo/resize.html */
+        /* see https://cdn.jsdelivr.net/npm/codemirror@5.65.6/demo/resize.html */
         .CodeMirror {
             border: 1px solid #eee;
             height: auto;
@@ -147,7 +147,7 @@
                 }
             };
 
-            // see: https://codemirror.net/doc/manual.html#config
+            // see: https://cdn.jsdelivr.net/npm/codemirror@5.65.6/doc/manual.html#config
             // check .CodeMirror CSS classes for other config settings like height
             const sqlCodeEditorElem = document.getElementById('SQL');
             const sqlCodeEditor = CodeMirror.fromTextArea(sqlCodeEditorElem, {
