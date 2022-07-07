@@ -1,7 +1,7 @@
 import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as r from "../../pl/mod.ts";
-import * as ax from "../../../../safety/axiom.ts";
+import * as ax from "../../../../axiom/mod.ts";
 import * as d from "../../domain.ts";
 import * as ns from "../../namespace.ts";
 

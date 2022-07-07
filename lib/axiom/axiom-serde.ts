@@ -1,6 +1,6 @@
-import * as safety from "./mod.ts";
+import * as safety from "../safety/mod.ts";
+import * as m from "../safety/merge.ts";
 import * as ax from "./axiom.ts";
-import * as m from "./merge.ts";
 
 /**
  * An `AxiomSerDe` is an Axiom-typed "data definition" for defining type-safe

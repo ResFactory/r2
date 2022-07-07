@@ -1,5 +1,5 @@
 import * as safety from "../safety/mod.ts";
-import * as ax from "../safety/axiom.ts";
+import * as ax from "./axiom.ts";
 import * as axsd from "./axiom-serde.ts";
 
 // deno-lint-ignore no-explicit-any

@@ -2,7 +2,7 @@ import { path, testingAsserts as ta } from "../deps-test.ts";
 import * as ws from "../../../text/whitespace.ts";
 import * as mod from "./sql.ts";
 import * as ddl from "../ddl/mod.ts";
-import * as ax from "../../../safety/axiom.ts";
+import * as ax from "../../../axiom/mod.ts";
 import * as d from "../domain.ts";
 import * as ns from "../namespace.ts";
 

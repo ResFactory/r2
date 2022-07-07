@@ -1,4 +1,4 @@
-import * as ax from "../../safety/axiom.ts";
+import * as ax from "../../axiom/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as erd from "../diagram/mod.ts";
 

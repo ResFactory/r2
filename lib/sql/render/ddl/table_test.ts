@@ -2,7 +2,7 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./table.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
-import * as ax from "../../../safety/axiom.ts";
+import * as ax from "../../../axiom/mod.ts";
 import * as sch from "./schema.ts";
 import * as dql from "../dql/mod.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";

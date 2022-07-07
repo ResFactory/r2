@@ -2,7 +2,7 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./enum-table.ts";
 import * as tbl from "./table.ts";
 import * as tmpl from "../template/mod.ts";
-import * as ax from "../../../safety/axiom.ts";
+import * as ax from "../../../axiom/mod.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
 Deno.test("SQL Aide (SQLa) numeric enum table", async (tc) => {

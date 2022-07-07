@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./domain.ts";
-import * as ax from "../../safety/axiom.ts";
-import { $ } from "../../safety/axiom.ts";
+import * as ax from "../../axiom/mod.ts";
+import { $ } from "../../axiom/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
