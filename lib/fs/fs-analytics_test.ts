@@ -8,22 +8,18 @@ import * as mod from "./fs-analytics.ts";
 // testable, directories and files with mixture of *.md, *.ts, *.html, *.png,
 // etc. files that can then be parsed by FileSysAssetsTree
 
-const testPathAbs = path.dirname(import.meta.url).substr("file://".length);
+const testPathAbs = path.dirname(path.fromFileUrl(import.meta.url));
 const _testPathRel = path.relative(Deno.cwd(), testPathAbs);
 
 Deno.test("TODO: fileSysAnalytics", async () => {
   const assetsTree = new fst.FileSysAssetsTree();
-  const srcRoot = `/home/${
-    Deno.env.get("USER")
-  }/workspaces/gl.infra.medigy.com/medigy-digital-properties/gpm.medigy.com/content`;
+  const srcRoot = testPathAbs;
   await assetsTree.consumeAssets({
     identity: "content",
     root: srcRoot,
     rootIsAbsolute: path.isAbsolute(srcRoot),
   });
-  const destRoot = `/home/${
-    Deno.env.get("USER")
-  }/workspaces/gl.infra.medigy.com/medigy-digital-properties/gpm.medigy.com/public`;
+  const destRoot = testPathAbs;
   await assetsTree.consumeAssets({
     identity: "public",
     root: destRoot,
