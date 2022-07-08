@@ -193,6 +193,10 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
       as _composition_, _aggregation functions_, and _nested filters_). Read
       more about the query builder at
       [Designing the ultimate TypeScript query builder](https://www.edgedb.com/blog/designing-the-ultimate-typescript-query-builder).
+  - [ ] composable `filter` property
+    - [ ] as a function, it would allow user-agent side filtering
+          `{ ..., filter: () => [] }`
+    - [ ] as a `FilterCriteria`, it would allow SQL-side filtering
 - [ ] Untrusted SELECT statement auto-wrapped in CTE for multi-tenant or other
       security policy adherence. This allows aribtrary SQL to be sent from
       untrusted clients but additional where criteria is added via CTE wrapper.
