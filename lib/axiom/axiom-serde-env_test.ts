@@ -53,9 +53,12 @@ Deno.test(`full record from env using deserializeIndividualEnv`, async (tc) => {
     const testTextPropValue = "test";
     Deno.env.set("CFGTEST_TEXT", testTextPropValue);
 
-    const iet = mod.deserializeIndividualEnv(syntheticRecord, {
-      evNS: syntheticNS,
-    });
+    const iet = mod.deserializeFullRecordUsingIndividualEnvVars(
+      syntheticRecord,
+      {
+        evNS: syntheticNS,
+      },
+    );
     const { serDeAxiomRecord: config } = iet;
     ta.assertEquals(false, iet.test(config));
     ta.assertEquals(5, iet.envVarsSearched.length);
@@ -88,9 +91,12 @@ Deno.test(`full record from env using deserializeIndividualEnv`, async (tc) => {
       JSON.stringify({ innerText: "testInner", innerNumber: 25 }),
     );
 
-    const iet = mod.deserializeIndividualEnv(syntheticRecord, {
-      evNS: syntheticNS,
-    });
+    const iet = mod.deserializeFullRecordUsingIndividualEnvVars(
+      syntheticRecord,
+      {
+        evNS: syntheticNS,
+      },
+    );
     const { serDeAxiomRecord: config } = iet;
     ta.assert(iet.test(config, {
       onInvalid: (reason) => {
@@ -138,9 +144,12 @@ Deno.test(`full record from env using deserializeIndividualEnv`, async (tc) => {
       Deno.env.set("CFGTEST_TEXT", "test");
       Deno.env.set("CFGTEST_MAXAGEINMS_ALIAS", String(2456));
 
-      const iet = mod.deserializeIndividualEnv(syntheticRecord, {
-        evNS: syntheticNS,
-      });
+      const iet = mod.deserializeFullRecordUsingIndividualEnvVars(
+        syntheticRecord,
+        {
+          evNS: syntheticNS,
+        },
+      );
       const { serDeAxiomRecord: config } = iet;
       ta.assert(iet.test(config, {
         onInvalid: (reason) => {
@@ -182,7 +191,10 @@ Deno.test(`full record from env using deserializeOmnibusEnv`, async (tc) => {
       ),
     );
 
-    const oet = mod.deserializeOmnibusEnv(syntheticRecord, "CFGTEST_OMNIBUS");
+    const oet = mod.deserializeFullRecordUsingOmnibusEnvVar(
+      syntheticRecord,
+      "CFGTEST_OMNIBUS",
+    );
     const { serDeAxiomRecord: config } = oet;
     ta.assertEquals(false, oet.test(config));
     ta.assert(oet.omnibusEnvVarName);
@@ -215,7 +227,10 @@ Deno.test(`full record from env using deserializeOmnibusEnv`, async (tc) => {
       ),
     );
 
-    const oet = mod.deserializeOmnibusEnv(syntheticRecord, "CFGTEST_OMNIBUS");
+    const oet = mod.deserializeFullRecordUsingOmnibusEnvVar(
+      syntheticRecord,
+      "CFGTEST_OMNIBUS",
+    );
     const { serDeAxiomRecord: config } = oet;
     ta.assert(oet.test(config, {
       onInvalid: (reason) => {

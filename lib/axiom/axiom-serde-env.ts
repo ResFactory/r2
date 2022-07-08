@@ -14,6 +14,16 @@ export const camelCaseToEnvVarName = (text: string) =>
   text.replace(/[A-Z]+/g, (match: string) => `_${match}`)
     .toLocaleUpperCase();
 
+/**
+ * An AxiomSerDe supplier which sets the default value of the Axiom to the value
+ * of an environment variable. Useful when some Axiom values should be driven by
+ * code while other values should be acquired from the environment.
+ * @param axiomSD the AxiomSerDe base
+ * @param envVarName a single env var name (or list of names, using the first one found)
+ * @param defaultValue the value to default to in case the environment does not contain the given names
+ * @param isDefaultable a function which determines whether the default value should be used
+ * @returns an AxiomSerDe definition can be assigned to an axioms record collection
+ */
 export function envVarAxiomSD<
   AxiomSD extends axsd.AxiomSerDe<TsValueType>,
   TsValueType,
@@ -86,7 +96,22 @@ export interface DeserializeIndividualEnvOptions<
   ) => void;
 }
 
-export function deserializeIndividualEnv<
+/**
+ * Given a record of Axiom definitions, convert each property's camel-cased name
+ * to an uppercase environment variable name, attempt to find each property's
+ * value in the environment as an individual env var value, and assign the value
+ * to a type-safe record.
+ *
+ * Usually it's best to use individual envVarAxiomSD-defined Axioms but this
+ * function is useful when the entire set of axioms comes from the environment.
+ * Another benefit of using this function over individual envVarAxiomSD Axioms
+ * is that this function is more "observable": it can report on found/missing
+ * env vars.
+ * @param props the collection of axioms to find in the environment
+ * @param dieOptions env var naming strategy, initial values, and other options
+ * @returns AxiomsSerDeSupplier along with env vars observability
+ */
+export function deserializeFullRecordUsingIndividualEnvVars<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
@@ -105,7 +130,7 @@ export function deserializeIndividualEnv<
   const envVarDefns: axsd.SerDeAxiomDefns<TPropAxioms> = {} as Any;
   const envVarValues: EnvVarValues = {} as Any;
   const serDeAxiomRecord: axsd.SerDeAxiomRecord<TPropAxioms> =
-    dieOptions?.initValues ?? {} as Any;
+    dieOptions?.initValues ?? axsd.axiomSerDeDefaults(props);
   const envVarsSearched: {
     propName: keyof axsd.SerDeAxiomDefns<TPropAxioms>;
     envVarName: string;
@@ -181,7 +206,15 @@ export function deserializeIndividualEnv<
   };
 }
 
-export function deserializeOmnibusEnv<
+/**
+ * Given a record of Axiom definitions an a single env var name, find the value
+ * of the env var, parse it as JSON, and assign the value to a type-safe record.
+ * @param props the collection of axioms to find in the environment
+ * @param omnibusEnvVarName the name of the env var to acquire
+ * @param sdaOptions env var naming strategy, initial values, and other options
+ * @returns AxiomsSerDeSupplier along with env vars observability
+ */
+export function deserializeFullRecordUsingOmnibusEnvVar<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
@@ -201,7 +234,7 @@ export function deserializeOmnibusEnv<
   const djt = axsd.deserializeJsonText<TPropAxioms, Context>(
     props,
     () => omnibusEnvVarValue ?? "{}",
-    sdaOptions?.initValues ?? (() => ({} as Any)),
+    sdaOptions?.initValues ?? (() => axsd.axiomSerDeDefaults(props)),
     sdaOptions,
   );
 
