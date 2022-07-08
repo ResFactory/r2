@@ -51,7 +51,7 @@ export abstract class DependentOriginatorTabularRecordsFactory<
   Identity,
   OriginatorTabularRecordsFactory<Identity>
 > {
-  abstract readonly originatorTR: OriginatorTabularRecord;
+  abstract get originatorTR(): OriginatorTabularRecord;
 
   get originatorRB() {
     return this.parentFactory.originatorRB;
