@@ -16,9 +16,44 @@ import * as ax from "./axiom.ts";
 // deno-lint-ignore no-explicit-any
 export type Any = any; // make it easier on Deno linting
 
+export interface AixomSerDeLintIssueSupplier {
+  readonly lintIssue: string;
+  readonly location?: (options?: { maxLength?: number }) => string;
+}
+
+export const isAixomSerDeLintIssueSupplier = safety.typeGuard<
+  AixomSerDeLintIssueSupplier
+>("lintIssue");
+
+export interface AxiomSerDeLintIssuesSupplier {
+  readonly lintIssues: AixomSerDeLintIssueSupplier[];
+}
+
+export const isAxiomSerDeLintIssuesSupplier = safety.typeGuard<
+  AxiomSerDeLintIssuesSupplier
+>("lintIssues");
+
 export type AxiomSerDeLabelsSupplier<Label extends string> = {
   readonly labels: Label[];
 };
+
+export function axiomSerDeLintIssue<TsValueType>(
+  axiomSD: AxiomSerDe<TsValueType>,
+  issue: string,
+  location?: (options?: { maxLength?: number }) => string,
+): AxiomSerDeLintIssuesSupplier & AxiomSerDe<TsValueType> {
+  const lintIssue = { lintIssue: issue, location };
+  if (isAxiomSerDeLintIssuesSupplier(axiomSD)) {
+    axiomSD.lintIssues.push(lintIssue);
+    return axiomSD;
+  } else {
+    const lintable = axiomSD as
+      & safety.Writeable<AxiomSerDeLintIssuesSupplier>
+      & AxiomSerDe<TsValueType>;
+    lintable.lintIssues = [lintIssue];
+    return lintable;
+  }
+}
 
 export function isAxiomSerDeLabelsSupplier<Label extends string>(
   o: unknown,
@@ -379,6 +414,30 @@ export function axiomSerDeDefaults<
   }
 
   return defaults;
+}
+
+export function* axiomsSerDeLintIssues<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context,
+>(
+  props: TPropAxioms,
+  sdaOptions?: {
+    readonly ctx?: Context;
+    readonly onPropertyNotSerDeAxiom?: (
+      name: string,
+      axiom: Any,
+      iasd: IdentifiableAxiomSerDe<Any>[],
+    ) => void;
+  },
+) {
+  const sda = serDeAxioms(props, sdaOptions);
+  for (const axiomSD of sda.serDeAxioms) {
+    if (isAxiomSerDeLintIssuesSupplier(axiomSD)) {
+      for (const li of axiomSD.lintIssues) {
+        yield { axiomSD, ...li };
+      }
+    }
+  }
 }
 
 export function deserializeJsonText<
