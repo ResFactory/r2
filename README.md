@@ -2,6 +2,8 @@
 
 ![Resource Factory](docs/client-cargo/assets/images/factory-hero-large.webp)
 
+[![codecov](https://codecov.io/gh/resFactory/factory/branch/main/graph/badge.svg?token=JK8J14Y5YY)](https://codecov.io/gh/resFactory/factory)
+
 Resource Factory is a universal approach to generating and assembling code,
 HTML, or other assets that could comprise static sites or engineering artifacts.
 Resource Factory is a different way to generate static "sites" where the concept
