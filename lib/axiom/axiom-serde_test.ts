@@ -1,10 +1,10 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./axiom-serde.ts";
 import * as ax from "./axiom.ts";
+import * as axsde from "./axiom-serde-env.ts";
 import { $ } from "./axiom.ts";
 
-// deno-lint-ignore no-explicit-any
-type Any = any;
+const intEnvDefaultable = -1;
 
 Deno.test("serializable/deserializable axioms", async (tc) => {
   // use these for type-testing in IDE
@@ -14,6 +14,12 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     textCustom: mod.text($.string),
     textLabeledOptional: mod.label(mod.textOptional(), "synthetic_label1"),
     int: mod.integer(),
+    intEnv: axsde.envVarAxiomSD(
+      mod.integer(),
+      "SYNTHETIC_INT",
+      0,
+      (value) => value && value == intEnvDefaultable ? true : false,
+    ),
     intOptional: mod.integerOptional(),
     intCustom: mod.integer($.number),
     bigint: mod.bigint(),
@@ -50,6 +56,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       text: "synthetic",
       textCustom: "synthetic_custom",
       int: 0,
+      intEnv: intEnvDefaultable,
       intCustom: 1,
       bigint: 0n,
       bigintCustom: 1n,
@@ -95,6 +102,17 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       ta.assertEquals("textLabeledOptional", labeled[0].identity);
     });
 
+    await tc.step("default value from Environment", () => {
+      const syntheticDomains = mod.serDeAxioms(syntheticDecl);
+      const labeled = Array.from(
+        mod.labeledSerDeAxioms(syntheticDomains, (test) => {
+          return test.labels.includes("synthetic_label1") ? true : false;
+        }),
+      );
+      ta.assertEquals(1, labeled.length);
+      ta.assertEquals("textLabeledOptional", labeled[0].identity);
+    });
+
     // hover over 'SyntheticDomains' to see fully typed object
     type SyntheticDomains = ax.AxiomType<typeof syntheticDomains>;
     // try typing in bad properties or invalid types
@@ -102,6 +120,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       text: "synthetic",
       textCustom: "synthetic_custom",
       int: 0,
+      intEnv: intEnvDefaultable,
       intCustom: 1,
       bigint: 0n,
       bigintCustom: 1n,
@@ -123,6 +142,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     expectType<string>(synthetic.textCustom);
     expectType<string | undefined>(synthetic.textLabeledOptional);
     expectType<number>(synthetic.int);
+    expectType<number>(synthetic.intEnv);
     expectType<number>(synthetic.intCustom);
     expectType<bigint>(synthetic.bigint);
     expectType<bigint>(synthetic.bigintCustom);
@@ -140,6 +160,13 @@ Deno.test(`deserialize JSON text`, async (tc) => {
     const syntheticSerDe = {
       text: mod.text(),
       number: mod.integer(),
+      numberEnv: axsde.envVarAxiomSD(
+        mod.integer(),
+        "SYNTHETIC_INT",
+        0,
+        (value) =>
+          value == undefined || value == intEnvDefaultable ? true : false,
+      ),
       maxAgeInMS: mod.bigint(),
       bool: mod.boolean(),
       complexType: mod.object({
@@ -160,12 +187,20 @@ Deno.test(`deserialize JSON text`, async (tc) => {
     const { serDeAxiomRecord: sdaRec } = djt;
     ta.assertEquals(false, djt.test(sdaRec));
     ta.assertEquals(sdaRec.text, "test");
+    ta.assertEquals(sdaRec.numberEnv, 0); // no "SYNTHETIC_INT" env var available
   });
 
   await tc.step("valid config, all required properties defined", () => {
     const syntheticSerDe = {
       text: mod.text(),
       number: mod.integer(),
+      numberEnv: axsde.envVarAxiomSD(
+        mod.integer(),
+        "SYNTHETIC_INT",
+        0,
+        (value) =>
+          value == undefined || value == intEnvDefaultable ? true : false,
+      ),
       // maxAgeInMS: mod.bigint(), TODO: bigint in omnibus doesn't work yet
       bool: mod.boolean(),
       complexType: mod.object({
@@ -182,6 +217,8 @@ Deno.test(`deserialize JSON text`, async (tc) => {
     }, (_, value) => typeof value === "bigint" ? value.toString() : value // return everything else unchanged
     );
 
+    Deno.env.set("SYNTHETIC_INT", String(10267));
+
     const djt = mod.deserializeJsonText(
       syntheticSerDe,
       () => syntheticJsonText,
@@ -195,10 +232,13 @@ Deno.test(`deserialize JSON text`, async (tc) => {
 
     ta.assertEquals(config.text, "test");
     ta.assertEquals(config.number, 100);
+    ta.assertEquals(config.numberEnv, 10267);
     ta.assertEquals(config.bool, true);
     ta.assertEquals(config.complexType, {
       innerText: "testInner",
       innerNumber: 25,
     });
+
+    Deno.env.delete("SYNTHETIC_INT");
   });
 });

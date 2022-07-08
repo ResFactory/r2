@@ -27,9 +27,17 @@ export function isAxiomSerDeLabelsSupplier<Label extends string>(
   return isLSD(o);
 }
 
+export type AxiomSerDeValueSupplier<TsValueType> = <Context>(
+  ctx?: Context,
+) => TsValueType;
+
 export type AxiomSerDe<TsValueType> = ax.Axiom<TsValueType> & {
   readonly fromText: (text: string, srcHint: "env") => TsValueType;
-  readonly defaultValue?: <Context>(ctx?: Context) => TsValueType;
+  readonly isDefaultable?: <Context>(
+    value?: TsValueType,
+    ctx?: Context,
+  ) => boolean;
+  readonly defaultValue?: AxiomSerDeValueSupplier<TsValueType>;
   readonly isOptional: boolean;
 };
 
@@ -84,9 +92,10 @@ export function label<TsValueType, Label extends string>(
 
 export function defaultable<TsValueType>(
   toggle: AxiomSerDe<TsValueType>,
-  defaultValue: <Context>(ctx?: Context) => TsValueType,
+  defaultValue: AxiomSerDeValueSupplier<TsValueType>,
+  isDefaultable?: <Context>(value?: TsValueType, ctx?: Context) => boolean,
 ): AxiomSerDe<TsValueType> {
-  return { ...toggle, defaultValue };
+  return { ...toggle, defaultValue, isDefaultable };
 }
 
 export function text(
@@ -337,14 +346,49 @@ export function serDeAxioms<TPropAxioms extends Record<string, ax.Axiom<Any>>>(
   };
 }
 
+export function axiomSerDeDefaults<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context,
+>(
+  props: TPropAxioms,
+  initValues: (ctx?: Context) => SerDeAxiomRecord<TPropAxioms> =
+    () => ({} as Any),
+  sdaOptions?: {
+    readonly ctx?: Context;
+    readonly onPropertyNotSerDeAxiom?: (
+      name: string,
+      axiom: Any,
+      iasd: IdentifiableAxiomSerDe<Any>[],
+    ) => void;
+  },
+) {
+  const { ctx } = sdaOptions ?? {};
+
+  const sda = serDeAxioms(props, sdaOptions);
+  const defaults = initValues(ctx);
+
+  for (const a of sda.serDeAxioms) {
+    if (a.defaultValue) {
+      if (a.isDefaultable) {
+        if (!a.isDefaultable<Context>(defaults[a.identity] as Any, ctx)) {
+          continue;
+        }
+      }
+      (defaults[a.identity] as Any) = a.defaultValue(ctx);
+    }
+  }
+
+  return defaults;
+}
+
 export function deserializeJsonText<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,
 >(
   props: TPropAxioms,
   jsonTextSupplier: (ctx?: Context) => string,
-  initValues: (ctx?: Context) => SerDeAxiomRecord<TPropAxioms> =
-    () => ({} as Any),
+  initValues: (ctx?: Context) => SerDeAxiomRecord<TPropAxioms> = () =>
+    axiomSerDeDefaults(props),
   sdaOptions?: {
     readonly ctx?: Context;
     readonly onPropertyNotSerDeAxiom?: (

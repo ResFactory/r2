@@ -14,6 +14,28 @@ export const camelCaseToEnvVarName = (text: string) =>
   text.replace(/[A-Z]+/g, (match: string) => `_${match}`)
     .toLocaleUpperCase();
 
+export function envVarAxiomSD<
+  AxiomSD extends axsd.AxiomSerDe<TsValueType>,
+  TsValueType,
+>(
+  axiomSD: AxiomSD,
+  envVarName: string | string[],
+  defaultValue: TsValueType,
+  isDefaultable?: <Context>(value?: TsValueType, ctx?: Context) => boolean,
+) {
+  const defaultValueSupplier = () => {
+    const evnList: string[] = Array.isArray(envVarName)
+      ? envVarName
+      : [envVarName];
+    for (const evName of evnList) {
+      const envVarValue = Deno.env.get(evName);
+      if (envVarValue) return axiomSD.fromText(envVarValue, "env");
+    }
+    return defaultValue;
+  };
+  return axsd.defaultable(axiomSD, defaultValueSupplier, isDefaultable);
+}
+
 export type EnvVarNamingStrategy = (given: string) => string;
 
 export type EnvVarNamesSupplier<Name extends string> = {

@@ -5,7 +5,39 @@ import * as mod from "./axiom-serde-env.ts";
 const syntheticNS = (name: string) =>
   `CFGTEST_${mod.camelCaseToEnvVarName(name)}`;
 
-Deno.test(`deserializeIndividualEnv`, async (tc) => {
+Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
+  const syntheticSerDe = {
+    text: mod.envVarAxiomSD(
+      axsd.text(),
+      "SYNTHETIC_TEXT",
+      "noEnvVarDefined",
+      (value) => value == undefined || value == "placeholder" ? true : false,
+    ),
+    number: axsd.integer(),
+    numberEnv: mod.envVarAxiomSD(
+      axsd.integer(),
+      "SYNTHETIC_INT",
+      0,
+      (value) => value == undefined || value == -1 ? true : false,
+    ),
+  };
+
+  Deno.env.set("SYNTHETIC_INT", String(10267));
+
+  const defaults = axsd.axiomSerDeDefaults(syntheticSerDe, () => ({
+    text: "placeholder",
+    number: 100,
+    numberEnv: -1,
+  }));
+
+  ta.assertEquals(defaults.text, "noEnvVarDefined");
+  ta.assertEquals(defaults.number, 100);
+  ta.assertEquals(defaults.numberEnv, 10267);
+
+  Deno.env.delete("SYNTHETIC_INT");
+});
+
+Deno.test(`full record from env using deserializeIndividualEnv`, async (tc) => {
   await tc.step("invalid config, missing required properties", () => {
     const syntheticRecord = {
       text: axsd.text(),
@@ -129,7 +161,7 @@ Deno.test(`deserializeIndividualEnv`, async (tc) => {
   );
 });
 
-Deno.test(`deserializeOmnibusEnv`, async (tc) => {
+Deno.test(`full record from env using deserializeOmnibusEnv`, async (tc) => {
   await tc.step("invalid config, missing required properties", () => {
     const syntheticRecord = {
       text: axsd.text(),
