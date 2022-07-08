@@ -419,6 +419,30 @@ export function axiomSerDeDefaults<
   return defaults;
 }
 
+export function missingAxiomValues<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Values extends Record<keyof TPropAxioms, unknown>,
+>(
+  values: Values,
+  props: TPropAxioms,
+  ...validate: (keyof TPropAxioms)[]
+) {
+  const sda = serDeAxioms(props);
+  const missingProps: IdentifiableAxiomSerDe<Any>[] = [];
+  for (const prop of validate) {
+    const axiomSD = sda.serDeAxioms.find((asd) => asd.identity == prop);
+    // axiomSD.isDefaultable will be true if value is not set
+    if (
+      axiomSD &&
+      axiomSD.isDefaultable &&
+      axiomSD.isDefaultable(values[prop] as Any)
+    ) {
+      missingProps.push(axiomSD);
+    }
+  }
+  return missingProps;
+}
+
 export function* axiomsSerDeLintIssues<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context,

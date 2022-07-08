@@ -1,4 +1,5 @@
 import { testingAsserts as ta } from "./deps-test.ts";
+import * as ax from "./axiom.ts";
 import * as axsd from "./axiom-serde.ts";
 import * as mod from "./axiom-serde-env.ts";
 
@@ -6,31 +7,26 @@ const syntheticNS = (name: string) =>
   `CFGTEST_${mod.camelCaseToEnvVarName(name)}`;
 
 Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
+  const envBuilder = mod.envBuilder({ ens: (given) => `SYNTHETIC_${given}` });
   const syntheticSerDe = {
-    text: mod.envVarAxiomSD(
-      axsd.text(),
-      "SYNTHETIC_TEXT",
-      "noEnvVarDefined",
-      (value) => value == undefined || value == "placeholder" ? true : false,
-    ),
-    number: axsd.integer(),
-    numberEnv: mod.envVarAxiomSD(
-      axsd.integer(),
-      "SYNTHETIC_INT",
-      0,
-      (value) => value == undefined || value == -1 ? true : false,
-    ),
+    text: envBuilder.text("TEXT"), // optionally from environment
+    number: axsd.integer(), // never from environment
+    numberEnv: envBuilder.integer("INT"), // optionally from environment
+  };
+  const axiomObject = ax.$.object(syntheticSerDe);
+  const configure = (init?: ax.AxiomType<typeof axiomObject>) => {
+    return axsd.axiomSerDeDefaults(syntheticSerDe, init);
   };
 
   Deno.env.set("SYNTHETIC_INT", String(10267));
 
-  const defaults = axsd.axiomSerDeDefaults(syntheticSerDe, {
-    text: "placeholder",
+  const defaults = configure({
+    text: envBuilder.textUndefined,
     number: 100,
     numberEnv: -1,
   });
 
-  ta.assertEquals(defaults.text, "noEnvVarDefined");
+  ta.assertEquals(defaults.text, envBuilder.textUndefined);
   ta.assertEquals(defaults.number, 100);
   ta.assertEquals(defaults.numberEnv, 10267);
 

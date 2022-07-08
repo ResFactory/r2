@@ -14,6 +14,8 @@ export const camelCaseToEnvVarName = (text: string) =>
   text.replace(/[A-Z]+/g, (match: string) => `_${match}`)
     .toLocaleUpperCase();
 
+export type EnvVarNamingStrategy = (given: string) => string;
+
 /**
  * An AxiomSerDe supplier which sets the default value of the Axiom to the value
  * of an environment variable. Useful when some Axiom values should be driven by
@@ -46,7 +48,40 @@ export function envVarAxiomSD<
   return axsd.defaultable(axiomSD, defaultValueSupplier, isDefaultable);
 }
 
-export type EnvVarNamingStrategy = (given: string) => string;
+export function envBuilder(options?: {
+  readonly ens?: EnvVarNamingStrategy;
+}) {
+  const { ens = (suggested: string) => suggested } = options ??
+    {};
+  const textUndefined = "envVarUndefined";
+  const intUndefined = -1;
+  return {
+    textUndefined,
+    text: (
+      envVarName: string,
+      ...aliases: string[]
+    ) => {
+      return envVarAxiomSD(
+        axsd.text(),
+        [ens(envVarName), ...aliases],
+        textUndefined,
+        (value) => value == undefined || value == textUndefined ? true : false,
+      );
+    },
+    intUndefined,
+    integer: (
+      envVarName: string,
+      ...aliases: string[]
+    ) => {
+      return envVarAxiomSD(
+        axsd.integer(),
+        [ens(envVarName), ...aliases],
+        intUndefined,
+        (value) => value == undefined || value == intUndefined ? true : false,
+      );
+    },
+  };
+}
 
 export type EnvVarNamesSupplier<Name extends string> = {
   readonly envVarNames: Name[];
