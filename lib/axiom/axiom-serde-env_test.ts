@@ -24,11 +24,11 @@ Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
 
   Deno.env.set("SYNTHETIC_INT", String(10267));
 
-  const defaults = axsd.axiomSerDeDefaults(syntheticSerDe, () => ({
+  const defaults = axsd.axiomSerDeDefaults(syntheticSerDe, {
     text: "placeholder",
     number: 100,
     numberEnv: -1,
-  }));
+  });
 
   ta.assertEquals(defaults.text, "noEnvVarDefined");
   ta.assertEquals(defaults.number, 100);

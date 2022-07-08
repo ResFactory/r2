@@ -386,8 +386,9 @@ export function axiomSerDeDefaults<
   Context,
 >(
   props: TPropAxioms,
-  initValues: (ctx?: Context) => SerDeAxiomRecord<TPropAxioms> =
-    () => ({} as Any),
+  initValues:
+    | SerDeAxiomRecord<TPropAxioms>
+    | ((ctx?: Context) => SerDeAxiomRecord<TPropAxioms>) = {} as Any,
   sdaOptions?: {
     readonly ctx?: Context;
     readonly onPropertyNotSerDeAxiom?: (
@@ -400,7 +401,9 @@ export function axiomSerDeDefaults<
   const { ctx } = sdaOptions ?? {};
 
   const sda = serDeAxioms(props, sdaOptions);
-  const defaults = initValues(ctx);
+  const defaults = typeof initValues === "function"
+    ? initValues(ctx)
+    : initValues;
 
   for (const a of sda.serDeAxioms) {
     if (a.defaultValue) {
@@ -446,8 +449,11 @@ export function deserializeJsonText<
 >(
   props: TPropAxioms,
   jsonTextSupplier: (ctx?: Context) => string,
-  initValues: (ctx?: Context) => SerDeAxiomRecord<TPropAxioms> = () =>
-    axiomSerDeDefaults(props),
+  initValues:
+    | SerDeAxiomRecord<TPropAxioms>
+    | ((ctx?: Context) => SerDeAxiomRecord<TPropAxioms>) = axiomSerDeDefaults(
+      props,
+    ),
   sdaOptions?: {
     readonly ctx?: Context;
     readonly onPropertyNotSerDeAxiom?: (
@@ -463,7 +469,7 @@ export function deserializeJsonText<
   const jsonText = jsonTextSupplier(ctx);
   const jsonValue = JSON.parse(jsonText) as SerDeAxiomRecord<TPropAxioms>;
 
-  const init = initValues(ctx);
+  const init = typeof initValues === "function" ? initValues(ctx) : initValues;
   const serDeAxiomRecord = m.safeMerge(init, jsonValue) as SerDeAxiomRecord<
     TPropAxioms
   >;

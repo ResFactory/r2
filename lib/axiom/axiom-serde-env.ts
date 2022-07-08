@@ -234,7 +234,7 @@ export function deserializeFullRecordUsingOmnibusEnvVar<
   const djt = axsd.deserializeJsonText<TPropAxioms, Context>(
     props,
     () => omnibusEnvVarValue ?? "{}",
-    sdaOptions?.initValues ?? (() => axsd.axiomSerDeDefaults(props)),
+    sdaOptions?.initValues ?? axsd.axiomSerDeDefaults(props),
     sdaOptions,
   );
 
