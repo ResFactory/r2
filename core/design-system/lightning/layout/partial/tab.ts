@@ -17,7 +17,7 @@ export interface Tab {
 }
 
 export function renderedTab(
-  layout: ldsGovn.LightningLayout,
+  _layout: ldsGovn.LightningLayout,
   Tab: Tab,
 ): string {
   // deno-fmt-ignore

@@ -1,14 +1,14 @@
-import { path } from "../../core/deps.ts";
-// import { testingAsserts as ta } from "../deps-test.ts";
-import * as mod from "./publication.ts";
-import * as govn from "../../governance/mod.ts";
-import * as obs from "../../core/std/observability.ts";
-import * as fsLink from "../../lib/fs/link.ts";
-import * as git from "../../lib/git/mod.ts";
-import * as k from "../../lib/knowledge/mod.ts";
-import * as ds from "../../core/render/html/mod.ts";
-import * as lds from "../../core/design-system/lightning/mod.ts";
-import * as extn from "../../lib/module/mod.ts";
+// import { path } from "../../core/deps.ts";
+// // import { testingAsserts as ta } from "../deps-test.ts";
+// import * as mod from "./publication.ts";
+// import * as govn from "../../governance/mod.ts";
+// import * as obs from "../../core/std/observability.ts";
+// import * as fsLink from "../../lib/fs/link.ts";
+// import * as git from "../../lib/git/mod.ts";
+// import * as k from "../../lib/knowledge/mod.ts";
+// import * as ds from "../../core/render/html/mod.ts";
+// import * as lds from "../../core/design-system/lightning/mod.ts";
+// import * as extn from "../../lib/module/mod.ts";
 
 // const testPath = path.relative(
 //   Deno.cwd(),

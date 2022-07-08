@@ -39,4 +39,4 @@ jobs:
 
       # Scan the code for syntax errors and style issues.
       # If you want to use a custom linter configuration you can add a configuration file with --config <myconfig>
-      - run: deno lint
+      - run: deno lint **/*.ts --ignore="lib/package/bundle-js-test-fixture-bad.js.ts"
