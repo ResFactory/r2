@@ -18,10 +18,6 @@ export class SqliteEventEmitter<
   closingDatabase(i: Instance): void;
   closedDatabase(i: Instance): void;
 
-  connectedSession(c: Connection): void;
-  closingSession(c: Connection): void;
-  closedSession(c: Connection): void;
-
   constructStorage(cc: eng.SqlDefineConn<Engine, Instance, Context>): void;
   constructIdempotent(cc: eng.SqlReadConn<Engine, Instance, Context>): void;
   populateSeedData(cc: eng.SqlWriteConn<Engine, Instance, Context>): void;
@@ -130,11 +126,11 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
     this.dbStore = new sqlite.DB(this.dbStoreFsPath, { mode: "create" });
     this.identity = `SQLite::${this.dbStoreFsPath}`;
 
-    this.rowsExec = sqliteRowsExecutor(this.dbStore);
-    this.recordsExec = sqliteRecordsExecutor(this.dbStore);
-
     const sqlELCEE = new SqliteEventEmitter<Context>();
     this.sqliteEE = sii.prepareEE?.(sqlELCEE) ?? sqlELCEE;
+
+    this.rowsExec = sqliteRowsExecutor(this.dbStore);
+    this.recordsExec = sqliteRecordsExecutor(this.dbStore);
 
     if (sii.autoCloseOnUnload) {
       globalThis.addEventListener("unload", () => this.close());
