@@ -1,3 +1,4 @@
+import * as hex from "https://deno.land/std@0.147.0/encoding/hex.ts";
 import * as safety from "../../safety/mod.ts";
 import * as SQLa from "../render/mod.ts";
 
@@ -20,7 +21,7 @@ import * as SQLa from "../render/mod.ts";
  * | undefined  | NULL            | null             |
  *
  * If no value is provided for a given parameter,
- * SQLite will default to NULL.
+ * SqlEngine will default to NULL.
  *
  * If a `bigint` is bound, it is converted to a
  * signed 64 bit integer, which may overflow.
@@ -31,7 +32,7 @@ import * as SQLa from "../render/mod.ts";
  *
  * If a `Date` is bound, it will be converted to
  * an ISO 8601 string: `YYYY-MM-DDTHH:MM:SS.SSSZ`.
- * This format is understood by built-in SQLite
+ * This format is understood by built-in SqlEngine
  * date-time functions. Also see https://sqlite.org/lang_datefunc.html.
  */
 export type SqlQueryParameter =
@@ -85,4 +86,40 @@ export function isSqlQueryParameterSetSupplier<
     "sqlQueryParams",
   );
   return SQLa.isSqlTextSupplier<Context>(o) && isSQPSS(o);
+}
+
+export interface IdentifiableSqlBindParamsTextSupplier<
+  Identity extends string,
+  Context extends SQLa.SqlEmitContext,
+> extends SqlBindParamsTextSupplier<Context> {
+  readonly identity: (purpose: "exec-results-cache-key") => Identity;
+}
+
+export function isIdentifiableSqlBindParamsTextSupplier<
+  Identity extends string,
+  Context extends SQLa.SqlEmitContext,
+>(
+  o: unknown,
+): o is IdentifiableSqlBindParamsTextSupplier<Identity, Context> {
+  const isISQPSS = safety.typeGuard<
+    IdentifiableSqlBindParamsTextSupplier<Identity, Context>
+  >("identity");
+  return isSqlQueryParameterSetSupplier<Context>(o) && isISQPSS(o);
+}
+
+export async function sqlQueryIdentity<Context extends SQLa.SqlEmitContext>(
+  sts: SqlBindParamsTextSupplier<Context>,
+  ctx: Context,
+) {
+  let identity: string;
+  if (isIdentifiableSqlBindParamsTextSupplier(sts)) {
+    identity = sts.identity("exec-results-cache-key");
+  } else {
+    const digest = await crypto.subtle.digest(
+      "sha-1",
+      new TextEncoder().encode(sts.SQL(ctx)),
+    );
+    identity = new TextDecoder().decode(hex.encode(new Uint8Array(digest)));
+  }
+  return identity;
 }

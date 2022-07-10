@@ -1,11 +1,12 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./postgres.ts";
+import * as p from "./proxy.ts";
 import * as SQLa from "../render/mod.ts";
 
 const isCICD = Deno.env.get("CI") ? true : false;
 
 Deno.test("PostgreSQL engine connection configuration", async (tc) => {
-  const pgdbcc = mod.pgDatabaseConnConfig();
+  const pgdbcc = mod.pgDbConnEnvConfig();
 
   await tc.step("from code", () => {
     const config = pgdbcc.configure({
@@ -114,105 +115,215 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
   });
 });
 
-Deno.test("PostgreSQL connection", async (tc) => {
-  await tc.step("invalid", async () => {
-    const pgdbcc = mod.pgDatabaseConnConfig();
-    const config = pgdbcc.configure({
-      identity: `resFactory/factory/lib/sql/engine/postgres_test.ts`,
-      database: "database",
-      hostname: "hostname",
-      port: 5433,
-      user: "user",
-      password: "user",
-      dbConnPoolCount: 1,
-    });
-    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
-
-    const pgEngine = mod.postgreSqlEngine();
-    const pgDBi = pgEngine.instance({
-      clientOptions: () => pgdbcc.pgClientOptions(config),
-      autoCloseOnUnload: true,
-      poolCount: config.dbConnPoolCount,
-    });
-    ta.assert(!(await pgDBi.isConnectable()));
-    pgDBi.close();
+Deno.test("PostgreSQL invalid connection", async () => {
+  const pgdbcc = mod.pgDbConnEnvConfig();
+  const config = pgdbcc.configure({
+    identity: `resFactory/factory/lib/sql/engine/postgres_test.ts`,
+    database: "database",
+    hostname: "hostname",
+    port: 5433,
+    user: "user",
+    password: "user",
+    dbConnPoolCount: 1,
   });
+  ta.assertEquals(pgdbcc.missingValues(config).length, 0);
 
-  await tc.step("valid", async () => {
-    if (isCICD) return;
+  const pgEngine = mod.postgreSqlEngine();
+  const pgDBi = pgEngine.instance({
+    clientOptions: () => pgdbcc.pgClientOptions(config),
+    autoCloseOnUnload: true,
+    poolCount: config.dbConnPoolCount,
+  });
+  ta.assert(!(await pgDBi.isConnectable()));
+  pgDBi.close();
+});
 
-    const pgdbcc = mod.pgDatabaseConnConfig({
-      ens: (given) => `TESTVALID_PKC_${given}`,
-    });
-    const config = pgdbcc.configure({
-      configured: true,
-      identity: `resFactory/factory/lib/sql/engine/postgres_test.ts`,
-      database: "gitlabhq_production",
-      hostname: "192.168.2.24",
-      port: 5033,
-      user: pgdbcc.envBuilder.textUndefined, // must come from env
-      password: pgdbcc.envBuilder.textUndefined, // must come from env
-      dbConnPoolCount: 1,
-    });
-    const pgco = pgdbcc.pgClientOptions(config);
-    if (!pgco.user || !pgco.password) {
-      console.error(
-        `Unable to test valid PostgreSQL connection, TESTVALID_PKC_PGUSER or TESTVALID_PKC_PGPASSWORD env vars missing`,
-      );
-      return;
+Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", async (tc) => {
+  // if we're running in GitHub Actions or other Continuous Integration (CI)
+  // or Continuous Delivery (CD) environment then PostgreSQL won't be available
+  // so don't fail the test case, just don't run it
+  if (isCICD) return;
+
+  const pgdbcc = mod.pgDbConnEnvConfig({
+    ens: (given) => `TESTVALID_PKC_${given}`,
+  });
+  const qeProxyFsHome = await Deno.makeTempDir();
+  const config = pgdbcc.configure({
+    configured: true,
+    qeProxyFsHome,
+    identity: `resFactory/factory/lib/sql/engine/postgres_test.ts`,
+    database: "gitlabhq_production",
+    hostname: "192.168.2.24",
+    port: 5033,
+    user: pgdbcc.envBuilder.textUndefined, // must come from env
+    password: pgdbcc.envBuilder.textUndefined, // must come from env
+    dbConnPoolCount: 1,
+  });
+  const pgco = pgdbcc.pgClientOptions(config);
+  if (!pgco.user || !pgco.password) {
+    console.error(
+      `Unable to test valid PostgreSQL connection, TESTVALID_PKC_PGUSER or TESTVALID_PKC_PGPASSWORD env vars missing`,
+    );
+    return;
+  }
+  ta.assertEquals(pgdbcc.missingValues(config).length, 0);
+
+  const pgEvents = new Map<string, { count: number }>();
+  const pgEvent = (id: string) => {
+    let result = pgEvents.get(id);
+    if (!result) {
+      result = { count: 0 };
+      pgEvents.set(id, result);
     }
-    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
+    return result;
+  };
 
-    const events = new Map<string, { count: number }>();
-    const event = (id: string) => {
-      let result = events.get(id);
-      if (!result) {
-        result = { count: 0 };
-        events.set(id, result);
-      }
-      return result;
-    };
+  const qeProxyEvents = new Map<string, { count: number }>();
+  const qeProxyEvent = (id: string) => {
+    let result = qeProxyEvents.get(id);
+    if (!result) {
+      result = { count: 0 };
+      qeProxyEvents.set(id, result);
+    }
+    return result;
+  };
 
-    const pgEngine = mod.postgreSqlEngine();
-    const pgDBi = pgEngine.instance({
-      clientOptions: () => pgdbcc.pgClientOptions(config),
-      autoCloseOnUnload: true,
-      poolCount: config.dbConnPoolCount,
-      prepareEE: (ee) => {
+  const qeProxy = p.fileSysSqlProxyEngine().instance({
+    resultsStoreHome: () => qeProxyFsHome,
+    onResultsStoreHomeStatError: (home) =>
+      Deno.mkdirSync(home, { recursive: true }),
+    prepareEE: (ee) => {
+      // deno-lint-ignore require-await
+      ee.on("executedDQL", async () => qeProxyEvent("executedDQL").count++);
+      ee.on(
+        "persistedExecutedRows",
         // deno-lint-ignore require-await
-        ee.on("openingDatabase", async () => event("openingDatabase").count++);
+        async () => qeProxyEvent("persistedExecutedRows").count++,
+      );
+      ee.on(
+        "persistedExecutedRecords",
         // deno-lint-ignore require-await
-        ee.on("openedDatabase", async () => event("openedDatabase").count++);
-        ee.on(
-          "testingConnection",
-          // deno-lint-ignore require-await
-          async () => event("testingConnection").count++,
-        );
-        // deno-lint-ignore require-await
-        ee.on("testedConnValid", async () => event("testedConnValid").count++);
-        ee.on(
-          "testedConnInvalid",
-          // deno-lint-ignore require-await
-          async () => event("testedConnInvalid").count++,
-        );
-        // deno-lint-ignore require-await
-        ee.on("connected", async () => event("connected").count++);
-        // deno-lint-ignore require-await
-        ee.on("releasing", async () => event("releasing").count++);
-        // deno-lint-ignore require-await
-        ee.on("closingDatabase", async () => event("closingDatabase").count++);
-        // deno-lint-ignore require-await
-        ee.on("closedDatabase", async () => event("closedDatabase").count++);
-        return ee;
-      },
-    });
-    ta.assert(await pgDBi.isConnectable());
-    pgDBi.init();
-    const records = await pgDBi.recordsDQL(SQLa.typicalSqlEmitContext(), {
-      SQL: () => `SELECT datname FROM pg_database WHERE datistemplate = false;`,
-    });
-    ta.assert(records);
-    pgDBi.close();
-    //console.dir(events);
+        async () => qeProxyEvent("persistedExecutedRecords").count++,
+      );
+      return ee;
+    },
   });
+  const pgEngine = mod.postgreSqlEngine();
+  const pgDBi = pgEngine.instance({
+    clientOptions: () => pgdbcc.pgClientOptions(config),
+    qeProxy: () => qeProxy,
+    autoCloseOnUnload: true,
+    poolCount: config.dbConnPoolCount,
+    prepareEE: (ee) => {
+      ee.on(
+        "openingDatabase",
+        // deno-lint-ignore require-await
+        async () => pgEvent("openingDatabase").count++,
+      );
+      // deno-lint-ignore require-await
+      ee.on("openedDatabase", async () => pgEvent("openedDatabase").count++);
+      ee.on(
+        "testingConnection",
+        // deno-lint-ignore require-await
+        async () => pgEvent("testingConnection").count++,
+      );
+      ee.on(
+        "testedConnValid",
+        // deno-lint-ignore require-await
+        async () => pgEvent("testedConnValid").count++,
+      );
+      ee.on(
+        "testedConnInvalid",
+        // deno-lint-ignore require-await
+        async () => pgEvent("testedConnInvalid").count++,
+      );
+      // deno-lint-ignore require-await
+      ee.on("connected", async () => pgEvent("connected").count++);
+      // deno-lint-ignore require-await
+      ee.on("releasing", async () => pgEvent("releasing").count++);
+      // deno-lint-ignore require-await
+      ee.on("executedDDL", async () => pgEvent("executedDDL").count++);
+      // deno-lint-ignore require-await
+      ee.on("executedDQL", async () => pgEvent("executedDQL").count++);
+      // deno-lint-ignore require-await
+      ee.on("executedDML", async () => pgEvent("executedDML").count++);
+      ee.on(
+        "closingDatabase",
+        // deno-lint-ignore require-await
+        async () => pgEvent("closingDatabase").count++,
+      );
+      // deno-lint-ignore require-await
+      ee.on("closedDatabase", async () => pgEvent("closedDatabase").count++);
+      return ee;
+    },
+  });
+  const ctx = SQLa.typicalSqlEmitContext();
+  const testQuery = {
+    SQL: () => `SELECT datname FROM pg_database WHERE datistemplate = false;`,
+  };
+
+  ta.assert(await pgDBi.isConnectable());
+  await pgDBi.init();
+
+  await tc.step(
+    "read PostgreSQL records and compare against FS proxy",
+    async () => {
+      const pgRecords = await pgDBi.recordsDQL(ctx, testQuery);
+      ta.assert(pgRecords);
+
+      const fsProxyRecords = await qeProxy.recordsDQL(ctx, testQuery);
+      ta.assertEquals(fsProxyRecords, pgRecords);
+    },
+  );
+
+  await pgDBi.close();
+
+  await tc.step("verify PostgreSQL events", () => {
+    const expectedEventResults = {
+      "testingConnection": { count: 1 },
+      "testedConnValid": { count: 1 },
+      "openingDatabase": { count: 1 },
+      "openedDatabase": { count: 1 },
+      "connected": { count: 1 },
+      "releasing": { count: 1 },
+      "executedDDL": undefined,
+      "executedDML": undefined,
+      "executedDQL": { count: 1 },
+      "closingDatabase": { count: 1 },
+      "closedDatabase": { count: 1 },
+      "testedConnInvalid": undefined,
+    };
+    for (const prop of Object.entries(expectedEventResults)) {
+      const [name, expectedValue] = prop;
+      const evResult = pgEvents.get(name);
+      ta.assertEquals(
+        evResult,
+        expectedValue,
+        `'${name}' PostgreSQL event should be ${
+          JSON.stringify(expectedValue)
+        } not ${JSON.stringify(evResult)}`,
+      );
+    }
+  });
+
+  await tc.step("verify FS proxy events", () => {
+    const expectedEventResults = {
+      "executedDQL": { count: 1 },
+      "persistedExecutedRecords": { count: 1 },
+      "persistedExecutedRows": undefined,
+    };
+    for (const prop of Object.entries(expectedEventResults)) {
+      const [name, expectedValue] = prop;
+      const evResult = qeProxyEvents.get(name);
+      ta.assertEquals(
+        evResult,
+        expectedValue,
+        `'${name}' FS proxy event should be ${
+          JSON.stringify(expectedValue)
+        } not ${JSON.stringify(evResult)}`,
+      );
+    }
+  });
+
+  await Deno.remove(qeProxyFsHome, { recursive: true });
 });

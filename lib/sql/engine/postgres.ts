@@ -5,16 +5,18 @@ import * as pg from "https://deno.land/x/postgres@v0.16.1/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 import * as eng from "./engine.ts";
+import * as proxy from "./proxy.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-export function pgDatabaseConnConfig(
+export function pgDbConnEnvConfig(
   options?: { readonly ens?: axEnv.EnvVarNamingStrategy },
 ) {
   const eb = axEnv.envBuilder(options);
   const dbConnConfig = ax.axiomSerDeObject({
     configured: eb.bool("CONN_CONFIGURED", "PGCONN_CONFIGURED"),
+    qeProxyFsHome: eb.textOptional("QUERYEXEC_CACHE_HOME"),
     identity: eb.text("IDENTITY", "PGAPPNAME"),
     database: eb.text("PGDATABASE"),
     hostname: eb.text("PGHOST", "PGHOSTADDR"),
@@ -53,6 +55,36 @@ export function pgDatabaseConnConfig(
       return dbConnConfig.missingValues(dbc, ...validate);
     },
   };
+}
+
+export function pgDbConnEnvInstanceInit<Context extends SQLa.SqlEmitContext>(
+  options?: {
+    readonly ens?: axEnv.EnvVarNamingStrategy;
+    readonly inherit?: Partial<
+      Omit<PostgreSqlInstanceInit<Context>, "clientOptions">
+    >;
+    readonly onNotConfigured?: () =>
+      | PostgreSqlInstanceInit<Context>
+      | undefined;
+  },
+) {
+  const pgCEC = pgDbConnEnvConfig(options); // prepare the typed conn defn
+  const config = pgCEC.configure(); // "read" all the properties from env
+  if (config.configured) {
+    const result: PostgreSqlInstanceInit<Context> = {
+      clientOptions: () => pgCEC.pgClientOptions(pgCEC.configure()),
+      qeProxy: config.qeProxyFsHome
+        ? (() =>
+          proxy.fileSysSqlProxyEngine<Context>().instance({
+            resultsStoreHome: () => config.qeProxyFsHome!,
+          }))
+        : undefined,
+      ...options?.inherit,
+    };
+    return result;
+  } else {
+    return options?.onNotConfigured?.();
+  }
 }
 
 export class PostgreSqlEventEmitter<
@@ -101,6 +133,7 @@ export interface PostgreSqlInstanceInit<Context extends SQLa.SqlEmitContext> {
     suggested: PostgreSqlEventEmitter<Context>,
   ) => PostgreSqlEventEmitter<Context>;
   readonly autoCloseOnUnload?: boolean;
+  readonly qeProxy?: () => proxy.QueryExecutionProxy<Context>;
 }
 
 export type PostgreSqlEngine = eng.SqlEngine;
@@ -110,8 +143,24 @@ export function postgreSqlEngine<Context extends SQLa.SqlEmitContext>() {
   const result: PostgreSqlEngine = {
     identity: "PostgreSQL `deno-postgres` Engine",
   };
-  return {
+  const engine = {
     ...result,
+    envConfig: (envVarNamePrefix: string) => {
+      return pgDbConnEnvConfig({ ens: (given) => envVarNamePrefix + given });
+    },
+    envInstanceInit: (envVarNamePrefix: string, options?: {
+      readonly inherit?: Partial<
+        Omit<PostgreSqlInstanceInit<Context>, "clientOptions">
+      >;
+      readonly onNotConfigured?: () =>
+        | PostgreSqlInstanceInit<Context>
+        | undefined;
+    }) => {
+      return pgDbConnEnvInstanceInit<Context>({
+        ens: (given) => envVarNamePrefix + given,
+        ...options,
+      });
+    },
     instance: (ii: PostgreSqlInstanceInit<Context>) => {
       const sfn = ii.instanceID;
       let instance = sfn ? instances.get(sfn) : undefined;
@@ -121,18 +170,43 @@ export function postgreSqlEngine<Context extends SQLa.SqlEmitContext>() {
       }
       return instance;
     },
+    envInstance: (envVarNamePrefix: string, options?: {
+      readonly inherit?: Partial<
+        Omit<PostgreSqlInstanceInit<Context>, "clientOptions">
+      >;
+      readonly onNotConfigured?: () =>
+        | PostgreSqlInstance<Context>
+        | undefined;
+    }) => {
+      const pgII = engine.envInstanceInit(envVarNamePrefix);
+      if (pgII) return engine.instance(pgII);
+      return options?.onNotConfigured?.();
+    },
   };
+  return engine;
 }
 
 export function postgreSqlRowsExecutor<Context extends SQLa.SqlEmitContext>(
-  acquireConn: () => Promise<pg.PoolClient>,
-  releaseConn: (c: pg.PoolClient) => void = (c) => c.release(),
+  acquireConn: (ctx: Context) => Promise<pg.PoolClient>,
+  releaseConn: <Row extends ex.SqlRow>(
+    c: pg.PoolClient,
+    result: ex.QueryExecutionRowsSupplier<Row, Context>,
+    ctx: Context,
+    // deno-lint-ignore require-await
+  ) => Promise<void> = async (c) => c.release(),
 ) {
-  const result: ex.QueryRowsExecutor<Context> = async <Row extends ex.SqlRow>(
+  const executor: ex.QueryRowsExecutor<Context> = async <Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> => {
-    const conn = await acquireConn();
+    // a "proxy" can be a local cache or any other store
+    if (options?.proxy) {
+      const proxy = await options?.proxy();
+      if (proxy) return proxy;
+    }
+
+    const conn = await acquireConn(ctx);
     const qaResult = await conn.queryArray<Row>(
       query.SQL(ctx),
       query.sqlQueryParams,
@@ -141,23 +215,39 @@ export function postgreSqlRowsExecutor<Context extends SQLa.SqlEmitContext>(
       rows: qaResult.rows,
       query,
     };
-    releaseConn(conn);
-    return result;
+
+    // "enriching" can be a transformation function, cache store, etc.
+    const { enrich } = options ?? {};
+    const enriched = enrich ? await enrich(result) : result;
+    await releaseConn(conn, enriched, ctx);
+    return enriched;
   };
-  return result;
+  return executor;
 }
 
 export function postgreSqlRecordsExecutor<Context extends SQLa.SqlEmitContext>(
-  acquireConn: () => Promise<pg.PoolClient>,
-  releaseConn: (c: pg.PoolClient) => void = (c) => c.release(),
+  acquireConn: (ctx: Context) => Promise<pg.PoolClient>,
+  releaseConn: <Object extends ex.SqlRecord>(
+    c: pg.PoolClient,
+    result: ex.QueryExecutionRecordsSupplier<Object, Context>,
+    ctx: Context,
+    // deno-lint-ignore require-await
+  ) => Promise<void> = async (c) => c.release(),
 ) {
-  const result: ex.QueryRecordsExecutor<Context> = async <
+  const executor: ex.QueryRecordsExecutor<Context> = async <
     Object extends ex.SqlRecord,
   >(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
   ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> => {
-    const conn = await acquireConn();
+    // a "proxy" can be a local cache or any other store
+    if (options?.proxy) {
+      const proxy = await options?.proxy();
+      if (proxy) return proxy;
+    }
+
+    const conn = await acquireConn(ctx);
     const qoResult = await conn.queryObject<Object>(
       query.SQL(ctx),
       query.sqlQueryParams,
@@ -166,10 +256,14 @@ export function postgreSqlRecordsExecutor<Context extends SQLa.SqlEmitContext>(
       records: qoResult.rows,
       query,
     };
-    releaseConn(conn);
-    return result;
+
+    // "enriching" can be a transformation function, cache store, etc.
+    const { enrich } = options ?? {};
+    const enriched = enrich ? await enrich(result) : result;
+    await releaseConn(conn, enriched, ctx);
+    return enriched;
   };
-  return result;
+  return executor;
 }
 
 export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
@@ -184,6 +278,7 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
   readonly pgEE: PostgreSqlEventEmitter<Context>;
   readonly rowsExec: ex.QueryRowsExecutor<Context>;
   readonly recordsExec: ex.QueryRecordsExecutor<Context>;
+  readonly qeProxy?: proxy.QueryExecutionProxy<Context>;
 
   constructor(pgii: PostgreSqlInstanceInit<Context>) {
     const pgco = pgii.clientOptions();
@@ -191,6 +286,7 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
     this.identity =
       `PostgreSQL::${pgco.hostname}:${pgco.port} ${pgco.database}:${pgco.user}`;
     this.dbClientOptions = pgco;
+    this.qeProxy = pgii.qeProxy?.();
 
     const pgEE = new PostgreSqlEventEmitter<Context>();
     this.pgEE = pgii.prepareEE?.(pgEE) ?? pgEE;
@@ -201,8 +297,9 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
         await pgEE.emit("connected", conn);
         return conn;
       },
-      (conn) => {
-        pgEE.emitSync("releasing", conn);
+      async (conn, result, ctx) => {
+        if (this.qeProxy) this.qeProxy.persistExecutedRows(ctx, result);
+        await pgEE.emit("releasing", conn);
         conn.release();
       },
     );
@@ -212,8 +309,11 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
         await pgEE.emit("connected", conn);
         return conn;
       },
-      (conn) => {
-        pgEE.emitSync("releasing", conn);
+      async (conn, result, ctx) => {
+        if (this.qeProxy) {
+          this.qeProxy.persistExecutedRecords(ctx, result);
+        }
+        await pgEE.emit("releasing", conn);
         conn.release();
       },
     );

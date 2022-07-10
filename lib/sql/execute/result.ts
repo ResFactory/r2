@@ -19,6 +19,7 @@ export interface QueryExecutionRowsSupplier<
 > {
   readonly rows: Array<R>;
   readonly query: p.SqlBindParamsTextSupplier<Context>;
+  readonly error?: Error;
 }
 
 export interface QueryExecutionRecordsSupplier<
@@ -27,6 +28,7 @@ export interface QueryExecutionRecordsSupplier<
 > {
   readonly records: Array<O>;
   readonly query: p.SqlBindParamsTextSupplier<Context>;
+  readonly error?: Error;
 }
 
 export interface QueryExecutionRecordSupplier<
@@ -36,18 +38,42 @@ export interface QueryExecutionRecordSupplier<
   readonly record: O;
 }
 
+export type QueryRowsExecutorOptions<
+  R extends SqlRow,
+  Context extends SQLa.SqlEmitContext,
+> = {
+  readonly proxy?: () => Promise<
+    QueryExecutionRowsSupplier<R, Context> | undefined
+  >;
+  readonly enrich?: (
+    result: QueryExecutionRowsSupplier<R, Context>,
+  ) => Promise<QueryExecutionRowsSupplier<R, Context>>;
+};
+
 export type QueryRowsExecutor<
   Context extends SQLa.SqlEmitContext,
 > = <R extends SqlRow>(
   ctx: Context,
   query: p.SqlBindParamsTextSupplier<Context>,
+  options?: QueryRowsExecutorOptions<R, Context>,
 ) => Promise<QueryExecutionRowsSupplier<R, Context>>;
+
+export type QueryRecordsExecutorOptions<
+  O extends SqlRecord,
+  Context extends SQLa.SqlEmitContext,
+> = {
+  readonly proxy?: () => Promise<QueryExecutionRecordsSupplier<O, Context>>;
+  readonly enrich?: (
+    result: QueryExecutionRecordsSupplier<O, Context>,
+  ) => Promise<QueryExecutionRecordsSupplier<O, Context>>;
+};
 
 export type QueryRecordsExecutor<
   Context extends SQLa.SqlEmitContext,
 > = <O extends SqlRecord>(
   ctx: Context,
   query: p.SqlBindParamsTextSupplier<Context>,
+  options?: QueryRecordsExecutorOptions<O, Context>,
 ) => Promise<QueryExecutionRecordsSupplier<O, Context>>;
 
 export function isQueryExecutionRowsSupplier<

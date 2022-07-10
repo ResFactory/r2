@@ -70,31 +70,46 @@ export function sqliteEngine<Context extends SQLa.SqlEmitContext>() {
 export function sqliteRowsExecutor<Context extends SQLa.SqlEmitContext>(
   db: sqlite.DB,
 ) {
-  // deno-lint-ignore require-await
-  const result: ex.QueryRowsExecutor<Context> = async <Row extends ex.SqlRow>(
+  const executor: ex.QueryRowsExecutor<Context> = async <Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> => {
+    // a "proxy" can be a local cache or any other store
+    if (options?.proxy) {
+      const proxy = await options?.proxy();
+      if (proxy) return proxy;
+    }
+
     const rows = db.query<Row>(query.SQL(ctx), query.sqlQueryParams);
     const result: ex.QueryExecutionRowsSupplier<Row, Context> = {
       rows,
       query,
     };
-    return result;
+
+    // "enriching" can be a transformation function, cache store, etc.
+    const { enrich } = options ?? {};
+    return enrich ? enrich(result) : result;
   };
-  return result;
+  return executor;
 }
 
 export function sqliteRecordsExecutor<Context extends SQLa.SqlEmitContext>(
   db: sqlite.DB,
 ) {
-  // deno-lint-ignore require-await
-  const result: ex.QueryRecordsExecutor<Context> = async <
+  const executor: ex.QueryRecordsExecutor<Context> = async <
     Object extends ex.SqlRecord,
   >(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
   ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> => {
+    // a "proxy" can be a local cache or any other store
+    if (options?.proxy) {
+      const proxy = await options?.proxy();
+      if (proxy) return proxy;
+    }
+
     const records = db.queryEntries<Object>(
       query.SQL(ctx),
       query.sqlQueryParams,
@@ -103,9 +118,12 @@ export function sqliteRecordsExecutor<Context extends SQLa.SqlEmitContext>(
       records,
       query,
     };
-    return result;
+
+    // "enriching" can be a transformation function, cache store, etc.
+    const { enrich } = options ?? {};
+    return enrich ? enrich(result) : result;
   };
-  return result;
+  return executor;
 }
 
 export class SqliteInstance<Context extends SQLa.SqlEmitContext>
