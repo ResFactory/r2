@@ -67,7 +67,7 @@ export type AxiomSerDeValueSupplier<TsValueType> = <Context>(
 ) => TsValueType;
 
 export type AxiomSerDe<TsValueType> = ax.Axiom<TsValueType> & {
-  readonly fromText: (text: string, srcHint: "env") => TsValueType;
+  readonly fromText: <Origin>(text: string, origin: Origin) => TsValueType;
   readonly isDefaultable?: <Context>(
     value?: TsValueType,
     ctx?: Context,

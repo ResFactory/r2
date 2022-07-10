@@ -12,29 +12,29 @@ type Any = any;
 export function pgDatabaseConnConfig(
   options?: { readonly ens?: axEnv.EnvVarNamingStrategy },
 ) {
-  const envBuilder = axEnv.envBuilder(options);
-  const dbConnASDO = ax.axiomSerDeObject({
-    configured: envBuilder.bool("CONN_CONFIGURED", "PGCONN_CONFIGURED"),
-    identity: envBuilder.text("IDENTITY", "PGAPPNAME"),
-    database: envBuilder.text("PGDATABASE"),
-    hostname: envBuilder.text("PGHOST", "PGHOSTADDR"),
-    port: envBuilder.integer("PGPORT"),
-    user: envBuilder.text("PGUSER"),
-    password: envBuilder.text("PGPASSWORD"),
-    dbConnPoolCount: envBuilder.integer("PGCONNPOOL_COUNT"),
+  const eb = axEnv.envBuilder(options);
+  const dbConnConfig = ax.axiomSerDeObject({
+    configured: eb.bool("CONN_CONFIGURED", "PGCONN_CONFIGURED"),
+    identity: eb.text("IDENTITY", "PGAPPNAME"),
+    database: eb.text("PGDATABASE"),
+    hostname: eb.text("PGHOST", "PGHOSTADDR"),
+    port: eb.integer("PGPORT"),
+    user: eb.text("PGUSER"),
+    password: eb.text("PGPASSWORD"),
+    dbConnPoolCount: eb.integer("PGCONNPOOL_COUNT"),
   });
-  type DbConnConfig = ax.AxiomType<typeof dbConnASDO>;
+  type DbConnConfig = ax.AxiomType<typeof dbConnConfig>;
   return {
-    envBuilder,
-    dbConnASDO,
+    envBuilder: eb,
+    dbConnConfig,
     configure: (init?: DbConnConfig) => {
-      return dbConnASDO.prepareRecord(init);
+      return dbConnConfig.prepareRecord(init);
     },
     pgClientOptions: (configured: DbConnConfig) => {
       const textValue = (text: string) =>
-        text == envBuilder.textUndefined ? undefined : text;
+        text == eb.textUndefined ? undefined : text;
       const intValue = (int: number) =>
-        int == envBuilder.intUndefined ? undefined : int;
+        int == eb.intUndefined ? undefined : int;
       const pgco: pg.ClientOptions = {
         applicationName: textValue(configured.identity),
         database: textValue(configured.database),
@@ -50,7 +50,7 @@ export function pgDatabaseConnConfig(
       dbc: DbConnConfig,
       ...validate: (keyof DbConnConfig)[]
     ) => {
-      return dbConnASDO.missingValues(dbc, ...validate);
+      return dbConnConfig.missingValues(dbc, ...validate);
     },
   };
 }

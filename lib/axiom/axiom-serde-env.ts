@@ -41,7 +41,7 @@ export function envVarAxiomSD<
       : [envVarName];
     for (const evName of evnList) {
       const envVarValue = Deno.env.get(evName);
-      if (envVarValue) return axiomSD.fromText(envVarValue, "env");
+      if (envVarValue) return axiomSD.fromText(envVarValue, { envVarValue });
     }
     return defaultValue;
   };
@@ -88,7 +88,9 @@ export function envBuilder(options?: {
       return axsd.defaultable(axiomSD, () => {
         for (const evName of [ens(envVarName), ...aliases]) {
           const envVarValue = Deno.env.get(evName);
-          if (envVarValue) return axiomSD.fromText(envVarValue, "env");
+          if (envVarValue) {
+            return axiomSD.fromText(envVarValue, { envVarValue });
+          }
         }
         return undefined;
       }, (value) => value == undefined ? true : false);
@@ -206,10 +208,7 @@ export function deserializeFullRecordUsingIndividualEnvVars<
         envVarValue,
       };
       serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = evDefn
-        .fromText(
-          envVarValue,
-          "env",
-        );
+        .fromText(envVarValue, { envVarValue });
     }
     return searched;
   };
