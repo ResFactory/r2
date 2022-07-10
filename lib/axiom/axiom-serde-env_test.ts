@@ -1,5 +1,4 @@
 import { testingAsserts as ta } from "./deps-test.ts";
-import * as ax from "./axiom.ts";
 import * as axsd from "./axiom-serde.ts";
 import * as mod from "./axiom-serde-env.ts";
 
@@ -8,19 +7,15 @@ const syntheticNS = (name: string) =>
 
 Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
   const envBuilder = mod.envBuilder({ ens: (given) => `SYNTHETIC_${given}` });
-  const syntheticSerDe = {
+  const syntheticASDO = axsd.axiomSerDeObject({
     text: envBuilder.text("TEXT"), // optionally from environment
     number: axsd.integer(), // never from environment
     numberEnv: envBuilder.integer("INT"), // optionally from environment
-  };
-  const axiomObject = ax.$.object(syntheticSerDe);
-  const configure = (init?: ax.AxiomType<typeof axiomObject>) => {
-    return axsd.axiomSerDeDefaults(syntheticSerDe, init);
-  };
+  });
 
   Deno.env.set("SYNTHETIC_INT", String(10267));
 
-  const defaults = configure({
+  const defaults = syntheticASDO.prepareRecord({
     text: envBuilder.textUndefined,
     number: 100,
     numberEnv: -1,

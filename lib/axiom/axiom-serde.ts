@@ -329,13 +329,6 @@ export type SerDeAxiomDefns<TPropAxioms extends Record<string, ax.Axiom<Any>>> =
     >;
   };
 
-export type SerDeAxiomRecord<
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
-> = {
-  [Property in keyof TPropAxioms]: TPropAxioms[Property] extends
-    ax.Axiom<infer T> ? T : never;
-};
-
 export function isAxiomsSerDeSupplier<TsValueType>(
   o: unknown,
 ): o is AxiomsSerDeSupplier<TsValueType> {
@@ -345,7 +338,9 @@ export function isAxiomsSerDeSupplier<TsValueType>(
   return isSDS(o);
 }
 
-export function serDeAxioms<TPropAxioms extends Record<string, ax.Axiom<Any>>>(
+export function axiomSerDeObject<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+>(
   props: TPropAxioms,
   sdaOptions?: {
     readonly onPropertyNotSerDeAxiom?: (
@@ -356,7 +351,7 @@ export function serDeAxioms<TPropAxioms extends Record<string, ax.Axiom<Any>>>(
   },
 ) { // we let Typescript infer function return to allow generics to be more effective
   const { onPropertyNotSerDeAxiom } = sdaOptions ?? {};
-  const serDeAxioms: IdentifiableAxiomSerDe<Any>[] = [];
+  const axiomProps: IdentifiableAxiomSerDe<Any>[] = [];
   const axiom = ax.$.object(props);
   Object.entries(axiom.axiomObjectDecl).forEach((entry) => {
     const [name, axiom] = entry;
@@ -365,82 +360,104 @@ export function serDeAxioms<TPropAxioms extends Record<string, ax.Axiom<Any>>>(
         IdentifiableAxiomSerDe<Any>
       >;
       mutatableIT.identity = name as Any;
-      serDeAxioms.push(mutatableIT);
+      axiomProps.push(mutatableIT);
     } else {
-      onPropertyNotSerDeAxiom?.(name, axiom, serDeAxioms);
+      onPropertyNotSerDeAxiom?.(name, axiom, axiomProps);
     }
   });
+
+  type SerDeRecord = ax.AxiomType<typeof axiom>;
 
   // we let Typescript infer function return to allow generics to be more
   // easily passed to consumers (if we typed it to an interface we'd limit
   // the type-safety)
   // ESSENTIAL: be sure it adheres to AxiomsSerDeSupplier contract
-  return {
+  const result = {
     ...axiom,
-    serDeAxioms,
-  };
-}
+    axiomProps,
+    /**
+     * Construct an empty record filled with default
+     * @param initValues Start with values from this optional object
+     * @param ctx arbitrary context to pass into AxiomSerDe defaultValue() function
+     * @returns an "empty" typed SerDeRecord with defaults filled in
+     */
+    prepareRecord: <Context>(initValues?: SerDeRecord, ctx?: Context) => {
+      const defaults = (initValues ?? {}) as Record<string, Any>;
 
-export function axiomSerDeDefaults<
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  Context,
->(
-  props: TPropAxioms,
-  initValues:
-    | SerDeAxiomRecord<TPropAxioms>
-    | ((ctx?: Context) => SerDeAxiomRecord<TPropAxioms>) = {} as Any,
-  sdaOptions?: {
-    readonly ctx?: Context;
-    readonly onPropertyNotSerDeAxiom?: (
-      name: string,
-      axiom: Any,
-      iasd: IdentifiableAxiomSerDe<Any>[],
-    ) => void;
-  },
-) {
-  const { ctx } = sdaOptions ?? {};
-
-  const sda = serDeAxioms(props, sdaOptions);
-  const defaults = typeof initValues === "function"
-    ? initValues(ctx)
-    : initValues;
-
-  for (const a of sda.serDeAxioms) {
-    if (a.defaultValue) {
-      if (a.isDefaultable) {
-        if (!a.isDefaultable<Context>(defaults[a.identity] as Any, ctx)) {
-          continue;
+      for (const a of axiomProps) {
+        if (a.defaultValue) {
+          if (a.isDefaultable) {
+            if (!a.isDefaultable<Context>(defaults[a.identity], ctx)) {
+              continue;
+            }
+          }
+          defaults[a.identity] = a.defaultValue(ctx);
         }
       }
-      (defaults[a.identity] as Any) = a.defaultValue(ctx);
-    }
-  }
 
-  return defaults;
-}
+      return defaults as SerDeRecord;
+    },
+    missingValues: (
+      values: SerDeRecord,
+      ...validate: (keyof SerDeRecord)[]
+    ) => {
+      const missingProps: IdentifiableAxiomSerDe<Any>[] = [];
+      for (const prop of validate) {
+        const axiomSD = axiomProps.find((asd) => asd.identity == prop);
+        // axiomSD.isDefaultable will be true if value is not set
+        if (
+          axiomSD &&
+          axiomSD.isDefaultable &&
+          axiomSD.isDefaultable(values[prop] as Any)
+        ) {
+          missingProps.push(axiomSD);
+        }
+      }
+      return missingProps;
+    },
+    fromJsonText: <Context>(
+      jsonTextSupplier: string | ((ctx?: Context) => string),
+      options?: {
+        readonly ctx?: Context;
+        readonly initValues?: SerDeRecord | ((ctx?: Context) => SerDeRecord);
+      },
+    ) => {
+      const { ctx, initValues } = options ?? {};
+      const jsonText = typeof jsonTextSupplier === "function"
+        ? jsonTextSupplier(ctx)
+        : jsonTextSupplier;
+      const jsonValue = JSON.parse(jsonText) as SerDeRecord;
 
-export function missingAxiomValues<
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  Values extends Record<keyof TPropAxioms, unknown>,
->(
-  values: Values,
-  props: TPropAxioms,
-  ...validate: (keyof TPropAxioms)[]
-) {
-  const sda = serDeAxioms(props);
-  const missingProps: IdentifiableAxiomSerDe<Any>[] = [];
-  for (const prop of validate) {
-    const axiomSD = sda.serDeAxioms.find((asd) => asd.identity == prop);
-    // axiomSD.isDefaultable will be true if value is not set
-    if (
-      axiomSD &&
-      axiomSD.isDefaultable &&
-      axiomSD.isDefaultable(values[prop] as Any)
+      const init =
+        (typeof initValues === "function" ? initValues(ctx) : initValues) ??
+          result.prepareRecord();
+      const serDeAxiomRecord = m.safeMerge(
+        { ...init },
+        jsonValue,
+      ) as unknown as SerDeRecord;
+
+      return {
+        ...axiom,
+        jsonText,
+        jsonValue,
+        serDeAxiomRecord,
+      };
+    },
+    labeled: function* <Label extends string, TsValueType = Any>(
+      include: (
+        ap:
+          & IdentifiableAxiomSerDe<TsValueType, string>
+          & LabeledAxiomSerDe<TsValueType, Label>,
+      ) => boolean,
     ) {
-      missingProps.push(axiomSD);
-    }
-  }
-  return missingProps;
+      for (const ap of axiomProps) {
+        if (isLabeledAxiomSerDe<TsValueType, Label>(ap) && include(ap)) {
+          yield ap;
+        }
+      }
+    },
+  };
+  return result;
 }
 
 export function* axiomsSerDeLintIssues<
@@ -457,70 +474,12 @@ export function* axiomsSerDeLintIssues<
     ) => void;
   },
 ) {
-  const sda = serDeAxioms(props, sdaOptions);
-  for (const axiomSD of sda.serDeAxioms) {
-    if (isAxiomSerDeLintIssuesSupplier(axiomSD)) {
-      for (const li of axiomSD.lintIssues) {
-        yield { axiomSD, ...li };
+  const asdo = axiomSerDeObject(props, sdaOptions);
+  for (const ap of asdo.axiomProps) {
+    if (isAxiomSerDeLintIssuesSupplier(ap)) {
+      for (const li of ap.lintIssues) {
+        yield { ap, ...li };
       }
-    }
-  }
-}
-
-export function deserializeJsonText<
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  Context,
->(
-  props: TPropAxioms,
-  jsonTextSupplier: (ctx?: Context) => string,
-  initValues:
-    | SerDeAxiomRecord<TPropAxioms>
-    | ((ctx?: Context) => SerDeAxiomRecord<TPropAxioms>) = axiomSerDeDefaults(
-      props,
-    ),
-  sdaOptions?: {
-    readonly ctx?: Context;
-    readonly onPropertyNotSerDeAxiom?: (
-      name: string,
-      axiom: Any,
-      iasd: IdentifiableAxiomSerDe<Any>[],
-    ) => void;
-  },
-) {
-  const { ctx } = sdaOptions ?? {};
-
-  const sda = serDeAxioms(props, sdaOptions);
-  const jsonText = jsonTextSupplier(ctx);
-  const jsonValue = JSON.parse(jsonText) as SerDeAxiomRecord<TPropAxioms>;
-
-  const init = typeof initValues === "function" ? initValues(ctx) : initValues;
-  const serDeAxiomRecord = m.safeMerge(init, jsonValue) as SerDeAxiomRecord<
-    TPropAxioms
-  >;
-
-  return {
-    ...sda,
-    jsonText,
-    jsonValue,
-    serDeAxiomRecord,
-  };
-}
-
-export function* labeledSerDeAxioms<Label extends string, TsValueType = Any>(
-  asds: AxiomsSerDeSupplier<TsValueType>,
-  include: (
-    d:
-      & IdentifiableAxiomSerDe<TsValueType, string>
-      & LabeledAxiomSerDe<TsValueType, Label>,
-  ) => boolean,
-): Generator<
-  & IdentifiableAxiomSerDe<TsValueType, string>
-  & LabeledAxiomSerDe<TsValueType, Label>,
-  void
-> {
-  for (const d of asds.serDeAxioms) {
-    if (isLabeledAxiomSerDe<TsValueType, Label>(d) && include(d)) {
-      yield d;
     }
   }
 }

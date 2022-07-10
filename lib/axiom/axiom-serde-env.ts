@@ -80,6 +80,19 @@ export function envBuilder(options?: {
         (value) => value == undefined || value == intUndefined ? true : false,
       );
     },
+    bool: (
+      envVarName: string,
+      ...aliases: string[]
+    ) => {
+      const axiomSD = axsd.booleanOptional();
+      return axsd.defaultable(axiomSD, () => {
+        for (const evName of [ens(envVarName), ...aliases]) {
+          const envVarValue = Deno.env.get(evName);
+          if (envVarValue) return axiomSD.fromText(envVarValue, "env");
+        }
+        return undefined;
+      }, (value) => value == undefined ? true : false);
+    },
   };
 }
 
@@ -117,20 +130,6 @@ export function alias<TsValueType, Name extends string>(
   };
 }
 
-export interface DeserializeIndividualEnvOptions<
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
-  Context,
-> {
-  readonly ctx?: Context;
-  readonly initValues?: axsd.SerDeAxiomRecord<TPropAxioms>;
-  readonly evNS?: EnvVarNamingStrategy;
-  readonly onPropertyNotSerDeAxiom?: (
-    name: string,
-    axiom: ax.Axiom<Any>,
-    toggles: axsd.IdentifiableAxiomSerDe<Any>[],
-  ) => void;
-}
-
 /**
  * Given a record of Axiom definitions, convert each property's camel-cased name
  * to an uppercase environment variable name, attempt to find each property's
@@ -151,10 +150,21 @@ export function deserializeFullRecordUsingIndividualEnvVars<
   Context,
 >(
   props: TPropAxioms,
-  dieOptions?: DeserializeIndividualEnvOptions<TPropAxioms, Context>,
+  dieOptions?: {
+    readonly ctx?: Context;
+    readonly evNS?: EnvVarNamingStrategy;
+    readonly initValues?: ax.Simplify<
+      ax.AxiomObjectTypeStrict<TPropAxioms, unknown>
+    >;
+    readonly onPropertyNotSerDeAxiom?: (
+      name: string,
+      axiom: ax.Axiom<Any>,
+      toggles: axsd.IdentifiableAxiomSerDe<Any>[],
+    ) => void;
+  },
 ) {
-  const { evNS = camelCaseToEnvVarName } = dieOptions ?? {};
-  const tt = axsd.serDeAxioms(props, dieOptions);
+  const { evNS = camelCaseToEnvVarName, initValues } = dieOptions ?? {};
+  const asdo = axsd.axiomSerDeObject(props, dieOptions);
 
   type EnvVarValues = {
     [Property in keyof TPropAxioms]: {
@@ -164,8 +174,9 @@ export function deserializeFullRecordUsingIndividualEnvVars<
   };
   const envVarDefns: axsd.SerDeAxiomDefns<TPropAxioms> = {} as Any;
   const envVarValues: EnvVarValues = {} as Any;
-  const serDeAxiomRecord: axsd.SerDeAxiomRecord<TPropAxioms> =
-    dieOptions?.initValues ?? axsd.axiomSerDeDefaults(props);
+  type SerDeRecord = ax.AxiomType<typeof asdo>;
+  const serDeAxiomRecord =
+    (initValues ? initValues : asdo.prepareRecord()) as SerDeRecord;
   const envVarsSearched: {
     propName: keyof axsd.SerDeAxiomDefns<TPropAxioms>;
     envVarName: string;
@@ -194,17 +205,16 @@ export function deserializeFullRecordUsingIndividualEnvVars<
         envVarName,
         envVarValue,
       };
-      serDeAxiomRecord[
-        evDefn.identity as (keyof axsd.SerDeAxiomRecord<TPropAxioms>)
-      ] = evDefn.fromText(
-        envVarValue,
-        "env",
-      );
+      serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = evDefn
+        .fromText(
+          envVarValue,
+          "env",
+        );
     }
     return searched;
   };
 
-  for (const evDefn of tt.serDeAxioms) {
+  for (const evDefn of asdo.axiomProps) {
     const searched = attempt(evNS(evDefn.identity), evDefn);
     if (!searched.found) {
       let aliasFound = false;
@@ -221,9 +231,7 @@ export function deserializeFullRecordUsingIndividualEnvVars<
       if (!aliasFound) {
         if (evDefn.defaultValue) {
           const dv = evDefn.defaultValue<Context>(dieOptions?.ctx);
-          serDeAxiomRecord[
-            evDefn.identity as (keyof axsd.SerDeAxiomRecord<TPropAxioms>)
-          ] = dv;
+          serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = dv;
           searched.defaulted = true;
           searched.defaultValue = dv;
         }
@@ -233,7 +241,7 @@ export function deserializeFullRecordUsingIndividualEnvVars<
   }
 
   return {
-    ...tt,
+    ...asdo,
     envVarDefns,
     envVarValues,
     envVarsSearched,
@@ -257,7 +265,9 @@ export function deserializeFullRecordUsingOmnibusEnvVar<
   omnibusEnvVarName: string,
   sdaOptions?: {
     readonly ctx?: Context;
-    readonly initValues?: (ctx?: Context) => axsd.SerDeAxiomRecord<TPropAxioms>;
+    readonly initValues?: ax.Simplify<
+      ax.AxiomObjectTypeStrict<TPropAxioms, unknown>
+    >;
     readonly onPropertyNotSerDeAxiom?: (
       name: string,
       axiom: Any,
@@ -266,10 +276,9 @@ export function deserializeFullRecordUsingOmnibusEnvVar<
   },
 ) {
   const omnibusEnvVarValue = Deno.env.get(omnibusEnvVarName);
-  const djt = axsd.deserializeJsonText<TPropAxioms, Context>(
-    props,
-    () => omnibusEnvVarValue ?? "{}",
-    sdaOptions?.initValues ?? axsd.axiomSerDeDefaults(props),
+  const asdo = axsd.axiomSerDeObject(props, sdaOptions);
+  const djt = asdo.fromJsonText<Context>(
+    omnibusEnvVarValue ?? "{}",
     sdaOptions,
   );
 

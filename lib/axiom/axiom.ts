@@ -391,6 +391,7 @@ export {
   type AxiomContext,
   type AxiomObject,
   type AxiomObjectProperty,
+  type AxiomObjectTypeStrict,
   type AxiomOptions,
   type AxiomType,
   create,
@@ -400,6 +401,7 @@ export {
   type OptionalKeys,
   type Primitive,
   type RequiredKeys,
+  type Simplify,
   type SmartPartial,
   type UnionToIntersection,
 };

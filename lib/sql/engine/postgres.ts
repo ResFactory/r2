@@ -13,7 +13,8 @@ export function pgDatabaseConnConfig(
   options?: { readonly ens?: axEnv.EnvVarNamingStrategy },
 ) {
   const envBuilder = axEnv.envBuilder(options);
-  const dbConnAxioms = ax.serDeAxioms({
+  const dbConnASDO = ax.axiomSerDeObject({
+    configured: envBuilder.bool("CONN_CONFIGURED", "PGCONN_CONFIGURED"),
     identity: envBuilder.text("IDENTITY", "PGAPPNAME"),
     database: envBuilder.text("PGDATABASE"),
     hostname: envBuilder.text("PGHOST", "PGHOSTADDR"),
@@ -22,13 +23,12 @@ export function pgDatabaseConnConfig(
     password: envBuilder.text("PGPASSWORD"),
     dbConnPoolCount: envBuilder.integer("PGCONNPOOL_COUNT"),
   });
-  const dbcAOD = ax.$.object(dbConnAxioms.axiomObjectDecl);
-  type DbConnConfig = ax.AxiomType<typeof dbcAOD>;
+  type DbConnConfig = ax.AxiomType<typeof dbConnASDO>;
   return {
     envBuilder,
-    dbConnAxioms,
+    dbConnASDO,
     configure: (init?: DbConnConfig) => {
-      return ax.axiomSerDeDefaults(dbConnAxioms.axiomObjectDecl, init);
+      return dbConnASDO.prepareRecord(init);
     },
     pgClientOptions: (configured: DbConnConfig) => {
       const textValue = (text: string) =>
@@ -46,15 +46,11 @@ export function pgDatabaseConnConfig(
       };
       return pgco;
     },
-    missingProperties: (
+    missingValues: (
       dbc: DbConnConfig,
       ...validate: (keyof DbConnConfig)[]
     ) => {
-      return ax.missingAxiomValues(
-        dbc,
-        dbConnAxioms.axiomObjectDecl,
-        ...validate,
-      );
+      return dbConnASDO.missingValues(dbc, ...validate);
     },
   };
 }

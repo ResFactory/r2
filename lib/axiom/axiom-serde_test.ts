@@ -72,7 +72,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
 
   await tc.step("SerDe-wrapped axiom", async (tc) => {
     let lintIssuesCount = 0;
-    const syntheticDomains = mod.serDeAxioms(syntheticDecl, {
+    const syntheticASDO = mod.axiomSerDeObject(syntheticDecl, {
       onPropertyNotSerDeAxiom: (name) => {
         lintIssuesCount++;
         ta.assertEquals("notSerDe", name);
@@ -85,16 +85,16 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
 
     await tc.step("IDE experiments", () => {
       // hover over 'names' to see quasi-typed names
-      const _sdNames = syntheticDomains.serDeAxioms.map((sda) => sda.identity);
-      const _sdDefault = syntheticDomains.serDeAxioms.map((sda) =>
+      const _sdNames = syntheticASDO.axiomProps.map((sda) => sda.identity);
+      const _sdDefault = syntheticASDO.axiomProps.map((sda) =>
         sda.defaultValue
       );
     });
 
     await tc.step("labeled", () => {
-      const syntheticDomains = mod.serDeAxioms(syntheticDecl);
+      const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
       const labeled = Array.from(
-        mod.labeledSerDeAxioms(syntheticDomains, (test) => {
+        syntheticASDO.labeled((test) => {
           return test.labels.includes("synthetic_label1") ? true : false;
         }),
       );
@@ -103,9 +103,9 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     });
 
     await tc.step("default value from Environment", () => {
-      const syntheticDomains = mod.serDeAxioms(syntheticDecl);
+      const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
       const labeled = Array.from(
-        mod.labeledSerDeAxioms(syntheticDomains, (test) => {
+        syntheticASDO.labeled((test) => {
           return test.labels.includes("synthetic_label1") ? true : false;
         }),
       );
@@ -114,7 +114,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     });
 
     // hover over 'SyntheticDomains' to see fully typed object
-    type SyntheticDomains = ax.AxiomType<typeof syntheticDomains>;
+    type SyntheticDomains = ax.AxiomType<typeof syntheticASDO>;
     // try typing in bad properties or invalid types
     const synthetic: SyntheticDomains = {
       text: "synthetic",
@@ -157,7 +157,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
 
 Deno.test(`deserialize JSON text`, async (tc) => {
   await tc.step("invalid config, missing required properties", () => {
-    const syntheticSerDe = {
+    const syntheticASDO = mod.axiomSerDeObject({
       text: mod.text(),
       number: mod.integer(),
       numberEnv: axsde.envVarAxiomSD(
@@ -173,17 +173,14 @@ Deno.test(`deserialize JSON text`, async (tc) => {
         innerText: mod.text(),
         innerNumber: mod.integer(),
       }),
-    };
+    });
 
     const syntheticJsonText = JSON.stringify(
       { text: "test" },
       (_, value) => typeof value === "bigint" ? value.toString() : value, // return everything else unchanged
     );
 
-    const djt = mod.deserializeJsonText(
-      syntheticSerDe,
-      () => syntheticJsonText,
-    );
+    const djt = syntheticASDO.fromJsonText(syntheticJsonText);
     const { serDeAxiomRecord: sdaRec } = djt;
     ta.assertEquals(false, djt.test(sdaRec));
     ta.assertEquals(sdaRec.text, "test");
@@ -191,7 +188,7 @@ Deno.test(`deserialize JSON text`, async (tc) => {
   });
 
   await tc.step("valid config, all required properties defined", () => {
-    const syntheticSerDe = {
+    const syntheticASDO = mod.axiomSerDeObject({
       text: mod.text(),
       number: mod.integer(),
       numberEnv: axsde.envVarAxiomSD(
@@ -207,7 +204,7 @@ Deno.test(`deserialize JSON text`, async (tc) => {
         innerText: mod.text(),
         innerNumber: mod.integer(),
       }),
-    };
+    });
 
     const syntheticJsonText = JSON.stringify({
       text: "test",
@@ -219,10 +216,7 @@ Deno.test(`deserialize JSON text`, async (tc) => {
 
     Deno.env.set("SYNTHETIC_INT", String(10267));
 
-    const djt = mod.deserializeJsonText(
-      syntheticSerDe,
-      () => syntheticJsonText,
-    );
+    const djt = syntheticASDO.fromJsonText(() => syntheticJsonText);
     const { serDeAxiomRecord: config } = djt;
     ta.assert(djt.test(config, {
       onInvalid: (reason) => {

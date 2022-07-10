@@ -24,7 +24,7 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
     ta.assertEquals(config.user, "user");
     ta.assertEquals(config.password, "password");
     ta.assertEquals(config.dbConnPoolCount, 9);
-    ta.assertEquals(pgdbcc.missingProperties(config).length, 0);
+    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
   });
 
   await tc.step("from environment", () => {
@@ -50,7 +50,7 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
     ta.assertEquals(config.user, "user");
     ta.assertEquals(config.password, "password");
     ta.assertEquals(config.dbConnPoolCount, 9);
-    ta.assertEquals(pgdbcc.missingProperties(config).length, 0);
+    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
 
     Object.keys(syntheticEnv).forEach((envVarName) => {
       Deno.env.delete(envVarName);
@@ -86,10 +86,10 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
     ta.assertEquals(config.password, "password-from-env");
     ta.assertEquals(config.dbConnPoolCount, 9); // from code
 
-    ta.assertEquals(pgdbcc.missingProperties(config).length, 0);
+    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
     ta.assertEquals(
       ["identity"],
-      pgdbcc.missingProperties(
+      pgdbcc.missingValues(
         config,
         "identity",
         "database",
@@ -126,7 +126,7 @@ Deno.test("PostgreSQL connection", async (tc) => {
       password: "user",
       dbConnPoolCount: 1,
     });
-    ta.assertEquals(pgdbcc.missingProperties(config).length, 0);
+    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
 
     const pgEngine = mod.postgreSqlEngine();
     const pgDBi = pgEngine.instance({
@@ -145,6 +145,7 @@ Deno.test("PostgreSQL connection", async (tc) => {
       ens: (given) => `TESTVALID_PKC_${given}`,
     });
     const config = pgdbcc.configure({
+      configured: true,
       identity: `resFactory/factory/lib/sql/engine/postgres_test.ts`,
       database: "gitlabhq_production",
       hostname: "192.168.2.24",
@@ -160,7 +161,7 @@ Deno.test("PostgreSQL connection", async (tc) => {
       );
       return;
     }
-    ta.assertEquals(pgdbcc.missingProperties(config).length, 0);
+    ta.assertEquals(pgdbcc.missingValues(config).length, 0);
 
     const events = new Map<string, { count: number }>();
     const event = (id: string) => {
