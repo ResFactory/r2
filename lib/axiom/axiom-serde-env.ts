@@ -80,6 +80,21 @@ export function envBuilder(options?: {
         (value) => value == undefined || value == intUndefined ? true : false,
       );
     },
+    textOptional: (
+      envVarName: string,
+      ...aliases: string[]
+    ) => {
+      const axiomSD = axsd.textOptional();
+      return axsd.defaultable(axiomSD, () => {
+        for (const evName of [ens(envVarName), ...aliases]) {
+          const envVarValue = Deno.env.get(evName);
+          if (envVarValue) {
+            return axiomSD.fromText(envVarValue, { envVarValue });
+          }
+        }
+        return undefined;
+      }, (value) => value == undefined ? true : false);
+    },
     bool: (
       envVarName: string,
       ...aliases: string[]
