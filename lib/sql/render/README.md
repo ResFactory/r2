@@ -101,6 +101,7 @@ following types of SQL language constructs.
 - [x] SQL reference (for foreign key type mirroring where one columns knows
       another column's type automatically)
 - [x] Data storage computed values using SQL (e.g. for defaults)
+- [ ] Env Var and other AxiomSerDe-style dynamic server-side default values
 - [ ] `lintIgnore(domain)` wrapper functions to skip certain lint warnings (like
       naming conventions for fkey columns ending in `_id`)
 - [ ] User agent computed values for _business logic_ (similar to NEFS Axiom)
@@ -136,7 +137,7 @@ When two or more domains need to be coordinated, they are called multi-domains.
 - [x] foreign key references (outbound)
 - [ ] columns referenced as foreign keys (inbound, aggregations, to define 1:M,
       1:1, M:1 "links")
-- [ ] table labels/tags for grouping
+- [ ] table labels/tags for grouping of tables like domain labels group columns
   - [ ] rollup sensitive-labeled columns and auto-label tables as sensitive
   - [ ] rollup identity-labeled (PII, PHI) columns and auto-label tables as
         PII/PHI
