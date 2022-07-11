@@ -1,5 +1,6 @@
 import * as path from "https://deno.land/std@0.147.0/path/mod.ts";
 import { events } from "../deps.ts";
+import * as safety from "../../safety/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 import * as eng from "./engine.ts";
@@ -7,15 +8,59 @@ import * as eng from "./engine.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+export const expiresOneSecondMS = 1000;
+export const expiresOneMinuteMS = expiresOneSecondMS * 60;
+export const expiresOneHourMS = expiresOneMinuteMS * 60;
+export const expiresOneDayMS = expiresOneHourMS * 24;
+
+export type RevivableQueryExecExpirationMS = "never" | number;
+
+export interface RevivableQueryExecution {
+  readonly expiresInMS: RevivableQueryExecExpirationMS;
+  readonly serializedAt: Date;
+}
+
+export interface RevivedQueryExecution extends RevivableQueryExecution {
+  readonly revivedAt: Date;
+  readonly serializedAt: Date;
+}
+
+export const isRevivedQueryExecution = safety.typeGuard<
+  RevivedQueryExecution
+>("expiresInMS", "serializedAt", "revivedAt");
+
+export interface UnrevivableQueryExecution extends RevivableQueryExecution {
+  readonly isUnrevivableQueryExecution: true;
+  readonly reason: "expired" | "exception";
+}
+
+export const isUnrevivableQueryExecution = safety.typeGuard<
+  UnrevivableQueryExecution
+>("expiresInMS", "isUnrevivableQueryExecution", "reason");
+
 export interface QueryExecutionProxyStore<Context extends SQLa.SqlEmitContext> {
   persistExecutedRows: <Row extends ex.SqlRow>(
     ctx: Context,
     qers: ex.QueryExecutionRowsSupplier<Row, Context>,
+    options?: {
+      readonly expiresInMS: RevivableQueryExecExpirationMS;
+    },
   ) => Promise<ex.QueryExecutionRowsSupplier<Row, Context>>;
   persistExecutedRecords: <Object extends ex.SqlRecord>(
     ctx: Context,
     qers: ex.QueryExecutionRecordsSupplier<Object, Context>,
+    options?: {
+      readonly expiresInMS: RevivableQueryExecExpirationMS;
+    },
   ) => Promise<ex.QueryExecutionRecordsSupplier<Object, Context>>;
+  isPersistedQueryExecResultExpired: (
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    format: "records" | "rows",
+    expiresInMS: RevivableQueryExecExpirationMS,
+    onNotExists: (fsPath: string, err: Error) => Promise<boolean>,
+  ) => Promise<boolean>;
+  isRevivedQueryExecResultExpired: (rqe: RevivedQueryExecution) => boolean;
 }
 
 export type QueryExecutionProxy<Context extends SQLa.SqlEmitContext> =
@@ -53,6 +98,20 @@ export interface FileSysSqlProxyInit<Context extends SQLa.SqlEmitContext> {
   readonly prepareEE?: (
     suggested: FileSysSqlProxyEventEmitter<Context>,
   ) => FileSysSqlProxyEventEmitter<Context>;
+  readonly reviveQueryExecRows?: (
+    fsJsonPath: string,
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+  ) => Promise<
+    ex.QueryExecutionRowsSupplier<Any, Context> & RevivableQueryExecution
+  >;
+  readonly reviveQueryExecRecords?: (
+    fsJsonPath: string,
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+  ) => Promise<
+    ex.QueryExecutionRecordsSupplier<Any, Context> & RevivableQueryExecution
+  >;
 }
 
 export type FileSysSqlProxyEngine = eng.SqlEngine;
@@ -74,6 +133,80 @@ export function fileSysSqlProxyEngine<Context extends SQLa.SqlEmitContext>() {
       return instance;
     },
   };
+}
+
+async function reviveQueryExecFsRows<Context extends SQLa.SqlEmitContext>(
+  fsJsonPath: string,
+  _ctx: Context,
+  query: ex.SqlBindParamsTextSupplier<Context>,
+): Promise<
+  ex.QueryExecutionRowsSupplier<Any, Context> & RevivableQueryExecution
+> {
+  try {
+    const json = await Deno.readTextFile(fsJsonPath);
+    const result:
+      & ex.QueryExecutionRowsSupplier<Any, Context>
+      & RevivedQueryExecution = {
+        ...JSON.parse(json, (key, value) => {
+          // assume the query we stored is the same one calling this function so
+          // replace it at revival-time
+          if (key == "query") return query;
+          return value;
+        }),
+        revivedAt: new Date(),
+      };
+    return result;
+  } catch (error) {
+    const result:
+      & ex.QueryExecutionRowsSupplier<Any, Context>
+      & UnrevivableQueryExecution = {
+        query,
+        error,
+        rows: [],
+        expiresInMS: "never",
+        isUnrevivableQueryExecution: true,
+        reason: "exception",
+        serializedAt: new Date(),
+      };
+    return result;
+  }
+}
+
+async function reviveQueryExecFsRecords<Context extends SQLa.SqlEmitContext>(
+  fsJsonPath: string,
+  _ctx: Context,
+  query: ex.SqlBindParamsTextSupplier<Context>,
+): Promise<
+  ex.QueryExecutionRecordsSupplier<Any, Context> & RevivableQueryExecution
+> {
+  try {
+    const json = await Deno.readTextFile(fsJsonPath);
+    const result:
+      & ex.QueryExecutionRecordsSupplier<Any, Context>
+      & RevivedQueryExecution = {
+        ...JSON.parse(json, (key, value) => {
+          // assume the query we stored is the same one calling this function so
+          // replace it at revival-time
+          if (key == "query") return query;
+          return value;
+        }),
+        revivedAt: new Date(),
+      };
+    return result;
+  } catch (error) {
+    const result:
+      & ex.QueryExecutionRecordsSupplier<Any, Context>
+      & UnrevivableQueryExecution = {
+        query,
+        error,
+        records: [],
+        expiresInMS: "never",
+        isUnrevivableQueryExecution: true,
+        reason: "exception",
+        serializedAt: new Date(),
+      };
+    return result;
+  }
 }
 
 export function fsSqlProxyRowsExecutor<Context extends SQLa.SqlEmitContext>(
@@ -173,20 +306,20 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     this.fsspEE = fsqEI.prepareEE?.(sqlELCEE) ?? sqlELCEE;
 
     this.rowsExec = fsSqlProxyRowsExecutor(async (ctx, query) => {
-      return this.reviveQueryExecResult(
+      return this.reviveQueryExecRows(
         path.join(
           fsqEI.resultsStoreHome({ ctx, query }),
-          (await ex.sqlQueryIdentity(query, ctx)) + ".rows.json",
+          (await ex.sqlQueryIdentity(query, ctx)) + ".rows.fsp.json",
         ),
         ctx,
         query,
       );
     });
     this.recordsExec = fsSqlProxyRecordsExecutor(async (ctx, query) => {
-      return this.reviveQueryExecResult(
+      return this.reviveQueryExecRecords(
         path.join(
           fsqEI.resultsStoreHome({ ctx, query }),
-          (await ex.sqlQueryIdentity(query, ctx)) + ".records.json",
+          (await ex.sqlQueryIdentity(query, ctx)) + ".records.fsp.json",
         ),
         ctx,
         query,
@@ -194,16 +327,26 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     });
   }
 
-  async reviveQueryExecResult(
+  async reviveQueryExecRows(
     fsJsonPath: string,
-    _ctx: Context,
+    ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
-  ) {
-    const json = await Deno.readTextFile(fsJsonPath);
-    return JSON.parse(json, (key, value) => {
-      if (key == "query") return query;
-      return value;
-    });
+  ): Promise<ex.QueryExecutionRowsSupplier<Any, Context>> {
+    if (this.fsqEI.reviveQueryExecRows) {
+      return await this.fsqEI.reviveQueryExecRows(fsJsonPath, ctx, query);
+    }
+    return await reviveQueryExecFsRows(fsJsonPath, ctx, query);
+  }
+
+  async reviveQueryExecRecords(
+    fsJsonPath: string,
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+  ): Promise<ex.QueryExecutionRecordsSupplier<Any, Context>> {
+    if (this.fsqEI.reviveQueryExecRecords) {
+      return await this.fsqEI.reviveQueryExecRecords(fsJsonPath, ctx, query);
+    }
+    return await reviveQueryExecFsRecords(fsJsonPath, ctx, query);
   }
 
   stringifyQueryExecResult(
@@ -211,8 +354,19 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     qers:
       | ex.QueryExecutionRowsSupplier<Any, Context>
       | ex.QueryExecutionRecordsSupplier<Any, Context>,
+    options?: {
+      readonly expiresInMS: RevivableQueryExecExpirationMS;
+    },
   ) {
-    return JSON.stringify(qers, (key, value) => {
+    const serializable: RevivableQueryExecution = {
+      ...qers,
+      expiresInMS: options?.expiresInMS ?? "never",
+      serializedAt: new Date(),
+    };
+    return JSON.stringify(serializable, (key, value) => {
+      // if a value has the signature SQL(ctx) assume it's SQL and we need to
+      // store the SQL text not a function; when it's revived the original SQL
+      // function will be restored
       if (key == "SQL" && typeof value === "function") return value(ctx);
       return value;
     });
@@ -221,12 +375,18 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   async persistExecutedRows<Row extends ex.SqlRow>(
     ctx: Context,
     qers: ex.QueryExecutionRowsSupplier<Row, Context>,
+    options?: {
+      readonly expiresInMS: RevivableQueryExecExpirationMS;
+    },
   ) {
     const fsPath = path.join(
       this.fsqEI.resultsStoreHome({ ctx, query: qers.query }),
-      (await ex.sqlQueryIdentity(qers.query, ctx)) + ".rows.json",
+      (await ex.sqlQueryIdentity(qers.query, ctx)) + ".rows.fsp.json",
     );
-    await Deno.writeTextFile(fsPath, this.stringifyQueryExecResult(ctx, qers));
+    await Deno.writeTextFile(
+      fsPath,
+      this.stringifyQueryExecResult(ctx, qers, options),
+    );
     await this.fsspEE.emit("persistedExecutedRows", ctx, qers, fsPath);
     return qers;
   }
@@ -234,14 +394,58 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   async persistExecutedRecords<Object extends ex.SqlRecord>(
     ctx: Context,
     qers: ex.QueryExecutionRecordsSupplier<Object, Context>,
+    options?: {
+      readonly expiresInMS: RevivableQueryExecExpirationMS;
+    },
   ) {
     const fsPath = path.join(
       this.fsqEI.resultsStoreHome({ ctx, query: qers.query }),
-      (await ex.sqlQueryIdentity(qers.query, ctx)) + ".records.json",
+      (await ex.sqlQueryIdentity(qers.query, ctx)) + ".records.fsp.json",
     );
-    await Deno.writeTextFile(fsPath, this.stringifyQueryExecResult(ctx, qers));
+    await Deno.writeTextFile(
+      fsPath,
+      this.stringifyQueryExecResult(ctx, qers, options),
+    );
     await this.fsspEE.emit("persistedExecutedRecords", ctx, qers, fsPath);
     return qers;
+  }
+
+  async isPersistedQueryExecResultExpired(
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    format: "rows" | "records",
+    expiresInMS: RevivableQueryExecExpirationMS,
+    // deno-lint-ignore require-await
+    onNotExists: (fsPath: string, err: Error) => Promise<boolean> = async () =>
+      true, // if the file doesn't exist, assume it's expired
+  ): Promise<boolean> {
+    if (expiresInMS == "never") return false;
+
+    const fsPath = path.join(
+      this.fsqEI.resultsStoreHome({ ctx, query }),
+      (await ex.sqlQueryIdentity(query, ctx)) + `.${format}.fsp.json`,
+    );
+    try {
+      const proxyFileInfo = await Deno.stat(fsPath);
+      if (proxyFileInfo && proxyFileInfo.mtime) {
+        const proxyAgeMS = Date.now() - proxyFileInfo.mtime.valueOf();
+        if (proxyAgeMS > expiresInMS) {
+          return true;
+        } else {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    } catch (err) {
+      return await onNotExists(fsPath, err);
+    }
+  }
+
+  isRevivedQueryExecResultExpired(rqe: RevivedQueryExecution): boolean {
+    if (rqe.expiresInMS == "never") return false;
+    const rqeAgeInMS = Date.now() - rqe.serializedAt.valueOf();
+    return rqeAgeInMS > rqe.expiresInMS;
   }
 
   async rowsDQL<Row extends ex.SqlRow>(

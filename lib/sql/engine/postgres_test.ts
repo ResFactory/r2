@@ -271,8 +271,26 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
       const pgRecords = await pgDBi.recordsDQL(ctx, testQuery);
       ta.assert(pgRecords);
 
-      const fsProxyRecords = await qeProxy.recordsDQL(ctx, testQuery);
-      ta.assertEquals(fsProxyRecords, pgRecords);
+      ta.assert(
+        !(await qeProxy.isPersistedQueryExecResultExpired(
+          ctx,
+          testQuery,
+          "records",
+          p.expiresOneSecondMS * 30,
+        )),
+      );
+
+      const fspResult = await qeProxy.recordsDQL(ctx, testQuery);
+      ta.assertEquals(fspResult.query, pgRecords.query);
+      ta.assertEquals(fspResult.records, pgRecords.records);
+      ta.assert(p.isRevivedQueryExecution(fspResult));
+      ta.assertEquals(
+        "never" as p.RevivableQueryExecExpirationMS,
+        fspResult.expiresInMS,
+      );
+      ta.assert(fspResult.serializedAt);
+      ta.assert(fspResult.revivedAt);
+      ta.assert(!qeProxy.isRevivedQueryExecResultExpired(fspResult));
     },
   );
 
