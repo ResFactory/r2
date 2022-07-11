@@ -62,7 +62,6 @@ export type AxiomSqlDomain<
     TsValueType | undefined,
     Context
   >;
-  readonly isNullable: boolean;
 };
 
 export function isAxiomSqlDomain<
@@ -156,7 +155,7 @@ export function text<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => text(),
     referenceNullableASD: () => textNullable(),
     ...asdOptions,
@@ -172,7 +171,7 @@ export function textNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `TEXT` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => text(),
     referenceNullableASD: () => textNullable(),
     ...asdOptions,
@@ -188,7 +187,7 @@ export function date<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATE` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => date(),
     referenceNullableASD: () => dateNullable(),
     ...asdOptions,
@@ -204,7 +203,7 @@ export function dateNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATE` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => date(),
     referenceNullableASD: () => dateNullable(),
     ...asdOptions,
@@ -220,7 +219,7 @@ export function dateTime<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => dateTime(),
     referenceNullableASD: () => dateTimeNullable(),
     ...asdOptions,
@@ -236,7 +235,7 @@ export function dateTimeNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `DATETIME` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => dateTime(),
     referenceNullableASD: () => dateTimeNullable(),
     ...asdOptions,
@@ -260,7 +259,7 @@ export function integer<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => integer(),
     referenceNullableASD: () => integerNullable(),
     ...asdOptions,
@@ -276,7 +275,7 @@ export function integerNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `INTEGER` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => integer(),
     referenceNullableASD: () => integerNullable(),
     ...asdOptions,
@@ -292,7 +291,7 @@ export function bigint<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => bigint(),
     referenceNullableASD: () => bigintNullable(),
     ...asdOptions,
@@ -308,7 +307,7 @@ export function bigintNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `BIGINT` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => bigint(),
     referenceNullableASD: () => bigintNullable(),
     ...asdOptions,
@@ -324,7 +323,7 @@ export function jsonText<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `JSON` }),
-    isNullable: false,
+    isOptional: false,
     referenceASD: () => jsonText(),
     referenceNullableASD: () => jsonTextNullable(),
     ...asdOptions,
@@ -340,7 +339,7 @@ export function jsonTextNullable<
   return {
     ...axiom,
     sqlDataType: () => ({ SQL: () => `JSON` }),
-    isNullable: true,
+    isOptional: true,
     referenceASD: () => jsonText(),
     referenceNullableASD: () => jsonTextNullable(),
     ...asdOptions,

@@ -325,7 +325,7 @@ export function foreignKeyNullable<
     foreignDomain,
     foreignDomain.referenceNullableASD(),
     foreignRelNature,
-    { isNullable: true, ...domainOptions },
+    { isOptional: true, ...domainOptions },
   );
 }
 
@@ -355,7 +355,7 @@ export function selfRefForeignKeyNullable<
     selfRefTableNamePlaceholder,
     domain,
     { isSelfRef: true },
-    { isNullable: true, ...domainOptions },
+    { isOptional: true, ...domainOptions },
   );
 }
 
@@ -425,7 +425,7 @@ export function typicalTableColumnDefnSQL<
       ? ` ${decorations.map((d) => d.SQL(ctx)).join(" ")}`
       : "";
     const notNull = decoratorsSQL.length == 0
-      ? isd.isNullable ? "" : " NOT NULL"
+      ? isd.isOptional ? "" : " NOT NULL"
       : "";
     const defaultValue = isd.sqlDefaultValue
       ? ` DEFAULT ${isd.sqlDefaultValue("create table column").SQL(ctx)}`

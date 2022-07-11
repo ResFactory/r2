@@ -100,7 +100,7 @@ export function plantUmlIE<Context extends SQLa.SqlEmitContext>(
       tableName: td.tableName,
       columnName: d.identity,
     });
-    const required = d.isNullable ? " " : "*";
+    const required = d.isOptional ? " " : "*";
     const name = SQLa.isTablePrimaryKeyColumnDefn(d) ? `**${tcName}**` : tcName;
     const descr = puieOptions.elaborateEntityAttr?.(
       d,

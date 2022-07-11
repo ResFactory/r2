@@ -155,8 +155,7 @@ export function enumTextTable<
   const codeDomain: d.AxiomSqlDomain<string, Context> = {
     ...codeEnum(enumCodes[0], ...enumCodes),
     sqlDataType: () => ({ SQL: () => `TEXT` }),
-    isNullable: false,
-    isOptional: true,
+    isOptional: false,
     referenceASD: () => codeDomain,
     referenceNullableASD: () => codeDomain,
     fromText: (text) => text,
@@ -165,8 +164,7 @@ export function enumTextTable<
   const valueDomain: d.AxiomSqlDomain<string, Context> = {
     ...valueEnum(enumValues[0], ...enumValues),
     sqlDataType: () => ({ SQL: () => `TEXT` }),
-    isNullable: false,
-    isOptional: true,
+    isOptional: false,
     referenceASD: () => valueDomain,
     referenceNullableASD: () => valueDomain,
     fromText: (text) => text,
