@@ -108,7 +108,8 @@ following types of SQL language constructs.
 - [ ] User agent computed values for _presentation_ (similar to NEFS Axiom)
 - [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
       auto-generate synthetic data)
-- [ ] arrays of domains (e.g. Text[], Integer[], etc.)
+- [ ] arrays of domains (e.g. Text[], Integer[], etc.), like in
+      ../models/gitlab.ts
 - [ ] JSON Schema properties contributions
 - [ ] Delimited text (e.g. CSV) schema properties contributions
 - [ ] SQL constraints at storage layer
