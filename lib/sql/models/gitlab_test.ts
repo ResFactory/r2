@@ -1,7 +1,5 @@
 import { testingAsserts as ta } from "./deps-test.ts";
-import * as ax from "../../axiom/mod.ts";
 import * as pge from "../engine/postgres.ts";
-import * as ex from "../execute/mod.ts";
 import * as mod from "./gitlab.ts";
 
 const isCICD = Deno.env.get("CI") ? true : false;
@@ -17,64 +15,62 @@ Deno.test("PostgreSQL valid connection from GLTEST_* env with FS proxy", async (
   });
 
   // set any "required" env value to textEnvPlaceholder
+  const { textEnvPlaceholder, intEnvPlaceholder } = pgdbcc.envBuilder;
   const config = pgdbcc.configure({
     configured: true,
+    // the identity names a reusable connection pool; the PG engine uses the ID
+    // to reuse a pool when a cached config identity is found.
     identity: `resFactory/factory/lib/sql/models/gitlab_test.ts`,
     database: "gitlabhq_production",
-    hostname: "192.168.2.24",
-    port: 5033,
-    user: pgdbcc.envBuilder.textEnvPlaceholder, // must come from env
-    password: pgdbcc.envBuilder.textEnvPlaceholder, // must come from env
+    hostname: textEnvPlaceholder, // optionally from env
+    port: intEnvPlaceholder, // optionally from env
+    user: textEnvPlaceholder, // must come from env
+    password: textEnvPlaceholder, // must come from env
     dbConnPoolCount: 1,
   });
   const pgco = pgdbcc.pgClientOptions(config);
+  if (!pgco.hostname) pgco.hostname = "192.168.2.24";
+  if (!pgco.port) pgco.port = 5033;
   if (!pgco.user || !pgco.password) {
     console.error(
       `Unable to test valid PostgreSQL connection, GLTEST_PKC_PGUSER or GLTEST_PKC_PGPASSWORD env vars missing\n
-      > export GLTEST_PGUSER=gitlab_username GLTEST_PGPASSWORD=gitlab_password`,
+      > export GLTEST_PGUSER=gitlab_username GLTEST_PGPASSWORD=gitlab_password if PGHOSTADDR=${pgco.hostname} and PGPORT=${pgco.port} are OK, or
+      > export GLTEST_PGUSER=gitlab_username GLTEST_PGPASSWORD=gitlab_password GLTEST_PGHOSTADDR=x.y.z.n and GLTEST_PGPORT=nnnn`,
     );
     return;
   }
   ta.assertEquals(pgdbcc.missingValues(config).length, 0);
 
-  const pgEngine = pge.postgreSqlEngine();
+  const pgEngine = pge.postgreSqlEngine<mod.GitLabSqlEmitContext>();
   const pgDBi = pgEngine.instance({
-    clientOptions: () => pgdbcc.pgClientOptions(config),
+    clientOptions: () => pgco,
     autoCloseOnUnload: true,
     poolCount: config.dbConnPoolCount,
   });
-  const glCtx = mod.gitLabSqlEmitContext();
-  const glq = mod.gitLabSqlStmts();
-
-  ta.assert(await pgDBi.isConnectable());
+  ta.assert(
+    await pgDBi.isConnectable(),
+    `Unable to connect using ${JSON.stringify(pgco)}`,
+  );
   await pgDBi.init();
 
-  const groups = await pgDBi.recordsDQL(glCtx, glq.groups(glCtx));
+  const glPC = mod.gitLabProxyableContent(() => pgDBi);
+
+  const groups = await glPC.groups();
   ta.assert(groups.records.length > 0);
 
-  const group = await pgDBi.firstRecordDQL<mod.GitLabNamespace>(
-    glCtx,
-    glq.group(glCtx, "Precision Knowledge Content"),
-  );
+  const groupName = "Precision Knowledge Content";
+  const group = await glPC.group(groupName);
   ta.assert(group?.record);
 
-  const glNSCtx = mod.gitLabNamespaceContext(group.record);
+  const issues = await glPC.issues(groupName);
+  ta.assertEquals(issues.groupName, groupName);
+  ta.assertEquals(issues.group?.record.name, groupName);
+  ta.assert(issues.content?.records);
 
-  const issuesStmt = glq.issues(glNSCtx);
-  const issues = await pgDBi.recordsDQL<ax.AxiomType<typeof issuesStmt>>(
-    glCtx,
-    issuesStmt,
-    { enrich: ex.mutateRecordsBigInts },
-  );
-  ta.assert(issues.records.length > 0);
-
-  const uaStmt = glq.userAnalytics(glNSCtx);
-  const userAnalytics = await pgDBi.recordsDQL<ax.AxiomType<typeof uaStmt>>(
-    glCtx,
-    issuesStmt,
-    { enrich: ex.mutateRecordsBigInts },
-  );
-  ta.assert(userAnalytics.records.length > 0);
+  const ua = await glPC.userAnalytics(groupName);
+  ta.assertEquals(ua.groupName, groupName);
+  ta.assertEquals(ua.group?.record.name, groupName);
+  ta.assert(ua.content?.records);
 
   await pgDBi.close();
 });

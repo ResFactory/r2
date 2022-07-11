@@ -1,5 +1,10 @@
 import * as ax from "../../axiom/mod.ts";
 import * as SQLa from "../render/mod.ts";
+import * as eng from "../engine/engine.ts";
+import * as ex from "../execute/mod.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 export const glQualifiedComponentsDelim = ":/:";
 
@@ -246,7 +251,7 @@ export function gitLabSqlStmts() {
       incompleteMentionsCount: int(),
       ignoredMentionsCount: int(),
     }, ctx)`
-        WITH groups_cte (id) AS (
+      WITH groups_cte (id) AS (
         /* Find all children of given group ID (e.g. 'Precision Knowledge Content') */
         WITH RECURSIVE childNS AS (
           SELECT ${ctx.namespace.id} AS id
@@ -254,55 +259,55 @@ export function gitLabSqlStmts() {
           SELECT ns.id
           FROM namespaces AS ns
           JOIN childNS ON childNS.id = ns.parent_id
-         ) SELECT id FROM childNS),
-      projects_cte (id) AS (
-        /* Find all projects in the descendants of given group ID (e.g. 'Precision Knowledge Content') */
-        select id from projects p
-         where p.namespace_id in (select id from groups_cte)
-      ),
-      issues_cte (project_id, issue_id, issue_author_id) AS (
-        /* Find all issues in projects_cte */
-        select project_id, i.id, i.author_id
-          from issues i
-         where i.project_id in (select id from projects_cte)
-      ),
-      mentioned_in_issues_cte (project_id, issue_id, user_id) AS (
-        /* Find all assigned issues in projects_cte */
-        select distinct project_id, i.issue_id, unnest(ium.mentioned_users_ids) as user_id
-          from issue_user_mentions ium, issues_cte i
-         where ium.issue_id = i.issue_id
-      ),
-      assigned_issues_cte (project_id, user_id, issue_id) AS (
-        /* Find all assigned issues in projects_cte */
-        select project_id, ia.user_id, ia.issue_id
-          from issue_assignees ia, issues_cte i
-         where ia.issue_id = i.issue_id
-      )
-      select u.id,
-             u.email,
-             u.name,
-             u.username as "userName",
-             counts.authored_issues "authoredIssuesCount",
-             counts.assigned_issues "assignedIssuesCount",
-             counts.mentioned_in_issues "mentionedInIssuesCount",
-             counts.viewed_reactions "viewedReactionsCount",
-             counts.irrelevant_reactions "irrelevantReactionsCount",
-             counts.completed_reactions "completedReactionsCount",
-             (counts.mentioned_in_issues - counts.completed_reactions - counts.irrelevant_reactions) "incompleteMentionsCount",
-             (counts.mentioned_in_issues - counts.viewed_reactions) "ignoredMentionsCount"
-      from project_authorizations pa
-      join users u on u.id = pa.user_id
-      cross join lateral (
-        select (select count(*) from issues_cte where issue_author_id = u.id),
-               (select count(*) from assigned_issues_cte where user_id = u.id),
-               (select count(*) from mentioned_in_issues_cte miu where u.id = miu.user_id),
-               (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='eyeglasses' and awardable_type='Issue'),
-               (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='negative_squared_cross_mark' and awardable_type='Issue'),
-               (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='white_check_mark' and awardable_type='Issue')
-        ) as counts(authored_issues, assigned_issues, mentioned_in_issues, viewed_reactions, irrelevant_reactions, completed_reactions)
-      where pa.project_id in (select id from projects_cte)
-      group by u.id, counts.authored_issues, counts.assigned_issues, counts.mentioned_in_issues,
-            counts.viewed_reactions, counts.irrelevant_reactions, counts.completed_reactions`;
+        ) SELECT id FROM childNS),
+        projects_cte (id) AS (
+          /* Find all projects in the descendants of given group ID (e.g. 'Precision Knowledge Content') */
+          select id from projects p
+          where p.namespace_id in (select id from groups_cte)
+        ),
+        issues_cte (project_id, issue_id, issue_author_id) AS (
+          /* Find all issues in projects_cte */
+          select project_id, i.id, i.author_id
+            from issues i
+          where i.project_id in (select id from projects_cte)
+        ),
+        mentioned_in_issues_cte (project_id, issue_id, user_id) AS (
+          /* Find all assigned issues in projects_cte */
+          select distinct project_id, i.issue_id, unnest(ium.mentioned_users_ids) as user_id
+            from issue_user_mentions ium, issues_cte i
+          where ium.issue_id = i.issue_id
+        ),
+        assigned_issues_cte (project_id, user_id, issue_id) AS (
+          /* Find all assigned issues in projects_cte */
+          select project_id, ia.user_id, ia.issue_id
+            from issue_assignees ia, issues_cte i
+          where ia.issue_id = i.issue_id
+        )
+        select u.id,
+              u.email,
+              u.name,
+              u.username as "userName",
+              counts.authored_issues "authoredIssuesCount",
+              counts.assigned_issues "assignedIssuesCount",
+              counts.mentioned_in_issues "mentionedInIssuesCount",
+              counts.viewed_reactions "viewedReactionsCount",
+              counts.irrelevant_reactions "irrelevantReactionsCount",
+              counts.completed_reactions "completedReactionsCount",
+              (counts.mentioned_in_issues - counts.completed_reactions - counts.irrelevant_reactions) "incompleteMentionsCount",
+              (counts.mentioned_in_issues - counts.viewed_reactions) "ignoredMentionsCount"
+        from project_authorizations pa
+        join users u on u.id = pa.user_id
+        cross join lateral (
+          select (select count(*) from issues_cte where issue_author_id = u.id),
+                (select count(*) from assigned_issues_cte where user_id = u.id),
+                (select count(*) from mentioned_in_issues_cte miu where u.id = miu.user_id),
+                (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='eyeglasses' and awardable_type='Issue'),
+                (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='negative_squared_cross_mark' and awardable_type='Issue'),
+                (select count(*) from award_emoji aw, mentioned_in_issues_cte i where i.user_id = u.id and aw.user_id = i.user_id and awardable_id = i.issue_id and name='white_check_mark' and awardable_type='Issue')
+          ) as counts(authored_issues, assigned_issues, mentioned_in_issues, viewed_reactions, irrelevant_reactions, completed_reactions)
+        where pa.project_id in (select id from projects_cte)
+        group by u.id, counts.authored_issues, counts.assigned_issues, counts.mentioned_in_issues,
+              counts.viewed_reactions, counts.irrelevant_reactions, counts.completed_reactions`;
   return {
     glnsBuilder,
     group,
@@ -310,4 +315,64 @@ export function gitLabSqlStmts() {
     issues,
     userAnalytics,
   };
+}
+
+export function gitLabProxyableContent(
+  primaryStorageEngineSupplier: () => eng.SqlReadConn<
+    Any,
+    Any,
+    GitLabSqlEmitContext
+  >,
+) {
+  const glCtx = gitLabSqlEmitContext();
+  const glSS = gitLabSqlStmts();
+  const glPC = {
+    group: async (name: string) => {
+      const primeSES = primaryStorageEngineSupplier();
+      const group = await primeSES.firstRecordDQL<GitLabNamespace>(
+        glCtx,
+        glSS.group(glCtx, name),
+      );
+      return group;
+    },
+    groups: async () => {
+      const primeSES = primaryStorageEngineSupplier();
+      const groups = await primeSES.recordsDQL<GitLabNamespace>(
+        glCtx,
+        glSS.groups(glCtx),
+      );
+      return groups;
+    },
+    issues: async (groupName: string) => {
+      const primeSES = primaryStorageEngineSupplier();
+      const group = await glPC.group(groupName);
+      if (group) {
+        const glNSCtx = gitLabNamespaceContext(group.record);
+        const issuesStmt = glSS.issues(glNSCtx);
+        const content = await primeSES.recordsDQL<
+          ax.AxiomType<typeof issuesStmt>
+        >(
+          glCtx,
+          issuesStmt,
+          { enrich: ex.mutateRecordsBigInts },
+        );
+        return { groupName, group, content };
+      }
+      return { groupName, group };
+    },
+    userAnalytics: async (groupName: string) => {
+      const primeSES = primaryStorageEngineSupplier();
+      const group = await glPC.group(groupName);
+      if (group) {
+        const glNSCtx = gitLabNamespaceContext(group.record);
+        const uaStmt = glSS.userAnalytics(glNSCtx);
+        const content = await primeSES.recordsDQL<
+          ax.AxiomType<typeof uaStmt>
+        >(glCtx, uaStmt, { enrich: ex.mutateRecordsBigInts });
+        return { groupName, group, content };
+      }
+      return { groupName, group };
+    },
+  };
+  return glPC;
 }
