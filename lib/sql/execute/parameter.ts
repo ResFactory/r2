@@ -107,13 +107,23 @@ export function isIdentifiableSqlBindParamsTextSupplier<
   return isSqlQueryParameterSetSupplier<Context>(o) && isISQPSS(o);
 }
 
+/**
+ * Create a unique identity for a given SQL query and context.
+ * @param sts the SQL text supplier
+ * @param ctx context in which we're evaluating the SQL text
+ * @param purpose why we want the identity
+ * @returns If the query implements IdentifiableSqlBindParamsTextSupplier, use
+ * the given identity function otherwise create a digest of the actual SQL code
+ * in the STS
+ */
 export async function sqlQueryIdentity<Context extends SQLa.SqlEmitContext>(
   sts: SqlBindParamsTextSupplier<Context>,
   ctx: Context,
+  purpose: "exec-results-cache-key" = "exec-results-cache-key",
 ) {
   let identity: string;
   if (isIdentifiableSqlBindParamsTextSupplier(sts)) {
-    identity = sts.identity("exec-results-cache-key");
+    identity = sts.identity(purpose);
   } else {
     const digest = await crypto.subtle.digest(
       "sha-1",

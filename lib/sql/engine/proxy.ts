@@ -247,8 +247,9 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   async rowsDQL<Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
-    const result = await this.rowsExec<Row>(ctx, query);
+    const result = await this.rowsExec<Row>(ctx, query, options);
     this.fsspEE.emit("executedDQL", result);
     return result;
   }
@@ -256,8 +257,9 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   async recordsDQL<Object extends ex.SqlRecord>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
   ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> {
-    const result = await this.recordsExec<Object>(ctx, query);
+    const result = await this.recordsExec<Object>(ctx, query, options);
     this.fsspEE.emit("executedDQL", result);
     return result;
   }
@@ -265,14 +267,29 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   async firstRecordDQL<Object extends ex.SqlRecord>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
-    options?: {
-      readonly enhance?: (record: Record<string, unknown>) => Object;
-      readonly onNotFound?: () => Object | undefined;
-      readonly autoLimitSQL?: (
-        SQL: SQLa.SqlTextSupplier<Context>,
-      ) => SQLa.SqlTextSupplier<Context>;
-    },
-  ): Promise<Object | undefined> {
-    return await ex.firstRecordDQL(ctx, query, this.recordsDQL, options);
+    options?:
+      & ex.QueryRecordsExecutorOptions<Object, Context>
+      & {
+        readonly onNotFound?: () => Promise<
+          | ex.QueryExecutionRecordSupplier<Object, Context>
+          | undefined
+        >;
+        readonly autoLimitSQL?: (
+          SQL: SQLa.SqlTextSupplier<Context>,
+        ) => SQLa.SqlTextSupplier<Context>;
+      },
+  ): Promise<ex.QueryExecutionRecordSupplier<Object, Context> | undefined> {
+    const result = await ex.firstRecordDQL(
+      ctx,
+      query,
+      this.recordsExec,
+      {
+        reportRecordsDQL: async (result) => {
+          await this.fsspEE.emit("executedDQL", result);
+        },
+        ...options,
+      },
+    );
+    return result;
   }
 }

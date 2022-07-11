@@ -176,8 +176,9 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async rowsDDL<Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
-    const result = await this.rowsExec<Row>(ctx, query);
+    const result = await this.rowsExec<Row>(ctx, query, options);
     this.sqliteEE.emit("executedDDL", result);
     return result;
   }
@@ -185,8 +186,9 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async rowsDML<Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
-    const result = await this.rowsExec<Row>(ctx, query);
+    const result = await this.rowsExec<Row>(ctx, query, options);
     this.sqliteEE.emit("executedDML", result);
     return result;
   }
@@ -194,8 +196,9 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async recordsDML<Object extends ex.SqlRecord>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
   ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> {
-    const result = await this.recordsExec<Object>(ctx, query);
+    const result = await this.recordsExec<Object>(ctx, query, options);
     this.sqliteEE.emit("executedDML", result);
     return result;
   }
@@ -203,8 +206,9 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async rowsDQL<Row extends ex.SqlRow>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
   ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
-    const result = await this.rowsExec<Row>(ctx, query);
+    const result = await this.rowsExec<Row>(ctx, query, options);
     this.sqliteEE.emit("executedDQL", result);
     return result;
   }
@@ -212,8 +216,9 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async recordsDQL<Object extends ex.SqlRecord>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
   ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> {
-    const result = await this.recordsExec<Object>(ctx, query);
+    const result = await this.recordsExec<Object>(ctx, query, options);
     this.sqliteEE.emit("executedDQL", result);
     return result;
   }
@@ -221,14 +226,21 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   async firstRecordDQL<Object extends ex.SqlRecord>(
     ctx: Context,
     query: ex.SqlBindParamsTextSupplier<Context>,
-    options?: {
-      readonly enhance?: (record: Record<string, unknown>) => Object;
-      readonly onNotFound?: () => Object | undefined;
+    options?: ex.QueryRecordsExecutorOptions<Object, Context> & {
+      readonly onNotFound?: () => Promise<
+        | ex.QueryExecutionRecordSupplier<Object, Context>
+        | undefined
+      >;
       readonly autoLimitSQL?: (
         SQL: SQLa.SqlTextSupplier<Context>,
       ) => SQLa.SqlTextSupplier<Context>;
     },
-  ): Promise<Object | undefined> {
-    return await ex.firstRecordDQL(ctx, query, this.recordsDQL, options);
+  ) {
+    return await ex.firstRecordDQL(ctx, query, this.recordsDQL, {
+      reportRecordsDQL: async (result) => {
+        await this.sqliteEE.emit("executedDQL", result);
+      },
+      ...options,
+    });
   }
 }

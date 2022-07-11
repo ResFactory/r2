@@ -69,16 +69,16 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
     });
 
     const config = pgdbcc.configure({
-      identity: pgdbcc.envBuilder.textUndefined,
+      identity: pgdbcc.envBuilder.textEnvPlaceholder,
       database: "database-in-code",
       hostname: "hostname-in-code",
       port: 5433,
-      user: pgdbcc.envBuilder.textUndefined,
-      password: pgdbcc.envBuilder.textUndefined,
+      user: pgdbcc.envBuilder.textEnvPlaceholder,
+      password: pgdbcc.envBuilder.textEnvPlaceholder,
       dbConnPoolCount: 9,
     });
     // SYNTHETIC_IDENTITY and PGAPPNAME missing in env, and no value supplied
-    ta.assertEquals(config.identity, pgdbcc.envBuilder.textUndefined);
+    ta.assertEquals(config.identity, pgdbcc.envBuilder.textEnvPlaceholder);
 
     ta.assertEquals(config.database, "database-in-code");
     ta.assertEquals(config.hostname, "hostname-in-code");
@@ -155,8 +155,8 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
     database: "gitlabhq_production",
     hostname: "192.168.2.24",
     port: 5033,
-    user: pgdbcc.envBuilder.textUndefined, // must come from env
-    password: pgdbcc.envBuilder.textUndefined, // must come from env
+    user: pgdbcc.envBuilder.textEnvPlaceholder, // must come from env
+    password: pgdbcc.envBuilder.textEnvPlaceholder, // must come from env
     dbConnPoolCount: 1,
   });
   const pgco = pgdbcc.pgClientOptions(config);

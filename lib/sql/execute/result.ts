@@ -2,6 +2,9 @@ import * as safety from "../../safety/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as p from "./parameter.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 /**
  * The default type for returned rows.
  */
@@ -105,25 +108,75 @@ export async function firstRecordDQL<
   ctx: Context,
   query: p.SqlBindParamsTextSupplier<Context>,
   qre: QueryRecordsExecutor<Context>,
-  options?: {
-    readonly enhance?: (record: Record<string, unknown>) => Object;
-    readonly onNotFound?: () => Object | undefined;
+  options?: QueryRecordsExecutorOptions<Object, Context> & {
+    readonly reportRecordsDQL?: (
+      selected: QueryExecutionRecordsSupplier<Object, Context>,
+    ) => Promise<void>;
+    readonly onNotFound?: () => Promise<
+      | QueryExecutionRecordSupplier<Object, Context>
+      | undefined
+    >;
     readonly autoLimitSQL?: (
       SQL: SQLa.SqlTextSupplier<Context>,
     ) => SQLa.SqlTextSupplier<Context>;
   },
-): Promise<Object | undefined> {
+): Promise<QueryExecutionRecordSupplier<Object, Context> | undefined> {
   const {
     autoLimitSQL = (() => ({
       ...query,
       SQL: (ctx: Context) => `${query.SQL(ctx)} LIMIT 1`,
     })),
   } = options ?? {};
-  const selected = await qre<Object>(ctx, autoLimitSQL(query));
+  const selected = await qre<Object>(ctx, autoLimitSQL(query), options);
+  await options?.reportRecordsDQL?.(selected);
   if (selected.records.length > 0) {
     const record = selected.records[0];
-    if (options?.enhance) return options.enhance(record);
-    return record;
+    return { ...selected, record };
   }
-  return options?.onNotFound ? options.onNotFound() : undefined;
+  return options?.onNotFound ? await options.onNotFound() : undefined;
+}
+
+/**
+ * Function to pass into QueryRowsExecutorOptions.enrich to mutate BigInt(s) to
+ * Number(s). This is useful for many JS/TS functions that don't like BigInts.
+ * @param result the database query execution result
+ * @returns the original execution result with BigInt -> Number(BigInt)
+ */
+// deno-lint-ignore require-await
+export async function mutateRowsBigInts<
+  R extends SqlRow,
+  Context extends SQLa.SqlEmitContext,
+>(
+  result: QueryExecutionRowsSupplier<R, Context>,
+): Promise<QueryExecutionRowsSupplier<R, Context>> {
+  const rows = result.rows;
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i++) {
+      if (typeof row[i] === "bigint") row[i] = Number(rows[i]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Function to pass into QueryRecordsExecutorOptions.enrich to mutate BigInt(s)
+ * toNumber(s). This is useful for many JS/TS functions that don't like BigInts.
+ * @param result the database query execution result
+ * @returns the original execution result with BigInt -> Number(BigInt)
+ */
+// deno-lint-ignore require-await
+export async function mutateRecordsBigInts<
+  O extends SqlRecord,
+  Context extends SQLa.SqlEmitContext,
+>(
+  result: QueryExecutionRecordsSupplier<O, Context>,
+): Promise<QueryExecutionRecordsSupplier<O, Context>> {
+  const records = result.records;
+  for (const record of records) {
+    for (const entry of Object.entries(record)) {
+      const [key, value] = entry;
+      if (typeof value === "bigint") (record[key] as Any) = Number(record[key]);
+    }
+  }
+  return result;
 }
