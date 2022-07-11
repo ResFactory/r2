@@ -152,20 +152,24 @@ export function enumTextTable<
   const enumCodes = Object.keys(seedEnum) as unknown as TEnumCode[];
   const enumValues = Object.values(seedEnum) as unknown as TEnumValue[];
 
-  const codeDomain = {
+  const codeDomain: d.AxiomSqlDomain<string, Context> = {
     ...codeEnum(enumCodes[0], ...enumCodes),
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
+    isOptional: true,
     referenceASD: () => codeDomain,
     referenceNullableASD: () => codeDomain,
+    fromText: (text) => text,
   };
 
-  const valueDomain = {
+  const valueDomain: d.AxiomSqlDomain<string, Context> = {
     ...valueEnum(enumValues[0], ...enumValues),
     sqlDataType: () => ({ SQL: () => `TEXT` }),
     isNullable: false,
+    isOptional: true,
     referenceASD: () => valueDomain,
     referenceNullableASD: () => valueDomain,
+    fromText: (text) => text,
   };
 
   const props = {

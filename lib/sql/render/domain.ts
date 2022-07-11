@@ -33,7 +33,7 @@ export type Any = any; // make it easier on Deno linting
 export type AxiomSqlDomain<
   TsValueType,
   Context extends tmpl.SqlEmitContext,
-> = ax.Axiom<TsValueType> & {
+> = ax.AxiomSerDe<TsValueType> & {
   readonly sqlDataType: (
     purpose:
       | "create table column"
@@ -147,26 +147,10 @@ export function label<
   };
 }
 
-export function textNullable<
-  Context extends tmpl.SqlEmitContext,
->(
-  axiom: ax.Axiom<string | undefined> = ax.$.string.optional(),
-  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
-): AxiomSqlDomain<string | undefined, Context> {
-  return {
-    ...axiom,
-    sqlDataType: () => ({ SQL: () => `TEXT` }),
-    isNullable: true,
-    referenceASD: () => text(),
-    referenceNullableASD: () => textNullable(),
-    ...asdOptions,
-  };
-}
-
 export function text<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<string> = ax.$.string,
+  axiom: ax.AxiomSerDe<string> = ax.text(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string, Context> {
   return {
@@ -179,10 +163,26 @@ export function text<
   };
 }
 
+export function textNullable<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<string | undefined> = ax.textOptional(),
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string | undefined, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isNullable: true,
+    referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
+    ...asdOptions,
+  };
+}
+
 export function date<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<Date> = ax.$.date,
+  axiom: ax.AxiomSerDe<Date> = ax.date(),
   asdOptions?: Partial<AxiomSqlDomain<Date, Context>>,
 ): AxiomSqlDomain<Date, Context> {
   return {
@@ -198,7 +198,7 @@ export function date<
 export function dateNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
+  axiom: ax.AxiomSerDe<Date | undefined> = ax.dateOptional(),
   asdOptions?: Partial<AxiomSqlDomain<Date | undefined, Context>>,
 ): AxiomSqlDomain<Date | undefined, Context> {
   return {
@@ -214,7 +214,7 @@ export function dateNullable<
 export function dateTime<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<Date> = ax.$.date,
+  axiom: ax.AxiomSerDe<Date> = ax.dateTime(),
   asdOptions?: Partial<AxiomSqlDomain<Date, Context>>,
 ): AxiomSqlDomain<Date, Context> {
   return {
@@ -230,7 +230,7 @@ export function dateTime<
 export function dateTimeNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<Date | undefined> = ax.$.date.optional(),
+  axiom: ax.AxiomSerDe<Date | undefined> = ax.dateTimeOptional(),
   asdOptions?: Partial<AxiomSqlDomain<Date | undefined, Context>>,
 ): AxiomSqlDomain<Date | undefined, Context> {
   return {
@@ -254,7 +254,7 @@ export function createdAt<
 export function integer<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<number> = ax.$.number,
+  axiom: ax.AxiomSerDe<number> = ax.integer(),
   asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
 ): AxiomSqlDomain<number, Context> {
   return {
@@ -270,7 +270,7 @@ export function integer<
 export function integerNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<number | undefined> = ax.$.number.optional(),
+  axiom: ax.AxiomSerDe<number | undefined> = ax.integerOptional(),
   asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
 ): AxiomSqlDomain<number | undefined, Context> {
   return {
@@ -286,7 +286,7 @@ export function integerNullable<
 export function bigint<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<bigint> = ax.$.bigint,
+  axiom: ax.AxiomSerDe<bigint> = ax.bigint(),
   asdOptions?: Partial<AxiomSqlDomain<bigint, Context>>,
 ): AxiomSqlDomain<bigint, Context> {
   return {
@@ -302,7 +302,7 @@ export function bigint<
 export function bigintNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<bigint | undefined> = ax.$.bigint.optional(),
+  axiom: ax.AxiomSerDe<bigint | undefined> = ax.bigintOptional(),
   asdOptions?: Partial<AxiomSqlDomain<bigint, Context>>,
 ): AxiomSqlDomain<bigint | undefined, Context> {
   return {
@@ -318,7 +318,7 @@ export function bigintNullable<
 export function jsonText<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<string> = ax.$.string,
+  axiom: ax.AxiomSerDe<string> = ax.jsonText(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string, Context> {
   return {
@@ -334,7 +334,7 @@ export function jsonText<
 export function jsonTextNullable<
   Context extends tmpl.SqlEmitContext,
 >(
-  axiom: ax.Axiom<string | undefined> = ax.$.string.optional(),
+  axiom: ax.AxiomSerDe<string | undefined> = ax.jsonTextOptional(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string | undefined, Context> {
   return {

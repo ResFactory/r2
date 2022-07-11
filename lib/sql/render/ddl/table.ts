@@ -320,7 +320,7 @@ export function foreignKeyNullable<
   foreignRelNature?: TableForeignKeyRelNature<Context>,
   domainOptions?: Partial<d.AxiomSqlDomain<ColumnTsType, Context>>,
 ) {
-  return foreignKeyCustom(
+  return foreignKeyCustom<ColumnTsType | undefined, ForeignTableName, Context>(
     foreignTableName,
     foreignDomain,
     foreignDomain.referenceNullableASD(),

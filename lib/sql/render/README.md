@@ -306,10 +306,13 @@ References:
 
 ### Dialect Engines
 
-- [ ] Create `SqlEngine` and `SqlEngineConnection` interfaces and
+- [x] Create `SqlEngine` and `SqlEngineConnection` interfaces and
       engine-specific implementations to prepare SQL, send into a specific
       database driver and return typed rows (array) or object lists as
       `SqlEngineResult`s.
+- [ ] Render
+      [SQL Notebook](https://marketplace.visualstudio.com/items?itemName=cmoog.sqlnotebook)
+      output that will allow interactive use through VS Code.
 
 #### PostgreSQL
 
@@ -361,9 +364,6 @@ The system generates lint messages:
 
 ## TODO
 
-- [ ] `$RF_HOME/lib/axiom/axiom-serde.ts` was recently introduced and is quite
-      similar SQLa's `domain.ts` module. Check to see if it makes sense to build
-      `AxiomSqlDomain` on top of AxiomSerDe instead of Axiom directly.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
