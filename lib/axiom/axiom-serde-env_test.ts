@@ -16,12 +16,12 @@ Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
   Deno.env.set("SYNTHETIC_INT", String(10267));
 
   const defaults = syntheticASDO.prepareRecord({
-    text: envBuilder.textUndefined,
+    text: envBuilder.textEnvPlaceholder,
     number: 100,
     numberEnv: -1,
   });
 
-  ta.assertEquals(defaults.text, envBuilder.textUndefined);
+  ta.assertEquals(defaults.text, envBuilder.textEnvPlaceholder);
   ta.assertEquals(defaults.number, 100);
   ta.assertEquals(defaults.numberEnv, 10267);
 

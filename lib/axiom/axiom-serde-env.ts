@@ -53,10 +53,10 @@ export function envBuilder(options?: {
 }) {
   const { ens = (suggested: string) => suggested } = options ??
     {};
-  const textUndefined = "envVarUndefined";
-  const intUndefined = -1;
+  const textEnvPlaceholder = "envVarUndefined";
+  const intEnvPlaceholder = -1;
   return {
-    textUndefined,
+    textEnvPlaceholder,
     text: (
       envVarName: string,
       ...aliases: string[]
@@ -64,11 +64,12 @@ export function envBuilder(options?: {
       return envVarAxiomSD(
         axsd.text(),
         [ens(envVarName), ...aliases],
-        textUndefined,
-        (value) => value == undefined || value == textUndefined ? true : false,
+        textEnvPlaceholder,
+        (value) =>
+          value == undefined || value == textEnvPlaceholder ? true : false,
       );
     },
-    intUndefined,
+    intEnvPlaceholder,
     integer: (
       envVarName: string,
       ...aliases: string[]
@@ -76,8 +77,9 @@ export function envBuilder(options?: {
       return envVarAxiomSD(
         axsd.integer(),
         [ens(envVarName), ...aliases],
-        intUndefined,
-        (value) => value == undefined || value == intUndefined ? true : false,
+        intEnvPlaceholder,
+        (value) =>
+          value == undefined || value == intEnvPlaceholder ? true : false,
       );
     },
     textOptional: (
