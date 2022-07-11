@@ -37,6 +37,22 @@ export interface SqlReadConn<
 > extends SqlEngineConnection<Engine, Instance> {
   readonly rowsDQL: ex.QueryRowsExecutor<Context>;
   readonly recordsDQL: ex.QueryRecordsExecutor<Context>;
+  readonly firstRecordDQL: <Object extends ex.SqlRecord>(
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context> & {
+      readonly reportRecordsDQL?: (
+        selected: ex.QueryExecutionRecordsSupplier<Object, Context>,
+      ) => Promise<void>;
+      readonly onNotFound?: () => Promise<
+        | ex.QueryExecutionRecordSupplier<Object, Context>
+        | undefined
+      >;
+      readonly autoLimitSQL?: (
+        SQL: SQLa.SqlTextSupplier<Context>,
+      ) => SQLa.SqlTextSupplier<Context>;
+    },
+  ) => Promise<ex.QueryExecutionRecordSupplier<Object, Context> | undefined>;
 }
 
 export interface SqlWriteConn<
