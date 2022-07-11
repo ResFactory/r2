@@ -7,7 +7,12 @@ import * as cr from "./criteria.ts";
 
 Deno.test("SQL Aide (SQLa) custom SELECT statement", async (tc) => {
   const ctx = tmpl.typicalSqlEmitContext();
-  const SQL = mod.untypedSelect(ctx);
+  const SQL = mod.untypedSelect(ctx, {
+    firstTokenGuard: (firstToken) =>
+      firstToken.toLocaleUpperCase() == "SELECT"
+        ? true
+        : { lintIssue: "SELECT expected as first word" },
+  });
 
   await tc.step("invalid SELECT statement (misspelled token)", () => {
     const select = SQL`

@@ -59,8 +59,8 @@ export type SelectTemplateOptions<
   ) => void;
   readonly firstTokenGuard?: (
     firstToken: string,
-  ) => true | l.TemplateStringSqlLintIssue;
-  readonly onFirstTokenGuardFail?: (issue: l.TemplateStringSqlLintIssue) =>
+  ) => true | l.SqlLintIssueSupplier;
+  readonly onFirstTokenGuardFail?: (issue: l.SqlLintIssueSupplier) =>
     & Select<SelectStmtName, Context>
     & tmpl.SqlTextLintIssuesSupplier<Context>;
 };
