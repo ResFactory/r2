@@ -15,8 +15,6 @@ type Any = any;
 //     developers to provide definition
 // [ ] generate dialect-specific EXPLAIN PLAN statements
 
-export type SelectNotFirstWordLintIssue = l.TemplateStringSqlLintIssue;
-
 export interface Select<
   SelectStmtName extends string,
   Context extends tmpl.SqlEmitContext,
@@ -53,15 +51,18 @@ export type SelectTemplateOptions<
   Context extends tmpl.SqlEmitContext,
 > = tmpl.SqlTextSupplierOptions<Context> & {
   readonly symbolsFirst?: boolean;
-  readonly onSelectNotFirstWord?: (issue: SelectNotFirstWordLintIssue) =>
-    & Select<SelectStmtName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context>;
   readonly selectStmtName?: SelectStmtName;
   readonly onPropertyNotAxiomSqlDomain?: (
     name: string,
     axiom: Any,
     domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
+  readonly firstTokenGuard?: (
+    firstToken: string,
+  ) => true | l.TemplateStringSqlLintIssue;
+  readonly onFirstTokenGuardFail?: (issue: l.TemplateStringSqlLintIssue) =>
+    & Select<SelectStmtName, Context>
+    & tmpl.SqlTextLintIssuesSupplier<Context>;
 };
 
 export function selectTemplateResult<
@@ -73,17 +74,22 @@ export function selectTemplateResult<
   ssOptions?: SelectTemplateOptions<SelectStmtName, Context>,
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) {
-  let invalid: SelectNotFirstWordLintIssue | undefined;
+  let invalid: l.TemplateStringSqlLintIssue | undefined;
   const candidateSQL = literals[0];
-  const command = firstWord(candidateSQL);
-  if (!(command && command == "SELECT")) {
-    invalid = l.templateStringLintIssue(
-      "SQL statement does not start with SELECT",
-      literals,
-      expressions,
-    );
-    if (ssOptions?.onSelectNotFirstWord) {
-      return ssOptions?.onSelectNotFirstWord(invalid);
+  if (ssOptions?.firstTokenGuard) {
+    const firstToken = firstWord(candidateSQL);
+    if (firstToken) {
+      const guard = ssOptions.firstTokenGuard(firstToken);
+      if (typeof guard !== "boolean") {
+        invalid = l.templateStringLintIssue(
+          "SQL statement does not start with SELECT",
+          literals,
+          expressions,
+        );
+        if (ssOptions?.onFirstTokenGuardFail) {
+          return ssOptions.onFirstTokenGuardFail(guard);
+        }
+      }
     }
   }
 
