@@ -196,7 +196,8 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
   // The file system proxy engine allows us to store and retrieve ("cache")
   // query execution results; we call this a proxy rather than a cache in case
   // we want to retrieve results from another location.
-  const qeProxy = p.fileSysSqlProxyEngine().fsProxy({
+  const fsProxyEngine = p.fileSysSqlProxyEngine();
+  const fsProxy = fsProxyEngine.fsProxy({
     resultsStoreHome: () => qeProxyFsHome,
     onResultsStoreHomeStatError: (home) =>
       Deno.mkdirSync(home, { recursive: true }),
@@ -216,10 +217,11 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
       return ee;
     },
   });
+
   const pgEngine = mod.postgreSqlEngine();
   const pgDBi = pgEngine.instance({
     clientOptions: () => pgdbcc.pgClientOptions(config),
-    qeProxy: () => qeProxy,
+    qeProxy: () => fsProxy,
     autoCloseOnUnload: true,
     poolCount: config.dbConnPoolCount,
     prepareEE: (ee) => {
@@ -266,90 +268,85 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
     },
   });
   const ctx = SQLa.typicalSqlEmitContext();
-  const testQuery = {
+  const pgCatalogQuery = {
     SQL: () => `SELECT datname FROM pg_database WHERE datistemplate = false;`,
   };
 
   ta.assert(await pgDBi.isConnectable());
   await pgDBi.init();
 
-  await tc.step(
-    "read PostgreSQL records and compare against FS proxy",
-    async () => {
-      const pgRecords = await pgDBi.recordsDQL(ctx, testQuery);
-      ta.assert(pgRecords);
-
-      ta.assert(
-        !(await qeProxy.isPersistedQueryExecResultExpired(
-          ctx,
-          testQuery,
-          "records",
-          p.expiresOneSecondMS * 30,
-        )),
-      );
-
-      const fspResult = await qeProxy.recordsDQL(ctx, testQuery);
-      ta.assertEquals(fspResult.query, pgRecords.query);
-      ta.assertEquals(fspResult.records, pgRecords.records);
-      ta.assert(p.isRevivedQueryExecution(fspResult));
-      ta.assertEquals(
-        "never" as p.RevivableQueryExecExpirationMS,
-        fspResult.expiresInMS,
-      );
-      ta.assert(fspResult.serializedAt);
-      ta.assert(fspResult.revivedAt);
-      ta.assert(!qeProxy.isRevivedQueryExecResultExpired(fspResult));
-    },
-  );
+  const pgCatalogQER = await pgDBi.recordsDQL(ctx, pgCatalogQuery);
+  ta.assert(pgCatalogQER);
 
   await pgDBi.close();
 
-  await tc.step("verify PostgreSQL events", () => {
-    const expectedEventResults = {
-      "testingConnection": { count: 1 },
-      "testedConnValid": { count: 1 },
-      "openingDatabase": { count: 1 },
-      "openedDatabase": { count: 1 },
-      "connected": { count: 1 },
-      "releasing": { count: 1 },
-      "executedDDL": undefined,
-      "executedDML": undefined,
-      "executedDQL": { count: 1 },
-      "closingDatabase": { count: 1 },
-      "closedDatabase": { count: 1 },
-      "testedConnInvalid": undefined,
-    };
-    for (const prop of Object.entries(expectedEventResults)) {
-      const [name, expectedValue] = prop;
-      const evResult = pgEvents.get(name);
-      ta.assertEquals(
-        evResult,
-        expectedValue,
-        `'${name}' PostgreSQL event should be ${
-          JSON.stringify(expectedValue)
-        } not ${JSON.stringify(evResult)}`,
-      );
-    }
-  });
+  const expectedCanonicalEventResults = {
+    "testingConnection": { count: 1 },
+    "testedConnValid": { count: 1 },
+    "openingDatabase": { count: 1 },
+    "openedDatabase": { count: 1 },
+    "connected": { count: 1 },
+    "releasing": { count: 1 },
+    "executedDDL": undefined,
+    "executedDML": undefined,
+    "executedDQL": { count: 1 },
+    "closingDatabase": { count: 1 },
+    "closedDatabase": { count: 1 },
+    "testedConnInvalid": undefined,
+  };
+  for (const prop of Object.entries(expectedCanonicalEventResults)) {
+    const [name, expectedValue] = prop;
+    const evResult = pgEvents.get(name);
+    ta.assertEquals(
+      evResult,
+      expectedValue,
+      `'${name}' PostgreSQL event should be ${
+        JSON.stringify(expectedValue)
+      } not ${JSON.stringify(evResult)}`,
+    );
+  }
 
-  await tc.step("verify FS proxy events", () => {
-    const expectedEventResults = {
-      "executedDQL": { count: 1 },
-      "persistedExecutedRecords": { count: 1 },
-      "persistedExecutedRows": undefined,
-    };
-    for (const prop of Object.entries(expectedEventResults)) {
-      const [name, expectedValue] = prop;
-      const evResult = qeProxyEvents.get(name);
-      ta.assertEquals(
-        evResult,
-        expectedValue,
-        `'${name}' FS proxy event should be ${
-          JSON.stringify(expectedValue)
-        } not ${JSON.stringify(evResult)}`,
-      );
-    }
-  });
+  ta.assert(
+    !(await fsProxy.isPersistedQueryExecResultExpired(
+      ctx,
+      pgCatalogQuery,
+      "records",
+      p.expiresOneSecondMS * 30, // 30 seconds in milliseconds
+    )),
+  );
+
+  const canonicalFSP = fsProxyEngine.canonicalFsProxy(
+    fsProxy,
+    () => undefined, // pretend that the database disappeared
+  );
+  const fspResult = await canonicalFSP.recordsDQL(ctx, pgCatalogQuery);
+  ta.assertEquals(fspResult.query, pgCatalogQER.query);
+  ta.assertEquals(fspResult.records, pgCatalogQER.records);
+  ta.assert(p.isRevivedQueryExecution(fspResult));
+  ta.assertEquals(
+    "never" as p.RevivableQueryExecExpirationMS,
+    fspResult.expiresInMS,
+  );
+  ta.assert(fspResult.serializedAt);
+  ta.assert(fspResult.revivedAt);
+  ta.assert(!fsProxy.isRevivedQueryExecResultExpired(fspResult));
+
+  const expectedFsProxyEventResults = {
+    "executedDQL": { count: 1 },
+    "persistedExecutedRecords": { count: 1 },
+    "persistedExecutedRows": undefined,
+  };
+  for (const prop of Object.entries(expectedFsProxyEventResults)) {
+    const [name, expectedValue] = prop;
+    const evResult = qeProxyEvents.get(name);
+    ta.assertEquals(
+      evResult,
+      expectedValue,
+      `'${name}' FS proxy event should be ${
+        JSON.stringify(expectedValue)
+      } not ${JSON.stringify(evResult)}`,
+    );
+  }
 
   await Deno.remove(qeProxyFsHome, { recursive: true });
 });
