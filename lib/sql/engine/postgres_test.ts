@@ -144,10 +144,15 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
   // so don't fail the test case, just don't run it
   if (isCICD) return;
 
+  // this is the "query engine proxy file system" home, a temporary dir that is
+  // deleted after all tests are run
+  const qeProxyFsHome = await Deno.makeTempDir();
+
+  // pgdbcc retrieves database connnection config values from the environment
   const pgdbcc = mod.pgDbConnEnvConfig({
     ens: (given) => `TESTVALID_PKC_${given}`,
   });
-  const qeProxyFsHome = await Deno.makeTempDir();
+
   const config = pgdbcc.configure({
     configured: true,
     qeProxyFsHome,
@@ -188,7 +193,10 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
     return result;
   };
 
-  const qeProxy = p.fileSysSqlProxyEngine().instance({
+  // The file system proxy engine allows us to store and retrieve ("cache")
+  // query execution results; we call this a proxy rather than a cache in case
+  // we want to retrieve results from another location.
+  const qeProxy = p.fileSysSqlProxyEngine().fsProxy({
     resultsStoreHome: () => qeProxyFsHome,
     onResultsStoreHomeStatError: (home) =>
       Deno.mkdirSync(home, { recursive: true }),

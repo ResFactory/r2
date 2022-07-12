@@ -23,6 +23,7 @@ export interface RevivableQueryExecution {
 export interface RevivedQueryExecution extends RevivableQueryExecution {
   readonly revivedAt: Date;
   readonly serializedAt: Date;
+  readonly revivedFromFsPath: string;
 }
 
 export const isRevivedQueryExecution = safety.typeGuard<
@@ -32,6 +33,7 @@ export const isRevivedQueryExecution = safety.typeGuard<
 export interface UnrevivableQueryExecution extends RevivableQueryExecution {
   readonly isUnrevivableQueryExecution: true;
   readonly reason: "expired" | "exception";
+  readonly fsJsonPath: string;
 }
 
 export const isUnrevivableQueryExecution = safety.typeGuard<
@@ -43,14 +45,14 @@ export interface QueryExecutionProxyStore<Context extends SQLa.SqlEmitContext> {
     ctx: Context,
     qers: ex.QueryExecutionRowsSupplier<Row, Context>,
     options?: {
-      readonly expiresInMS: RevivableQueryExecExpirationMS;
+      readonly expiresInMS?: RevivableQueryExecExpirationMS;
     },
   ) => Promise<ex.QueryExecutionRowsSupplier<Row, Context>>;
   persistExecutedRecords: <Object extends ex.SqlRecord>(
     ctx: Context,
     qers: ex.QueryExecutionRecordsSupplier<Object, Context>,
     options?: {
-      readonly expiresInMS: RevivableQueryExecExpirationMS;
+      readonly expiresInMS?: RevivableQueryExecExpirationMS;
     },
   ) => Promise<ex.QueryExecutionRecordsSupplier<Object, Context>>;
   isPersistedQueryExecResultExpired: (
@@ -60,7 +62,11 @@ export interface QueryExecutionProxyStore<Context extends SQLa.SqlEmitContext> {
     expiresInMS: RevivableQueryExecExpirationMS,
     onNotExists: (fsPath: string, err: Error) => Promise<boolean>,
   ) => Promise<boolean>;
-  isRevivedQueryExecResultExpired: (rqe: RevivedQueryExecution) => boolean;
+  isRevivedQueryExecResultExpired: (
+    rqe:
+      | ex.QueryExecutionRowsSupplier<Any, Context>
+      | ex.QueryExecutionRecordsSupplier<Any, Context>,
+  ) => boolean;
 }
 
 export type QueryExecutionProxy<Context extends SQLa.SqlEmitContext> =
@@ -123,7 +129,7 @@ export function fileSysSqlProxyEngine<Context extends SQLa.SqlEmitContext>() {
   };
   return {
     ...result,
-    instance: (rssPI: FileSysSqlProxyInit<Context>) => {
+    fsProxy: (rssPI: FileSysSqlProxyInit<Context>) => {
       const home = rssPI.resultsStoreHome();
       let instance = instances.get(home);
       if (!instance) {
@@ -131,6 +137,15 @@ export function fileSysSqlProxyEngine<Context extends SQLa.SqlEmitContext>() {
         instances.set(home, instance);
       }
       return instance;
+    },
+    canonicalFsProxy: (
+      fsProxy: FileSysSqlProxy<Context>,
+      canonicalSupplier: () =>
+        | eng.SqlReadConn<Any, Any, Context> // when canonical is available
+        | undefined, // in case canonical is not available,
+      identity = fsProxy.identity,
+    ) => {
+      return new CanonicalFileSysSqlProxy(fsProxy, canonicalSupplier, identity);
     },
   };
 }
@@ -154,6 +169,7 @@ async function reviveQueryExecFsRows<Context extends SQLa.SqlEmitContext>(
           return value;
         }),
         revivedAt: new Date(),
+        revivedFromFsPath: fsJsonPath,
       };
     return result;
   } catch (error) {
@@ -167,6 +183,7 @@ async function reviveQueryExecFsRows<Context extends SQLa.SqlEmitContext>(
         isUnrevivableQueryExecution: true,
         reason: "exception",
         serializedAt: new Date(),
+        fsJsonPath,
       };
     return result;
   }
@@ -191,6 +208,7 @@ async function reviveQueryExecFsRecords<Context extends SQLa.SqlEmitContext>(
           return value;
         }),
         revivedAt: new Date(),
+        revivedFromFsPath: fsJsonPath,
       };
     return result;
   } catch (error) {
@@ -204,6 +222,7 @@ async function reviveQueryExecFsRecords<Context extends SQLa.SqlEmitContext>(
         isUnrevivableQueryExecution: true,
         reason: "exception",
         serializedAt: new Date(),
+        fsJsonPath,
       };
     return result;
   }
@@ -355,7 +374,7 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
       | ex.QueryExecutionRowsSupplier<Any, Context>
       | ex.QueryExecutionRecordsSupplier<Any, Context>,
     options?: {
-      readonly expiresInMS: RevivableQueryExecExpirationMS;
+      readonly expiresInMS?: RevivableQueryExecExpirationMS;
     },
   ) {
     const serializable: RevivableQueryExecution = {
@@ -376,7 +395,7 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     ctx: Context,
     qers: ex.QueryExecutionRowsSupplier<Row, Context>,
     options?: {
-      readonly expiresInMS: RevivableQueryExecExpirationMS;
+      readonly expiresInMS?: RevivableQueryExecExpirationMS;
     },
   ) {
     const fsPath = path.join(
@@ -395,7 +414,7 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     ctx: Context,
     qers: ex.QueryExecutionRecordsSupplier<Object, Context>,
     options?: {
-      readonly expiresInMS: RevivableQueryExecExpirationMS;
+      readonly expiresInMS?: RevivableQueryExecExpirationMS;
     },
   ) {
     const fsPath = path.join(
@@ -442,7 +461,14 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     }
   }
 
-  isRevivedQueryExecResultExpired(rqe: RevivedQueryExecution): boolean {
+  isRevivedQueryExecResultExpired(
+    rqe:
+      | ex.QueryExecutionRowsSupplier<Any, Context>
+      | ex.QueryExecutionRecordsSupplier<Any, Context>,
+  ): boolean {
+    // if this is not a revived query, assume it's expired so it can be re-read
+    if (!isRevivedQueryExecution(rqe)) return true;
+
     if (rqe.expiresInMS == "never") return false;
     const rqeAgeInMS = Date.now() - rqe.serializedAt.valueOf();
     return rqeAgeInMS > rqe.expiresInMS;
@@ -494,6 +520,107 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
         ...options,
       },
     );
+    return result;
+  }
+}
+
+/**
+ * FileSysSqlProxy implementation that will execute SQL from either a local
+ * FileSystem proxy store or retrieve it from the canonical storage engine if
+ * the local file system does not contain query execution result. This is useful
+ * for circumstances when queries are executed and then stored in Git for use
+ * cases where not all users of the Git repo will have access to thecanonical
+ * SQL engine.
+ */
+export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
+  implements
+    eng.SqlEngineInstance<FileSysSqlProxyEngine>,
+    eng.SqlReadConn<
+      FileSysSqlProxyEngine,
+      CanonicalFileSysSqlProxy<Context>,
+      Context
+    > {
+  constructor(
+    readonly fsProxy: FileSysSqlProxy<Context>,
+    readonly canonicalSupplier: () =>
+      | eng.SqlReadConn<Any, Any, Context> // when canonical is available
+      | undefined, // in case canonical is not available
+    readonly identity = fsProxy.identity,
+  ) {
+  }
+
+  async rowsDQL<Row extends ex.SqlRow>(
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRowsExecutorOptions<Row, Context>,
+  ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
+    const result = await this.fsProxy.rowsDQL<Row>(ctx, query, options);
+    if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
+      const ce = this.canonicalSupplier();
+      if (ce) {
+        return ce.rowsDQL<Row>(ctx, query, options);
+      }
+      return {
+        query,
+        rows: [],
+        error: new Error(`invalid proxy and canonical`),
+      };
+    }
+    return result;
+  }
+
+  async recordsDQL<Object extends ex.SqlRecord>(
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    options?: ex.QueryRecordsExecutorOptions<Object, Context>,
+  ): Promise<ex.QueryExecutionRecordsSupplier<Object, Context>> {
+    const result = await this.fsProxy.recordsDQL<Object>(ctx, query, options);
+    if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
+      const ce = this.canonicalSupplier();
+      if (ce) {
+        return ce.recordsDQL<Object>(ctx, query, options);
+      }
+      return {
+        query,
+        records: [],
+        error: new Error(`invalid proxy and canonical`),
+      };
+    }
+    return result;
+  }
+
+  async firstRecordDQL<Object extends ex.SqlRecord>(
+    ctx: Context,
+    query: ex.SqlBindParamsTextSupplier<Context>,
+    options?:
+      & ex.QueryRecordsExecutorOptions<Object, Context>
+      & {
+        readonly onNotFound?: () => Promise<
+          | ex.QueryExecutionRecordSupplier<Object, Context>
+          | undefined
+        >;
+        readonly autoLimitSQL?: (
+          SQL: SQLa.SqlTextSupplier<Context>,
+        ) => SQLa.SqlTextSupplier<Context>;
+      },
+  ): Promise<ex.QueryExecutionRecordSupplier<Object, Context> | undefined> {
+    const result = await this.fsProxy.firstRecordDQL<Object>(
+      ctx,
+      query,
+      options,
+    );
+    if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
+      const ce = this.canonicalSupplier();
+      if (ce) {
+        return ce.firstRecordDQL<Object>(ctx, query, options);
+      }
+      return {
+        query,
+        records: [],
+        record: await options?.onNotFound?.() ?? {} as Any,
+        error: new Error(`invalid proxy and canonical`),
+      };
+    }
     return result;
   }
 }

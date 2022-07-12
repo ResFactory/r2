@@ -75,7 +75,7 @@ export function pgDbConnEnvInstanceInit<Context extends SQLa.SqlEmitContext>(
       clientOptions: () => pgCEC.pgClientOptions(pgCEC.configure()),
       qeProxy: config.qeProxyFsHome
         ? (() =>
-          proxy.fileSysSqlProxyEngine<Context>().instance({
+          proxy.fileSysSqlProxyEngine<Context>().fsProxy({
             resultsStoreHome: () => config.qeProxyFsHome!,
           }))
         : undefined,

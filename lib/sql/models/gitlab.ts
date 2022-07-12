@@ -12,11 +12,13 @@ export interface GitLabSqlEmitContext extends SQLa.SqlEmitContext {
   readonly qualifiedComponentsDelim: string;
 }
 
-export function gitLabSqlEmitContext(): GitLabSqlEmitContext {
+export function gitLabSqlEmitContext<
+  Context extends GitLabSqlEmitContext,
+>(): Context {
   return {
     qualifiedComponentsDelim: glQualifiedComponentsDelim,
     ...SQLa.typicalSqlEmitContext(),
-  };
+  } as Context;
 }
 
 export const gitLabNamespace = SQLa.sqlDomains({
@@ -29,19 +31,6 @@ export const gitLabNamespace = SQLa.sqlDomains({
 });
 export type GitLabNamespace = ax.AxiomType<typeof gitLabNamespace>;
 
-export interface GitLabNamespaceContext extends GitLabSqlEmitContext {
-  readonly namespace: GitLabNamespace;
-}
-
-export function gitLabNamespaceContext(
-  namespace: GitLabNamespace,
-): GitLabNamespaceContext {
-  return {
-    namespace,
-    ...gitLabSqlEmitContext(),
-  };
-}
-
 export function gitLabSqlBuilder<Context extends GitLabSqlEmitContext>() {
   return {
     text: () => SQLa.text<Context>(),
@@ -51,8 +40,8 @@ export function gitLabSqlBuilder<Context extends GitLabSqlEmitContext>() {
 }
 
 export function gitLabSqlStmts() {
-  const glnsBuilder = gitLabSqlBuilder<GitLabNamespaceContext>();
-  const { text, int, dateTime } = glnsBuilder;
+  const glsBuilder = gitLabSqlBuilder<GitLabSqlEmitContext>();
+  const { text, int, dateTime } = glsBuilder;
 
   const group = (ctx: GitLabSqlEmitContext, name: string) =>
     SQLa.typedSelect(gitLabNamespace.axiomObjectDecl, ctx)`
@@ -66,7 +55,7 @@ export function gitLabSqlStmts() {
           FROM namespaces
          WHERE type = 'Group'`;
 
-  const issues = (ctx: GitLabNamespaceContext) =>
+  const issues = (ctx: GitLabSqlEmitContext, ns: GitLabNamespace) =>
     SQLa.typedSelect({
       groupURL: text(),
       groupPathComponent: text(),
@@ -103,7 +92,7 @@ export function gitLabSqlStmts() {
         WITH groups_cte (id) AS (
             /* Find all children of given group ID (e.g. 'Precision Knowledge Content') */
             WITH RECURSIVE childNS AS (
-            SELECT ${ctx.namespace.id} AS id
+            SELECT ${ns.id} AS id
             UNION ALL
             SELECT ns.id
             FROM namespaces AS ns
@@ -234,7 +223,7 @@ export function gitLabSqlStmts() {
             ) irrelevantBy ON true
         ORDER BY project.name, assignment.created_at`;
 
-  const userAnalytics = (ctx: GitLabNamespaceContext) =>
+  const userAnalytics = (ctx: GitLabSqlEmitContext, ns: GitLabNamespace) =>
     SQLa.typedSelect({
       id: int(),
       email: text(),
@@ -254,7 +243,7 @@ export function gitLabSqlStmts() {
       WITH groups_cte (id) AS (
         /* Find all children of given group ID (e.g. 'Precision Knowledge Content') */
         WITH RECURSIVE childNS AS (
-          SELECT ${ctx.namespace.id} AS id
+          SELECT ${ns.id} AS id
           UNION ALL
           SELECT ns.id
           FROM namespaces AS ns
@@ -309,7 +298,7 @@ export function gitLabSqlStmts() {
         group by u.id, counts.authored_issues, counts.assigned_issues, counts.mentioned_in_issues,
               counts.viewed_reactions, counts.irrelevant_reactions, counts.completed_reactions`;
   return {
-    glnsBuilder,
+    glsBuilder,
     group,
     groups,
     issues,
@@ -317,61 +306,42 @@ export function gitLabSqlStmts() {
   };
 }
 
-export function gitLabProxyableContent(
-  primaryStorageEngineSupplier: () => eng.SqlReadConn<
-    Any,
-    Any,
-    GitLabSqlEmitContext
-  >,
+export function gitLabContent<Context extends GitLabSqlEmitContext>(
+  readConnSupplier: (ctx: Context) => eng.SqlReadConn<Any, Any, Context>,
+  glCtx = gitLabSqlEmitContext<Context>(),
 ) {
-  const glCtx = gitLabSqlEmitContext();
   const glSS = gitLabSqlStmts();
   const glPC = {
     group: async (name: string) => {
-      const primeSES = primaryStorageEngineSupplier();
-      const group = await primeSES.firstRecordDQL<GitLabNamespace>(
+      const conn = readConnSupplier(glCtx);
+      return await conn.firstRecordDQL<GitLabNamespace>(
         glCtx,
         glSS.group(glCtx, name),
       );
-      return group;
     },
     groups: async () => {
-      const primeSES = primaryStorageEngineSupplier();
-      const groups = await primeSES.recordsDQL<GitLabNamespace>(
+      const conn = readConnSupplier(glCtx);
+      return await conn.recordsDQL<GitLabNamespace>(glCtx, glSS.groups(glCtx));
+    },
+    issues: async (group: GitLabNamespace) => {
+      const conn = readConnSupplier(glCtx);
+      const issuesStmt = glSS.issues(glCtx, group);
+      const content = await conn.recordsDQL<ax.AxiomType<typeof issuesStmt>>(
         glCtx,
-        glSS.groups(glCtx),
+        issuesStmt,
+        { enrich: ex.mutateRecordsBigInts },
       );
-      return groups;
+      return { group, content };
     },
-    issues: async (groupName: string) => {
-      const primeSES = primaryStorageEngineSupplier();
-      const group = await glPC.group(groupName);
-      if (group) {
-        const glNSCtx = gitLabNamespaceContext(group.record);
-        const issuesStmt = glSS.issues(glNSCtx);
-        const content = await primeSES.recordsDQL<
-          ax.AxiomType<typeof issuesStmt>
-        >(
-          glCtx,
-          issuesStmt,
-          { enrich: ex.mutateRecordsBigInts },
-        );
-        return { groupName, group, content };
-      }
-      return { groupName, group };
-    },
-    userAnalytics: async (groupName: string) => {
-      const primeSES = primaryStorageEngineSupplier();
-      const group = await glPC.group(groupName);
-      if (group) {
-        const glNSCtx = gitLabNamespaceContext(group.record);
-        const uaStmt = glSS.userAnalytics(glNSCtx);
-        const content = await primeSES.recordsDQL<
-          ax.AxiomType<typeof uaStmt>
-        >(glCtx, uaStmt, { enrich: ex.mutateRecordsBigInts });
-        return { groupName, group, content };
-      }
-      return { groupName, group };
+    userAnalytics: async (group: GitLabNamespace) => {
+      const conn = readConnSupplier(glCtx);
+      const uaStmt = glSS.userAnalytics(glCtx, group);
+      const content = await conn.recordsDQL<ax.AxiomType<typeof uaStmt>>(
+        glCtx,
+        uaStmt,
+        { enrich: ex.mutateRecordsBigInts },
+      );
+      return { group, content };
     },
   };
   return glPC;
