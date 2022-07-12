@@ -306,6 +306,16 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
     );
   }
 
+  /**
+   * The previous step ran queries using canonical PostgreSQL engine. Because
+   * the pg engine had qeProxy: () => fsProxy passed in, each query exec result
+   * was persisted to the file system and stored in qeProxyFsHome. Now we want
+   * to test to see if we can query the FS proxy with an unknown canonical store.
+   * This might happen in case the canonical server is usually available but is
+   * down now. Or, this might happen if queries were run on a server with access
+   * to the canonical engine, stored in Git repo, and run on a server without
+   * access to the canonical engine.
+   */
   ta.assert(
     !(await fsProxy.isPersistedQueryExecResultExpired(
       ctx,
@@ -330,6 +340,11 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
   ta.assert(fspResult.serializedAt);
   ta.assert(fspResult.revivedAt);
   ta.assert(!fsProxy.isRevivedQueryExecResultExpired(fspResult));
+
+  // if you want to see what was stored/revived:
+  // console.log(
+  //   Deno.readTextFileSync(fspResult.revivedFromFsPath),
+  // );
 
   const expectedFsProxyEventResults = {
     "executedDQL": { count: 1 },
