@@ -138,7 +138,7 @@ Deno.test("PostgreSQL invalid connection", async () => {
   pgDBi.close();
 });
 
-Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", async (tc) => {
+Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", async () => {
   // if we're running in GitHub Actions or other Continuous Integration (CI)
   // or Continuous Delivery (CD) environment then PostgreSQL won't be available
   // so don't fail the test case, just don't run it
