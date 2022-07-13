@@ -3,6 +3,9 @@ import * as SQLa from "../render/mod.ts";
 import * as eng from "../engine/engine.ts";
 import * as ex from "../execute/mod.ts";
 
+// see:
+// [GitLab’s Postgres Schema Design](https://shekhargulati.com/2022/07/08/my-notes-on-gitlabs-postgres-schema-design/)
+
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
