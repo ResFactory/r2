@@ -78,8 +78,8 @@ Deno.test("fselect SQL shell command", async (tc) => {
     };
     const fsQER = await fselect.recordsDQL(ctx, sysInfoQuery);
     ta.assert(fsQER);
-    // there are nine files in the current path
-    ta.assertEquals(9, fsQER.records.length);
+    // there are eleven files in the current path
+    ta.assertEquals(11, fsQER.records.length);
   });
 });
 
