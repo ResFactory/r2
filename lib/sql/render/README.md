@@ -85,6 +85,8 @@ following types of SQL language constructs.
 
 - [x] identity
 - [ ] W3C [Decentralized Identifiers](https://www.w3.org/TR/did-core/) (DIDs)
+- [x] Typescript type
+- [x] Typescript default values
 - [x] SQL type
 - [x] SQL default values
 - [ ] SQL size
@@ -101,17 +103,19 @@ following types of SQL language constructs.
 - [x] SQL reference (for foreign key type mirroring where one columns knows
       another column's type automatically)
 - [x] Data storage computed values using SQL (e.g. for defaults)
-- [ ] Env Var and other AxiomSerDe-style dynamic server-side default values
+- [x] Env Var and other AxiomSerDe-style dynamic server-side default values
 - [ ] `lintIgnore(domain)` wrapper functions to skip certain lint warnings (like
       naming conventions for fkey columns ending in `_id`)
-- [ ] User agent computed values for _business logic_ (similar to NEFS Axiom)
+- [x] User agent computed values for _business logic_ (similar to NEFS Axiom)
 - [ ] User agent computed values for _presentation_ (similar to NEFS Axiom)
 - [ ] synthetic data generation patterns (e.g. reg ex, functions, etc. that can
       auto-generate synthetic data)
 - [ ] arrays of domains (e.g. Text[], Integer[], etc.), like in
       ../models/gitlab.ts
-- [ ] JSON Schema properties contributions
-- [ ] Delimited text (e.g. CSV) schema properties contributions
+- [ ] JSON Schema properties contributions (each domain can contribute to a JSON
+      schema collection)
+- [ ] Delimited text (e.g. CSV) schema properties contributions (each domain can
+      contribute to the definition of tabular data structure)
 - [ ] SQL constraints at storage layer
 - [ ] TS/JS constraints for user agent business logic and presentation layers
 
@@ -145,6 +149,20 @@ When two or more domains need to be coordinated, they are called multi-domains.
 - [ ] JSON Schema
 - [ ] [CSV Schema](http://digital-preservation.github.io/csv-schema/csv-schema-1.1.html),
       [examples](https://github.com/digital-preservation/csv-schema/tree/master/example-schemas)
+
+### Governance
+
+- [ ] Learn from [DataHub](https://datahubproject.io/docs/features) about how to
+      document and manage meta data ('data governance') artifacts and
+      incorporate appropriate governance capabilities. These are DataHub
+      features we should understand and perhaps push into DataHub:
+  - [ ] Tracing lineage across platforms, datasets, pipelines, charts, etc.
+  - [ ] Context about related entities across lineage
+  - [ ] Capture and maintain institutional knowledge using folksonomic
+        identifiers (tags) and taxonomies
+  - [ ] Asset ownership by users and/or user groups
+  - [ ] Fine-Grained Access Control with Policies
+  - [ ] Metadata quality & usage analytics
 
 #### Safety and Security Capabilities
 
@@ -285,15 +303,21 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 - SAVEPOINT: Sets a savepoint within a transaction.
 - SET TRANSACTION: Specify characteristics for the transaction.
 
-### Dialect-specific
+### Dialect/Engine-specific
 
-These dialects are supported:
+These engines / dialects are supported:
 
 - [x] ANSI SQL
 - [x] SQLite
   - [ ] Test with [postlite](https://github.com/benbjohnson/postlite) to allow
         access to SQLite remotely
 - [x] PostgreSQL
+- [x] read-only shell commands
+  - [x] `mergestat` Git SQL
+  - [x] `fselect` File System SQL
+  - [x] `osqueri` operating system SQL
+  - [ ] `steampipe` poly-source SQL
+- [ ] [Universal CLI](https://github.com/xo/usql)
 - [ ] MySQL
 - [ ] Dolt
 - [ ] SQL*Server
@@ -306,10 +330,14 @@ References:
 
 ### Dialect Engines
 
-- [x] Create `SqlEngine` and `SqlEngineConnection` interfaces and
+- [x] Universal `SqlEngine` and `SqlEngineInstance` interfaces and
       engine-specific implementations to prepare SQL, send into a specific
-      database driver and return typed rows (array) or object lists as
-      `SqlEngineResult`s.
+      database driver and return typed rows (array) or object lists as query
+      execution results. All SQL engines support the same query execution
+      results so that results and queries can be mixed/matched across engines.
+
+### Engineering and QA (IDE)
+
 - [ ] Render
       [SQL Notebook](https://marketplace.visualstudio.com/items?itemName=cmoog.sqlnotebook)
       output that will allow interactive use through VS Code.
@@ -333,6 +361,8 @@ References:
 
 The system generates lint messages:
 
+- [ ] Integrate advice from
+      [Ordering Table Columns in PostgreSQL](https://docs.gitlab.com/ee/development/ordering_table_columns.html)
 - [ ] Integrate [SQLFluff](https://github.com/sqlfluff/sqlfluff) or learn from
       their rules.
 - [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
@@ -369,14 +399,6 @@ The system generates lint messages:
       objects capabilities)
 - [ ] Support DOP principles described in
       https://www.manning.com/books/data-oriented-programming
-- [ ] Use `opsfolio/orchestrator/support/migration.rsmf-defn.jsonnet`,
-      https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction
-      and
-      https://www.kolide.com/blog/how-to-build-custom-osquery-tables-using-atc
-      as guides to auto-generate ATC config for osqueryi from the output of a
-      select statement (compose a select statement to produce ATC config and
-      test using `osqueryi`); `migration.rsmf-defn.jsonnet` has a complete
-      working example.
 - [ ] Use https://github.com/lorint/AdventureWorks-for-Postgres for unit tests?
 - [ ] Use https://github.com/manyuanrong/sql-builder to add tableDefn.select``
 - [ ] Add type-safe where criteria builder in DQL SELECT statements so that
@@ -423,17 +445,6 @@ The system generates lint messages:
 - [ ] See if
       [Database Change and Version Control for Teams](https://www.bytebase.com/_nuxt/img/main.a176dc4.webp)
       makes sense as a generator target.
-- [ ] Learn from [DataHub](https://datahubproject.io/docs/features) about how to
-      document and manage meta data ('data governance') artifacts and
-      incorporate appropriate governance capabilities. These are DataHub
-      features we should understand and perhaps push into DataHub:
-  - [ ] Tracing lineage across platforms, datasets, pipelines, charts, etc.
-  - [ ] Context about related entities across lineage
-  - [ ] Capture and maintain institutional knowledge using folksonomic
-        identifiers (tags) and taxonomies
-  - [ ] Asset ownership by users and/or user groups
-  - [ ] Fine-Grained Access Control with Policies
-  - [ ] Metadata quality & usage analytics
 - [ ] Integrate strategies from the following into the code generated by RF:
   - [ ] [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
   - [ ] [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
