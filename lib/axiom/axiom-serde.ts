@@ -443,6 +443,15 @@ export function axiomSerDeObject<
         serDeAxiomRecord,
       };
     },
+    fromTextRecord: (textRecord: Record<string, unknown>) => {
+      for (const a of axiomProps) {
+        const value = textRecord[a.identity];
+        if (typeof value === "string") {
+          textRecord[a.identity] = a.fromText(value, "textRecord");
+        }
+      }
+      return textRecord as unknown as SerDeRecord;
+    },
     labeled: function* <Label extends string, TsValueType = Any>(
       include: (
         ap:
