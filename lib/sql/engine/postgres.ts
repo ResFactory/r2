@@ -5,7 +5,7 @@ import * as pg from "https://deno.land/x/postgres@v0.16.1/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 import * as eng from "./engine.ts";
-import * as proxy from "./proxy.ts";
+import * as fsP from "./fs-proxy.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -75,7 +75,7 @@ export function pgDbConnEnvInstanceInit<Context extends SQLa.SqlEmitContext>(
       clientOptions: () => pgCEC.pgClientOptions(pgCEC.configure()),
       qeProxy: config.qeProxyFsHome
         ? (() =>
-          proxy.fileSysSqlProxyEngine<Context>().fsProxy({
+          fsP.fileSysSqlProxyEngine<Context>().fsProxy({
             resultsStoreHome: () => config.qeProxyFsHome!,
           }))
         : undefined,
@@ -133,7 +133,7 @@ export interface PostgreSqlInstanceInit<Context extends SQLa.SqlEmitContext> {
     suggested: PostgreSqlEventEmitter<Context>,
   ) => PostgreSqlEventEmitter<Context>;
   readonly autoCloseOnUnload?: boolean;
-  readonly qeProxy?: () => proxy.QueryExecutionProxy<Context>;
+  readonly qeProxy?: () => ex.QueryExecutionProxy<Context>;
 }
 
 export type PostgreSqlEngine = eng.SqlEngine;
@@ -278,7 +278,7 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
   readonly pgEE: PostgreSqlEventEmitter<Context>;
   readonly rowsExec: ex.QueryRowsExecutor<Context>;
   readonly recordsExec: ex.QueryRecordsExecutor<Context>;
-  readonly qeProxy?: proxy.QueryExecutionProxy<Context>;
+  readonly qeProxy?: ex.QueryExecutionProxy<Context>;
 
   constructor(pgii: PostgreSqlInstanceInit<Context>) {
     const pgco = pgii.clientOptions();

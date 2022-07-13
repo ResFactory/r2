@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as pge from "../engine/postgres.ts";
-import * as p from "../engine/proxy.ts";
+import * as fsP from "../engine/fs-proxy.ts";
 import * as ex from "../execute/mod.ts";
 import * as mod from "./gitlab.ts";
 
@@ -22,7 +22,7 @@ Deno.test("GitLab content from GLTEST_* env (with and without FS proxy)", async 
   // The file system proxy engine allows us to store and retrieve ("cache")
   // query execution results; we call this a proxy rather than a cache in case
   // we want to retrieve results from another location.
-  const fsProxyEngine = p.fileSysSqlProxyEngine<mod.GitLabSqlEmitContext>();
+  const fsProxyEngine = fsP.fileSysSqlProxyEngine<mod.GitLabSqlEmitContext>();
   const fsProxy = fsProxyEngine.fsProxy({
     resultsStoreHome: () => qeProxyFsHome,
     onResultsStoreHomeStatError: (home) =>

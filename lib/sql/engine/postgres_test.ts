@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as SQLa from "../render/mod.ts";
 import * as mod from "./postgres.ts";
-import * as p from "./proxy.ts";
+import * as fsP from "./fs-proxy.ts";
 import * as ex from "../execute/mod.ts";
 
 const isCICD = Deno.env.get("CI") ? true : false;
@@ -197,7 +197,7 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
   // The file system proxy engine allows us to store and retrieve ("cache")
   // query execution results; we call this a proxy rather than a cache in case
   // we want to retrieve results from another location.
-  const fsProxyEngine = p.fileSysSqlProxyEngine();
+  const fsProxyEngine = fsP.fileSysSqlProxyEngine();
   const fsProxy = fsProxyEngine.fsProxy({
     resultsStoreHome: () => qeProxyFsHome,
     onResultsStoreHomeStatError: (home) =>
