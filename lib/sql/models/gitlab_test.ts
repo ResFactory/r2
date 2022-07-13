@@ -102,12 +102,12 @@ Deno.test("GitLab content from GLTEST_* env (with and without FS proxy)", async 
       // directory).
       const groupsCanonical = await glContent.groups();
       ta.assert(groupsCanonical);
-      ta.assert(!p.isRevivedQueryExecution(groupsCanonical));
+      ta.assert(!ex.isRevivedQueryExecution(groupsCanonical));
       ta.assert(groupsCanonical.records.length > 0);
       groupsCanonicalStash = groupsCanonical;
 
       const groupsProxiedWithCanonical = await glContent.groups();
-      ta.assert(p.isRevivedQueryExecution(groupsProxiedWithCanonical));
+      ta.assert(ex.isRevivedQueryExecution(groupsProxiedWithCanonical));
       ta.assert(groupsProxiedWithCanonical.revivedFromFsPath);
       ta.assert(
         !fsProxy.isRevivedQueryExecResultExpired(groupsProxiedWithCanonical),
@@ -128,7 +128,7 @@ Deno.test("GitLab content from GLTEST_* env (with and without FS proxy)", async 
 
       const pkcGroupName = "Precision Knowledge Content";
       const pkcGroupQER = await glContent.group(pkcGroupName);
-      ta.assert(!p.isRevivedQueryExecution(pkcGroupQER));
+      ta.assert(!ex.isRevivedQueryExecution(pkcGroupQER));
       ta.assert(pkcGroupQER?.record);
       const pkcGroup = pkcGroupQER.record;
 
@@ -168,7 +168,7 @@ Deno.test("GitLab content from GLTEST_* env (with and without FS proxy)", async 
     );
     const glFsPWCC = mod.gitLabContent(() => fsProxyWithoutCanonical, glCtx);
     const groupsProxiedWithoutCanonical = await glFsPWCC.groups();
-    ta.assert(p.isRevivedQueryExecution(groupsProxiedWithoutCanonical));
+    ta.assert(ex.isRevivedQueryExecution(groupsProxiedWithoutCanonical));
     ta.assert(groupsProxiedWithoutCanonical.revivedFromFsPath);
     ta.assert(
       !fsProxy.isRevivedQueryExecResultExpired(groupsProxiedWithoutCanonical),

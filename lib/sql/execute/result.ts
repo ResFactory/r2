@@ -79,6 +79,38 @@ export type QueryRecordsExecutor<
   options?: QueryRecordsExecutorOptions<O, Context>,
 ) => Promise<QueryExecutionRecordsSupplier<O, Context>>;
 
+export const expiresOneSecondMS = 1000;
+export const expiresOneMinuteMS = expiresOneSecondMS * 60;
+export const expiresOneHourMS = expiresOneMinuteMS * 60;
+export const expiresOneDayMS = expiresOneHourMS * 24;
+
+export type RevivableQueryExecExpirationMS = "never" | number;
+
+export interface RevivableQueryExecution {
+  readonly expiresInMS: RevivableQueryExecExpirationMS;
+  readonly serializedAt: Date;
+}
+
+export interface RevivedQueryExecution extends RevivableQueryExecution {
+  readonly revivedAt: Date;
+  readonly serializedAt: Date;
+  readonly revivedFromFsPath: string;
+}
+
+export const isRevivedQueryExecution = safety.typeGuard<
+  RevivedQueryExecution
+>("expiresInMS", "serializedAt", "revivedAt");
+
+export interface UnrevivableQueryExecution extends RevivableQueryExecution {
+  readonly isUnrevivableQueryExecution: true;
+  readonly reason: "expired" | "exception";
+  readonly fsJsonPath: string;
+}
+
+export const isUnrevivableQueryExecution = safety.typeGuard<
+  UnrevivableQueryExecution
+>("expiresInMS", "isUnrevivableQueryExecution", "reason");
+
 export function isQueryExecutionRowsSupplier<
   R extends SqlRow,
   Context extends SQLa.SqlEmitContext,

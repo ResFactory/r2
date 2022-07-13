@@ -1,7 +1,8 @@
 import { testingAsserts as ta } from "./deps-test.ts";
+import * as SQLa from "../render/mod.ts";
 import * as mod from "./postgres.ts";
 import * as p from "./proxy.ts";
-import * as SQLa from "../render/mod.ts";
+import * as ex from "../execute/mod.ts";
 
 const isCICD = Deno.env.get("CI") ? true : false;
 
@@ -321,7 +322,7 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
       ctx,
       pgCatalogQuery,
       "records",
-      p.expiresOneSecondMS * 30, // 30 seconds in milliseconds
+      ex.expiresOneSecondMS * 30, // 30 seconds in milliseconds
     )),
   );
 
@@ -332,9 +333,9 @@ Deno.test("PostgreSQL valid connection from TESTVALID_PKC_* env with FS proxy", 
   const fspResult = await canonicalFSP.recordsDQL(ctx, pgCatalogQuery);
   ta.assertEquals(fspResult.query, pgCatalogQER.query);
   ta.assertEquals(fspResult.records, pgCatalogQER.records);
-  ta.assert(p.isRevivedQueryExecution(fspResult));
+  ta.assert(ex.isRevivedQueryExecution(fspResult));
   ta.assertEquals(
-    "never" as p.RevivableQueryExecExpirationMS,
+    "never" as ex.RevivableQueryExecExpirationMS,
     fspResult.expiresInMS,
   );
   ta.assert(fspResult.serializedAt);
