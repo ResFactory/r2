@@ -1,31 +1,26 @@
 import * as SQLa from "../render/mod.ts";
 import * as eng from "./engine.ts";
 
-export interface RewrittenSqlTextSupplier<
-  Context extends SQLa.SqlEmitContext,
-> extends SQLa.SqlTextSupplier<Context> {
-  readonly isRewrittenSQL: boolean;
-  readonly originalSQL: SQLa.SqlTextSupplier<Context>;
-}
+type Any = any;
 
-export interface DetectedEngineInstanceInSQL<
+export interface DetectedEngineInstanceInSqlText<
   Identity extends string,
   Context extends SQLa.SqlEmitContext,
 > {
   readonly engineInstanceID: Identity;
-  readonly query:
+  readonly STS:
     | SQLa.SqlTextSupplier<Context>
-    | RewrittenSqlTextSupplier<Context>;
+    | SQLa.MutatedSqlTextSupplier<Context>;
 }
 
-export interface QueryEngineDetector<
+export interface QueryEngineInspector<
   Identity extends string,
   Context extends SQLa.SqlEmitContext,
 > {
   readonly detectedEngine: (
     ctx: Context,
     sts: SQLa.SqlTextSupplier<Context>,
-  ) => DetectedEngineInstanceInSQL<Identity, Context> | undefined;
+  ) => DetectedEngineInstanceInSqlText<Identity, Context> | undefined;
 }
 
 /**
@@ -60,17 +55,17 @@ export function useDatabaseIdInFirstLineOfSqlDetector<
   ) => {
     const SQL = sts.SQL(ctx).replace(/^\s*USE\s*DATABASE.*$/mi, "").trim();
     return removeUseDbIdStmt
-      ? { SQL: () => SQL, isRewrittenSQL: true, originalSQL: sts }
+      ? { SQL: () => SQL, isMutatedSqlTextSupplier: true, originalSTS: sts }
       : sts;
   };
 
-  const result: QueryEngineDetector<Identity, Context> = {
+  const result: QueryEngineInspector<Identity, Context> = {
     detectedEngine: (ctx, sts) => {
       const engineInstanceID = detectedUseDbIdInSQL(ctx, sts);
       if (engineInstanceID) {
         return {
           engineInstanceID,
-          query: rewriteSqlRemoveUseDbId(ctx, sts),
+          STS: rewriteSqlRemoveUseDbId(ctx, sts),
         };
       }
       return undefined;
@@ -79,30 +74,36 @@ export function useDatabaseIdInFirstLineOfSqlDetector<
   return result;
 }
 
-export function queryBasedEngine<
-  Identity extends string,
+/**
+ * A custom SQL engine factory which "detects" the instance in a SQL query by
+ * searching for `USE DATABASE instance_id;\n` in the SQL text.
+ * @param instancePreparer the function which prepares an instance based on an ID
+ * @param options provides inspector and default instance options
+ * @returns a factory which can create SQL engine instances (connections) from query inspection
+ */
+export function sqlTextSuppliedEngineCustom<
+  InstanceID extends string,
   Context extends SQLa.SqlEmitContext,
 >(
-  instancePreparer: <
-    Engine extends eng.SqlEngine,
-    Instance extends eng.SqlEngineInstance<Engine>,
-  >(detected: DetectedEngineInstanceInSQL<Identity, Context>) => {
-    engineInstance?: Instance;
-    detected: DetectedEngineInstanceInSQL<Identity, Context>;
+  instancePreparer: (
+    detected: DetectedEngineInstanceInSqlText<InstanceID, Context>,
+  ) => {
+    engineInstance?: eng.SqlEngineInstance<Any>;
+    detected: DetectedEngineInstanceInSqlText<InstanceID, Context>;
   } | undefined,
   options?: {
-    readonly qed?: QueryEngineDetector<Identity, Context>;
-    readonly defaultInstance: <
+    readonly qed?: QueryEngineInspector<InstanceID, Context>;
+    readonly defaultInstance?: <
       Engine extends eng.SqlEngine,
       Instance extends eng.SqlEngineInstance<Engine>,
-    >(detected: DetectedEngineInstanceInSQL<Identity, Context>) => {
+    >(detected: DetectedEngineInstanceInSqlText<InstanceID, Context>) => {
       engineInstance: Instance;
-      detected: DetectedEngineInstanceInSQL<Identity, Context>;
+      detected: DetectedEngineInstanceInSqlText<InstanceID, Context>;
     } | undefined;
   },
 ) {
   const {
-    qed = useDatabaseIdInFirstLineOfSqlDetector<Identity, Context>(),
+    qed = useDatabaseIdInFirstLineOfSqlDetector<InstanceID, Context>(),
     defaultInstance,
   } = options ?? {};
   return {
@@ -113,6 +114,44 @@ export function queryBasedEngine<
         if (instance) return instance;
         return defaultInstance?.(detected);
       }
+    },
+  };
+}
+
+export function sqlTextSuppliedEngine<
+  Instances extends Record<
+    string,
+    (
+      detected: DetectedEngineInstanceInSqlText<InstanceID, Context>,
+    ) => {
+      engineInstance: eng.SqlEngineInstance<Any>;
+      detected: DetectedEngineInstanceInSqlText<InstanceID, Context>;
+    } | undefined
+  >,
+  Context extends SQLa.SqlEmitContext,
+  InstanceID extends keyof Instances & string,
+>(
+  instances: Instances,
+  options?: {
+    readonly qed?: QueryEngineInspector<InstanceID, Context>;
+    readonly defaultInstance?: <
+      Engine extends eng.SqlEngine,
+      Instance extends eng.SqlEngineInstance<Engine>,
+    >(detected: DetectedEngineInstanceInSqlText<InstanceID, Context>) => {
+      engineInstance: Instance;
+      detected: DetectedEngineInstanceInSqlText<InstanceID, Context>;
+    } | undefined;
+  },
+) {
+  const stsEngine = sqlTextSuppliedEngineCustom((detected) => {
+    if (detected.engineInstanceID in instances) {
+      return instances[detected.engineInstanceID](detected);
+    }
+    return undefined;
+  }, options);
+  return {
+    instance: (ctx: Context, sts: SQLa.SqlTextSupplier<Context>) => {
+      return stsEngine.instance(ctx, sts);
     },
   };
 }
