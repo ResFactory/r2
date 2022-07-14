@@ -1,6 +1,7 @@
 import * as SQLa from "../render/mod.ts";
 import * as eng from "./engine.ts";
 
+// deno-lint-ignore no-explicit-any
 type Any = any;
 
 export interface DetectedEngineInstanceInSqlText<
