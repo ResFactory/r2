@@ -1,3 +1,4 @@
+import * as safety from "../../safety/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 
@@ -88,4 +89,42 @@ export interface SqlWriteConn<
 > extends SqlEngineConnection<Engine, Instance> {
   readonly rowsDML: ex.QueryRowsExecutor<Context>;
   readonly recordsDML: ex.QueryRecordsExecutor<Context>;
+}
+
+export function isSqlDefineConn<
+  Engine extends SqlEngine,
+  Instance extends SqlEngineInstance<Engine>,
+  Context extends SQLa.SqlEmitContext,
+>(o: unknown): o is SqlDefineConn<
+  Engine,
+  Instance,
+  Context
+> {
+  const isSDC = safety.typeGuard<
+    SqlDefineConn<
+      Engine,
+      Instance,
+      Context
+    >
+  >("rowsDDL");
+  return isSDC(o);
+}
+
+export function isSqlReadConn<
+  Engine extends SqlEngine,
+  Instance extends SqlEngineInstance<Engine>,
+  Context extends SQLa.SqlEmitContext,
+>(o: unknown): o is SqlReadConn<
+  Engine,
+  Instance,
+  Context
+> {
+  const isSRC = safety.typeGuard<
+    SqlReadConn<
+      Engine,
+      Instance,
+      Context
+    >
+  >("rowsDQL", "recordsDQL", "firstRecordDQL");
+  return isSRC(o);
 }
