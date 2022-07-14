@@ -301,6 +301,26 @@ export function isSqlTextSupplier<
   return isSTS(o);
 }
 
+export interface MutatedSqlTextSupplier<
+  Context extends SqlEmitContext,
+> extends SqlTextSupplier<Context> {
+  readonly isMutatedSqlTextSupplier: true;
+  readonly originalSTS: SqlTextSupplier<Context>;
+}
+
+export function isMutatedSqlTextSupplier<
+  Context extends SqlEmitContext,
+>(
+  o: unknown,
+): o is MutatedSqlTextSupplier<Context> {
+  const isMSTS = safety.typeGuard<MutatedSqlTextSupplier<Context>>(
+    "SQL",
+    "isMutatedSqlTextSupplier",
+    "originalSTS",
+  );
+  return isMSTS(o);
+}
+
 export interface SqlTextLintIssuesSupplier<
   Context extends SqlEmitContext,
 > {
