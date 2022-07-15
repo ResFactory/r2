@@ -64,22 +64,17 @@ export interface SqlReflectConn<
   Instance extends SqlEngineInstance<Engine>,
   Context extends SQLa.SqlEmitContext,
 > extends SqlEngineConnection<Engine, Instance> {
+  readonly reflectDomains: <DomainID extends string>(
+    ctx: Context,
+  ) => Promise<
+    Map<DomainID, (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>>
+  >;
   readonly reflectTables: <TableName extends string>(
+    ctx: Context,
     options?: {
       readonly filter?: { readonly tableName?: (name: string) => boolean };
-      readonly enrich?: (
-        td: SQLa.TableDefinition<TableName, Context>,
-      ) => SQLa.TableDefinition<TableName, Context>;
     },
-  ) => Generator<SQLa.TableDefinition<TableName, Context>>;
-  readonly reflectViews: <ViewName extends string>(
-    options?: {
-      readonly filter?: { readonly viewName?: (name: string) => boolean };
-      readonly enrich?: (
-        vd: SQLa.ViewDefinition<ViewName, Context>,
-      ) => SQLa.ViewDefinition<ViewName, Context>;
-    },
-  ) => Generator<SQLa.ViewDefinition<ViewName, Context>>;
+  ) => AsyncGenerator<SQLa.TableDefinition<TableName, Context>>;
 }
 
 export interface SqlWriteConn<

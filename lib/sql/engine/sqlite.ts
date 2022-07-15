@@ -131,7 +131,8 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
     eng.SqlEngineInstance<SqliteEngine>,
     eng.SqlDefineConn<SqliteEngine, SqliteInstance<Context>, Context>,
     eng.SqlReadConn<SqliteEngine, SqliteInstance<Context>, Context>,
-    eng.SqlWriteConn<SqliteEngine, SqliteInstance<Context>, Context> {
+    eng.SqlWriteConn<SqliteEngine, SqliteInstance<Context>, Context>,
+    eng.SqlReflectConn<SqliteEngine, SqliteInstance<Context>, Context> {
   readonly identity: string;
   readonly dbStoreFsPath: string;
   readonly dbStore: sqlite.DB;
@@ -242,5 +243,103 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
       },
       ...options,
     });
+  }
+
+  async reflectDomains<DomainID extends string>(
+    ctx: Context,
+  ): Promise<
+    Map<DomainID, (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>>
+  > {
+    const result = new Map<
+      DomainID,
+      (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>
+    >();
+    const colTypesQER = await this.rowsDQL<[type: string]>(ctx, {
+      SQL: () => `
+        SELECT DISTINCT table_info.type
+          FROM sqlite_master
+          JOIN pragma_table_info(sqlite_master.name) as table_info
+         WHERE table_info.type <> ''`,
+    });
+    for (const row of colTypesQER.rows) {
+      const domainID = row[0] as DomainID;
+      switch (domainID) {
+        case "INTEGER":
+          result.set(
+            domainID,
+            (nullable) => nullable ? SQLa.integerNullable() : SQLa.integer(),
+          );
+          break;
+        case "DATETIME":
+          result.set(
+            domainID,
+            (nullable) => nullable ? SQLa.dateTimeNullable() : SQLa.dateTime(),
+          );
+          break;
+
+        default:
+          if (domainID.startsWith("NUMERIC")) {
+            // TODO: add "real" or "float"
+            result.set(
+              domainID,
+              (nullable) => nullable ? SQLa.integerNullable() : SQLa.integer(),
+            );
+          } else {
+            // if "text" or "NVARCHAR" or any other type
+            result.set(
+              domainID,
+              (nullable) => nullable ? SQLa.textNullable() : SQLa.text(),
+            );
+          }
+      }
+    }
+    return result;
+  }
+
+  async *reflectTables<TableName extends string>(
+    ctx: Context,
+    options?: {
+      readonly filter?: { readonly tableName?: (name: string) => boolean };
+    },
+  ): AsyncGenerator<
+    SQLa.TableDefinition<TableName, Context>
+  > {
+    const { filter } = options ?? {};
+    const rd = await this.reflectDomains(ctx);
+    const tableNameQER = await this.recordsDQL<{ name: string }>(ctx, {
+      SQL: () => `SELECT * FROM sqlite_schema WHERE type='table' ORDER BY name`,
+    });
+    for (const reflectedTableInfo of tableNameQER.records) {
+      const { name: tableName } = reflectedTableInfo;
+      if (filter?.tableName && !filter.tableName(tableName)) continue;
+
+      const columnsQER = await this.recordsDQL<{
+        table_name: string;
+        name: string;
+        type: string;
+        notnull: boolean;
+        pk: boolean;
+        dflt_value: unknown;
+      }>(ctx, {
+        SQL: () =>
+          `SELECT sqlite_master.name as table_name, table_info.*
+             FROM sqlite_master
+             JOIN pragma_table_info(sqlite_master.name) as table_info
+            WHERE table_name = '${tableName}'`,
+      });
+
+      const columns: Record<string, SQLa.AxiomSqlDomain<Any, Context>> = {};
+      for (const colDefn of columnsQER.records) {
+        let domain = rd.get(colDefn.type)?.(colDefn.notnull ? false : true) ??
+          SQLa.textNullable();
+        if (colDefn.pk) domain = SQLa.primaryKey(domain);
+        columns[colDefn.name] = domain;
+        (columns[colDefn.name] as Any).reflectedColumnInfo = colDefn;
+      }
+
+      const td = SQLa.tableDefinition(tableName as TableName, columns);
+      (td as Any).reflectedTableInfo = reflectedTableInfo;
+      yield td;
+    }
   }
 }
