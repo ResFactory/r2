@@ -21,7 +21,9 @@ export interface PlantUmlIeOptions<Context extends SQLa.SqlEmitContext> {
       & SQLa.SqlDomainsSupplier<Any, Context>,
   ) => boolean;
   readonly includeRelationship: (edge: SQLa.GraphEdge<Context>) => boolean;
-  readonly relationshipIndicator: (edge: SQLa.GraphEdge<Context>) => string;
+  readonly relationshipIndicator: (
+    edge: SQLa.GraphEdge<Context>,
+  ) => string | false;
   readonly includeChildren: (
     ir: SQLa.InboundRelationship<Any, Any, Context>,
   ) => boolean;
@@ -194,11 +196,13 @@ export function plantUmlIE<Context extends SQLa.SqlEmitContext>(
       // Zero or Many	}o--
       // One or Many	}|--
       const relIndicator = puieOptions.relationshipIndicator(rel);
-      result.push(
-        `  ${ns.tableName(ref.entity.tableName)} ${relIndicator} ${
-          ns.tableName(src.entity.tableName)
-        }`,
-      );
+      if (relIndicator) {
+        result.push(
+          `  ${ns.tableName(ref.entity.tableName)} ${relIndicator} ${
+            ns.tableName(src.entity.tableName)
+          }`,
+        );
+      }
     }
     if (result.length > 0) result.unshift("");
     return result;
