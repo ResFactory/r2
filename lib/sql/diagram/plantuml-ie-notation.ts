@@ -29,7 +29,7 @@ export interface PlantUmlIeOptions<Context extends SQLa.SqlEmitContext> {
 
 export function typicalPlantUmlIeOptions<Context extends SQLa.SqlEmitContext>(
   inherit?: Partial<PlantUmlIeOptions<Context>>,
-) {
+): PlantUmlIeOptions<Context> {
   // we let type inference occur so generics can follow through
   return {
     diagramName: "IE",
@@ -37,27 +37,29 @@ export function typicalPlantUmlIeOptions<Context extends SQLa.SqlEmitContext>(
     includeEntityAttr: () => true,
     includeRelationship: () => true,
     includeChildren: () => true,
-    elaborateEntityAttr: (
-      d: SQLa.IdentifiableSqlDomain<Any, Context>,
-      td: SQLa.TableDefinition<Any, Context>,
-      _entity: (name: string) => SQLa.TableDefinition<Any, Context> | undefined,
-      ns: SQLa.SqlObjectNames,
-    ) => {
+    elaborateEntityAttr: (d, td, entity, ns) => {
       let result = "";
       if (SQLa.isTableForeignKeyColumnDefn(d)) {
-        result = d.foreignTableName == td.tableName
-          ? " <<SELF>>"
-          : ` <<FK(${ns.tableName(d.foreignTableName)})>>`;
+        const ftd = entity(d.foreignTableName);
+        if (ftd) {
+          result = SQLa.isEnumTableDefn(ftd)
+            ? ` <<ENUM(${ns.tableName(ftd.tableName)})>>`
+            : ` <<FK(${ns.tableName(ftd.tableName)})>>`;
+        } else {
+          result = ` <<FK(${ns.tableName(d.foreignTableName)})>>`;
+        }
+        if (d.foreignTableName == td.tableName) result = " <<SELF>>";
       }
       return result;
     },
-    relationshipIndicator: () => {
+    relationshipIndicator: (edge) => {
+      const refIsEnum = SQLa.isEnumTableDefn(edge.ref.entity);
       // Relationship types see: https://plantuml.com/es/ie-diagram
       // Zero or One	|o--
       // Exactly One	||--
       // Zero or Many	}o--
       // One or Many	}|--
-      return "|o..o|";
+      return refIsEnum ? "|o..o|" : "|o..o{";
     },
     ...inherit,
   };

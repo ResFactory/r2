@@ -82,32 +82,7 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
     };
   };
 
-  const erdConfig: Partial<erd.PlantUmlIeOptions<Context>> = {
-    elaborateEntityAttr: (d, td, entity, ns) => {
-      let result = "";
-      if (SQLa.isTableForeignKeyColumnDefn(d)) {
-        const ftd = entity(d.foreignTableName);
-        if (ftd) {
-          result = SQLa.isEnumTableDefn(ftd)
-            ? ` <<ENUM(${ns.tableName(ftd.tableName)})>>`
-            : ` <<FK(${ns.tableName(ftd.tableName)})>>`;
-        } else {
-          result = ` <<FK(${ns.tableName(d.foreignTableName)})>>`;
-        }
-        if (d.foreignTableName == td.tableName) result = " <<SELF>>";
-      }
-      return result;
-    },
-    relationshipIndicator: (edge) => {
-      const refIsEnum = SQLa.isEnumTableDefn(edge.ref.entity);
-      // Relationship types see: https://plantuml.com/es/ie-diagram
-      // Zero or One	|o--
-      // Exactly One	||--
-      // Zero or Many	}o--
-      // One or Many	}|--
-      return refIsEnum ? "|o..o|" : "|o..o{";
-    },
-  };
+  const erdConfig = erd.typicalPlantUmlIeOptions();
 
   return {
     primaryKey,
