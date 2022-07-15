@@ -74,6 +74,9 @@ following types of SQL language constructs.
 - [x] BigInt
 - [x] JSON
 - [ ] JSONB
+- [ ] full-text search
+  - [ ] PostgreSQL `tsvector` with `GIN` index
+  - [ ] PostgreSQL `tsquery`
 - [ ] Constrained values using Axiom $.enum
 - [ ] Symmetric encrypted text (for transactional data) with automatic
       `sensitive` labeling. See https://github.com/FiloSottile/age et. al but
@@ -317,7 +320,10 @@ These engines / dialects are supported:
   - [x] `fselect` File System SQL
   - [x] `osqueri` operating system SQL
   - [ ] `steampipe` poly-source SQL
-- [ ] [Universal CLI](https://github.com/xo/usql)
+  - [ ] [octosql](https://github.com/cube2222/octosql) poly-source SQL
+- [ ] AlaSQL
+- [x] read-write shell commands
+  - [ ] [Universal CLI](https://github.com/xo/usql)
 - [ ] MySQL
 - [ ] Dolt
 - [ ] SQL*Server
