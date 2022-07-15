@@ -93,6 +93,8 @@ following types of SQL language constructs.
 - [x] SQL type
 - [x] SQL default values
 - [ ] SQL size
+- [ ] Zanzibar ([Permify](https://github.com/Permify/permify) style) ACLs
+      definition at domain level with enforcement in SQL
 - [ ] domain documentation for goverance ([DataHub](https://datahubproject.io/)
       style ERD documentation)
 - [x] domain labels/tags for governance ([DataHub](https://datahubproject.io/)
@@ -143,6 +145,8 @@ When two or more domains need to be coordinated, they are called multi-domains.
 - [x] columns ("attributes") declared as domains
 - [x] primary key(s)
 - [x] foreign key references (outbound)
+- [ ] Zanzibar ([Permify](https://github.com/Permify/permify) style) ACLs
+      definition in entities and enforcement in SQL
 - [ ] columns referenced as foreign keys (inbound, aggregations, to define 1:M,
       1:1, M:1 "links")
 - [ ] table labels/tags for grouping of tables like domain labels group columns
@@ -318,8 +322,10 @@ These engines / dialects are supported:
 - [x] read-only shell commands
   - [x] `mergestat` Git SQL
   - [x] `fselect` File System SQL
-  - [x] `osqueri` operating system SQL
-  - [ ] `steampipe` poly-source SQL
+  - [x] `osqueri` infrastructure SQL
+  - [ ] `steampipe` infrastructure SQL
+  - [ ] `cloudquery` infrastructure SQL
+  - [ ] `iasql` infrastructure SQL
   - [ ] [octosql](https://github.com/cube2222/octosql) poly-source SQL
 - [ ] AlaSQL
 - [x] read-write shell commands
