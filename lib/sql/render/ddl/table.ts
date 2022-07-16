@@ -558,6 +558,12 @@ export function tableDefinition<
   type ForeignKeyRefs = {
     [Property in keyof TPropAxioms]: (
       foreignRelNature?: TableForeignKeyRelNature<Context>,
+      domainOptions?: Partial<
+        d.AxiomSqlDomain<
+          TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
+          Context
+        >
+      >,
     ) => TableForeignKeyColumnDefn<
       TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
       TableName,
@@ -566,8 +572,11 @@ export function tableDefinition<
   };
   const fkRef: ForeignKeyRefs = {} as Any;
   for (const column of sd.domains) {
-    fkRef[column.identity as (keyof TPropAxioms)] = (foreignRelNature) => {
-      return foreignKey(tableName, column, foreignRelNature);
+    fkRef[column.identity as (keyof TPropAxioms)] = (
+      foreignRelNature,
+      domainOptions,
+    ) => {
+      return foreignKey(tableName, column, foreignRelNature, domainOptions);
     };
   }
 
