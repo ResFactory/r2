@@ -27,7 +27,10 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
     const type = mod.sqlTypeDefinition("synthetic_type", {
       text: d.text(),
       int: d.integer(),
-    }, { sqlNS: sch.sqlSchemaDefn("synthetic_schema") });
+    }, {
+      embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
+      sqlNS: sch.sqlSchemaDefn("synthetic_schema"),
+    });
     ta.assertEquals(
       type.SQL(ctx),
       uws(`
@@ -43,6 +46,7 @@ Deno.test("SQL Aide (SQLa) types", async (tc) => {
       text: d.text(),
       int: d.integer(),
     }, {
+      embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
       before: (typeName) => mod.dropType(typeName),
     });
     ta.assertEquals(

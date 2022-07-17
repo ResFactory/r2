@@ -1,7 +1,8 @@
 import * as safety from "../../safety/mod.ts";
 import * as ax from "../../axiom/mod.ts";
 import * as tmpl from "./template/mod.ts";
-import * as l from "./label.ts";
+import * as lab from "./label.ts";
+import * as l from "./lint.ts";
 
 /**
  * A `domain` is an Axiom-typed "data definition" valuable for many use cases:
@@ -107,13 +108,76 @@ export function isIdentifiableSqlDomain<
   return isAxiomSqlDomain(o) && isISD(o);
 }
 
+export type LintedSqlDomain<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+> =
+  & AxiomSqlDomain<TsValueType, Context>
+  & l.SqlLintIssuesSupplier;
+
+export function isLintedSqlDomain<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  o: unknown,
+): o is LintedSqlDomain<TsValueType, Context> {
+  return isAxiomSqlDomain(o) && l.isSqlLintIssuesSupplier(o);
+}
+
+// deno-lint-ignore no-empty-interface
+export interface SqlDomainLintIssueSupplier<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+> extends l.SqlLintIssueSupplier {
+}
+
+export function lintedSqlDomain<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  domain: AxiomSqlDomain<TsValueType, Context>,
+  ...lintIssues: SqlDomainLintIssueSupplier<TsValueType, Context>[]
+): LintedSqlDomain<TsValueType, Context> {
+  let result: LintedSqlDomain<TsValueType, Context>;
+  if (isLintedSqlDomain(domain)) {
+    result = domain;
+  } else {
+    const wDomain = domain as unknown as safety.Writeable<
+      l.SqlLintIssuesSupplier
+    >;
+    wDomain.lintIssues = [];
+    wDomain.registerLintIssue = (...slis) => wDomain.lintIssues.push(...slis);
+    result = domain as LintedSqlDomain<TsValueType, Context>;
+  }
+  result.lintIssues.push(...lintIssues);
+  return result;
+}
+
+export function domainLintIssue<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  lintIssue: string,
+  location?: string | ((options?: { maxLength?: number }) => string),
+): SqlDomainLintIssueSupplier<TsValueType, Context> {
+  return {
+    lintIssue,
+    location: location
+      ? (typeof location === "string"
+        ? ((options) =>
+          options?.maxLength ? location.slice(0, options.maxLength) : location)
+        : location)
+      : undefined,
+  };
+}
+
 export type LabeledSqlDomain<
   TsValueType,
   Context extends tmpl.SqlEmitContext,
   Label extends string,
 > =
   & AxiomSqlDomain<TsValueType, Context>
-  & l.LabelsSupplier<Label>;
+  & lab.LabelsSupplier<Label>;
 
 export function isLabeledSqlDomain<
   TsValueType,
@@ -425,13 +489,35 @@ export function sqlDomains<
   };
 }
 
+export function* lintedSqlDomains<
+  Context extends tmpl.SqlEmitContext,
+  TsValueType = Any,
+>(
+  domains: Iterable<IdentifiableSqlDomain<TsValueType, Context>>,
+  include?: (
+    d:
+      & IdentifiableSqlDomain<TsValueType, Context, string>
+      & LintedSqlDomain<TsValueType, Context>,
+  ) => boolean,
+): Generator<
+  & IdentifiableSqlDomain<TsValueType, Context, string>
+  & LintedSqlDomain<TsValueType, Context>,
+  void
+> {
+  for (const d of domains) {
+    if (isLintedSqlDomain<TsValueType, Context>(d)) {
+      if (!include || include(d)) yield d;
+    }
+  }
+}
+
 export function* labeledSqlDomains<
   Label extends string,
   Context extends tmpl.SqlEmitContext,
   TsValueType = Any,
 >(
-  sds: SqlDomainsSupplier<Context, TsValueType>,
-  include: (
+  domains: Iterable<IdentifiableSqlDomain<TsValueType, Context>>,
+  include?: (
     d:
       & IdentifiableSqlDomain<TsValueType, Context, string>
       & LabeledSqlDomain<TsValueType, Context, Label>,
@@ -441,9 +527,9 @@ export function* labeledSqlDomains<
   & LabeledSqlDomain<TsValueType, Context, Label>,
   void
 > {
-  for (const d of sds.domains) {
-    if (isLabeledSqlDomain<TsValueType, Context, Label>(d) && include(d)) {
-      yield d;
+  for (const d of domains) {
+    if (isLabeledSqlDomain<TsValueType, Context, Label>(d)) {
+      if (!include || include(d)) yield d;
     }
   }
 }

@@ -142,7 +142,7 @@ export function untypedPlSqlBody<
         typeof plSqlIdentity,
         Context
       >
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesPopulator<Context> = {
         isValid: true,
         identity,
         content,
@@ -182,7 +182,7 @@ export function untypedPlPgSqlBody<
         typeof plPgSqlIdentity,
         Context
       >
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesPopulator<Context> = {
         isValid: true,
         identity,
         content,
@@ -260,11 +260,11 @@ export function typicalPgProcLangBodySqlTextSupplier<
 >(
   body:
     & PgProceduralLangBody<BodyIdentity, Language, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context>,
+    & tmpl.SqlTextLintIssuesPopulator<Context>,
 ) {
   const result:
     & tmpl.SqlTextSupplier<Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       populateSqlTextLintIssues: (lintIssues, steOptions) =>
         body.populateSqlTextLintIssues(lintIssues, steOptions),
       SQL: (ctx) => {
@@ -290,7 +290,7 @@ export function anonymousPlSqlRoutine<
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
   & r.AnonymousRoutineDefn<Context>
-  & tmpl.SqlTextLintIssuesSupplier<Context> {
+  & tmpl.SqlTextLintIssuesPopulator<Context> {
   return (literals, ...expressions) => {
     const body = untypedPlSqlBody<r.ANONYMOUS, Context>(
       "ANONYMOUS",
@@ -315,7 +315,7 @@ export function anonymousPlPgSqlRoutine<
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
   & r.AnonymousRoutineDefn<Context>
-  & tmpl.SqlTextLintIssuesSupplier<Context> {
+  & tmpl.SqlTextLintIssuesPopulator<Context> {
   return (literals, ...expressions) => {
     const body = untypedPlPgSqlBody<r.ANONYMOUS, Context>(
       "ANONYMOUS",
@@ -338,7 +338,7 @@ export function doIgnoreDuplicate<
   ...expressions: tmpl.SqlPartialExpression<Context>[]
 ) =>
   & r.AnonymousRoutineDefn<Context>
-  & tmpl.SqlTextLintIssuesSupplier<Context> {
+  & tmpl.SqlTextLintIssuesPopulator<Context> {
   return (literals, ...expressions) => {
     const contentPartial = ess.embeddedSQL<Context>(
       routineSqlTextSupplierOptions(),
@@ -350,7 +350,7 @@ export function doIgnoreDuplicate<
         typeof plPgSqlIdentity,
         Context
       >
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesPopulator<Context> = {
         isValid: true,
         identity: "ANONYMOUS",
         content,
@@ -386,6 +386,7 @@ export interface StoredRoutineDefnOptions<
   RoutineName extends string,
   Context extends tmpl.SqlEmitContext,
 > extends tmpl.SqlTextSupplierOptions<Context> {
+  readonly embeddedStsOptions: tmpl.SqlTextSupplierOptions<Context>;
   readonly autoBeginEnd?: boolean;
   readonly isIdempotent?: boolean;
   readonly headerBodySeparator?: string;
@@ -460,7 +461,7 @@ export function storedProcedure<
     const argsSD = d.sqlDomains(argsDefn, spOptions);
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context>
+      & tmpl.SqlTextLintIssuesPopulator<Context>
       & {
         readonly sqlNS?: ns.SqlNamespaceSupplier;
       } = {
@@ -489,7 +490,7 @@ export function storedProcedure<
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} PROCEDURE ${ns.storedRoutineName(routineName)}(${argsSQL}) AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
           return spOptions?.before
-            ? ctx.embeddedSQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>(spOptions?.embeddedStsOptions)`${[
               spOptions.before(routineName, spOptions),
               sqlText,
             ]}`.SQL(ctx)
@@ -583,7 +584,7 @@ export function storedFunction<
     const argsSD = d.sqlDomains(argsDefn, sfOptions);
     const result:
       & r.NamedRoutineDefn<RoutineName, ArgAxioms, Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context>
+      & tmpl.SqlTextLintIssuesPopulator<Context>
       & {
         readonly sqlNS?: ns.SqlNamespaceSupplier;
       } = {
@@ -630,7 +631,7 @@ export function storedFunction<
             `CREATE${isIdempotent ? ` OR REPLACE` : ""} FUNCTION ${ns.storedRoutineName(routineName)}(${argsSQL}) RETURNS ${returnsSQL} AS ${hbSep}\n${bodySqlText}\n${hbSep} ${langSQL};`,
           );
           return sfOptions?.before
-            ? ctx.embeddedSQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>(sfOptions?.embeddedStsOptions)`${[
               sfOptions.before(routineName, sfOptions),
               sqlText,
             ]}`.SQL(ctx)

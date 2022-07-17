@@ -2,6 +2,7 @@ import { testingAsserts as ta } from "../deps-test.ts";
 import * as mod from "./table.ts";
 import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
+import * as l from "../lint.ts";
 import * as ax from "../../../axiom/mod.ts";
 import * as sch from "./schema.ts";
 import * as dql from "../dql/mod.ts";
@@ -27,6 +28,10 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       column_one_text: d.text(),
       column_two_text_nullable: d.textNullable(),
       column_unique: mod.unique(d.text()),
+      column_linted: d.lintedSqlDomain(
+        d.text(),
+        d.domainLintIssue("synthetic lint issue #1"),
+      ),
       ...housekeeping(),
     },
   );
@@ -69,13 +74,14 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     ta.assert(mod.isTableDefinition(syntheticTable1Defn));
     ta.assert(syntheticTable1Defn);
     ta.assertEquals("synthetic_table1", syntheticTable1Defn.tableName);
-    ta.assert(syntheticTable1Defn.domains.length == 5);
+    ta.assert(syntheticTable1Defn.domains.length == 6);
     ta.assertEquals(
       [
         "synthetic_table1_id",
         "column_one_text",
         "column_two_text_nullable",
         "column_unique",
+        "column_linted",
         "created_at",
       ],
       syntheticTable1Defn.domains.map((cd) => cd.identity),
@@ -83,17 +89,25 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
   });
 
   await tc.step("table 1 creation SQL", () => {
+    const ddlOptions = tmpl.typicalSqlTextSupplierOptions();
+    const lintState = tmpl.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
     ta.assertEquals(
-      syntheticTable1Defn.SQL(ctx),
+      tmpl.SQL(ddlOptions)`
+        ${lintState.sqlTextLintSummary}
+
+        ${syntheticTable1Defn}`.SQL(ctx),
       uws(`
+        -- synthetic lint issue #1
+
         CREATE TABLE "synthetic_table1" (
             "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_one_text" TEXT NOT NULL,
             "column_two_text_nullable" TEXT,
             "column_unique" TEXT NOT NULL,
+            "column_linted" TEXT NOT NULL,
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE("column_unique")
-        )`),
+        );`),
     );
   });
 
@@ -104,6 +118,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     const row = syntheticTable1DefnRF.prepareInsertable({
       columnOneText: "text",
       columnUnique: "unique",
+      columnLinted: "linted",
     });
     expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(
       row.column_one_text,
@@ -114,10 +129,26 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     ta.assertEquals(
       syntheticTable1DefnVW.SQL(ctx),
       uws(`
-        CREATE VIEW IF NOT EXISTS "synthetic_table1_vw"("synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at") AS
-            SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "created_at"
+        CREATE VIEW IF NOT EXISTS "synthetic_table1_vw"("synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") AS
+            SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at"
               FROM "synthetic_table1"`),
     );
+  });
+
+  await tc.step("table 1 lint issues", () => {
+    const lintedSqlText: l.SqlLintIssuesSupplier = {
+      lintIssues: [],
+      registerLintIssue: (...slis: l.SqlLintIssueSupplier[]) => {
+        lintedSqlText.lintIssues.push(...slis);
+      },
+    };
+    syntheticTable1Defn.populateSqlTextLintIssues(lintedSqlText, ctx);
+    ta.assertEquals(1, lintedSqlText.lintIssues.length);
+    ta.assertEquals(
+      lintedSqlText.lintIssues[0].lintIssue,
+      "synthetic lint issue #1",
+    );
+    ta.assert(!lintedSqlText.lintIssues[0].location);
   });
 
   await tc.step("table 2 definition", () => {
@@ -166,6 +197,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       // TODO: figure out why removing this nullable text fails the test
       column_two_text_nullable: "TODO: should be nullable but test fails",
       column_unique: "unique",
+      column_linted: "linted",
       created_at: new Date(),
     };
     ta.assert(syntheticTable1Defn.test(synthetic1, {
@@ -179,12 +211,13 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     const insertable = syntheticTable1DefnRF.prepareInsertable({
       columnOneText: "text",
       columnUnique: "value",
+      columnLinted: "linted",
       createdAt: new Date(),
     });
     ta.assert(insertable);
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
         String(insertable.created_at)
       }')`,
     );
@@ -196,19 +229,20 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         column_one_text: dql.untypedSelect(ctx, { symbolsFirst: true })
           `select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
         column_unique: "value",
+        column_linted: "linted",
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), NULL, 'value', NULL)`,
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), NULL, 'value', 'linted', NULL)`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
         String(insertable.created_at)
       }') RETURNING *`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "primary-keys" })
         .SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
         String(insertable.created_at)
       }') RETURNING "synthetic_table1_id"`,
     );
@@ -217,7 +251,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         returning: { columns: ["synthetic_table1_id"] },
         onConflict: { SQL: () => `ON CONFLICT ("synthetic_table1_id") IGNORE` },
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "created_at") VALUES ('text', NULL, 'value', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
         String(insertable.created_at)
       }') ON CONFLICT ("synthetic_table1_id") IGNORE RETURNING "synthetic_table1_id"`,
     );

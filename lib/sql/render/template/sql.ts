@@ -1,8 +1,7 @@
 import { events, fs } from "../deps.ts";
 import * as safety from "../../../safety/mod.ts";
-import * as c from "../../../text/contributions.ts";
-import * as l from "../lint.ts";
 import * as ws from "../../../text/whitespace.ts";
+import * as l from "../lint.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -127,7 +126,7 @@ export interface EmbeddedSqlSupplier {
     Expressions extends SqlPartialExpression<Context> = SqlPartialExpression<
       Context
     >,
-  >(stsOptions?: SqlTextSupplierOptions<Context>) => (
+  >(stsOptions: SqlTextSupplierOptions<Context>) => (
     literals: TemplateStringsArray,
     ...expressions: Expressions[]
   ) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier>;
@@ -321,11 +320,11 @@ export function isMutatedSqlTextSupplier<
   return isMSTS(o);
 }
 
-export interface SqlTextLintIssuesSupplier<
+export interface SqlTextLintIssuesPopulator<
   Context extends SqlEmitContext,
 > {
   readonly populateSqlTextLintIssues: (
-    lintIssues: l.SqlLintIssueSupplier[],
+    lis: l.SqlLintIssuesSupplier,
     ctx: Context,
   ) => void;
 }
@@ -334,10 +333,10 @@ export function isSqlTextLintIssuesSupplier<
   Context extends SqlEmitContext,
 >(
   o: unknown,
-): o is SqlTextLintIssuesSupplier<Context> {
-  const isSTLIS = safety.typeGuard<
-    SqlTextLintIssuesSupplier<Context>
-  >("populateSqlTextLintIssues");
+): o is SqlTextLintIssuesPopulator<Context> {
+  const isSTLIS = safety.typeGuard<SqlTextLintIssuesPopulator<Context>>(
+    "populateSqlTextLintIssues",
+  );
   return isSTLIS(o);
 }
 
@@ -448,6 +447,123 @@ export class SqlPartialExprEventEmitter<
   ): void;
 }> {}
 
+export interface SqlTextLintState<Context extends SqlEmitContext> {
+  readonly lintedSqlText: l.SqlLintIssuesSupplier;
+  readonly sqlTextLintSummary: (options?: {
+    noIssuesText?: string;
+  }) => SqlTextBehaviorSupplier<Context>;
+  readonly lintedSqlTmplEngine: l.SqlLintIssuesSupplier;
+  readonly sqlTmplEngineLintSummary: (options?: {
+    noIssuesText?: string;
+  }) => SqlTextBehaviorSupplier<Context>;
+}
+
+export function typicalSqlTextLintManager<Context extends SqlEmitContext>(
+  inherit?: Partial<SqlTextLintState<Context>>,
+): SqlTextLintState<Context> {
+  const lintedSqlText: l.SqlLintIssuesSupplier = {
+    lintIssues: [],
+    registerLintIssue: (...slis: l.SqlLintIssueSupplier[]) => {
+      lintedSqlText.lintIssues.push(...slis);
+    },
+  };
+  const lintedSqlTmplEngine: l.SqlLintIssuesSupplier = {
+    lintIssues: [],
+    registerLintIssue: (...slis: l.SqlLintIssueSupplier[]) => {
+      lintedSqlTmplEngine.lintIssues.push(...slis);
+    },
+  };
+  return {
+    lintedSqlText,
+    sqlTextLintSummary: (options) => {
+      const {
+        noIssuesText = "no SQL lint issues (typicalSqlTextLintManager)",
+      } = options ?? {};
+      return {
+        executeSqlBehavior: () => {
+          const result: SqlTextSupplier<Context> = {
+            SQL: (ctx) => {
+              const steOptions = ctx.sqlTextEmitOptions;
+              return lintedSqlText.lintIssues.length > 0
+                // compute all lint issue texts, pass them through a Set to get unique only
+                ? Array.from(
+                  new Set(lintedSqlText.lintIssues.map((li) => {
+                    // deno-fmt-ignore
+                    const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
+                    return steOptions.comments(message);
+                  })),
+                ).join("\n")
+                : steOptions.comments(noIssuesText);
+            },
+          };
+          return result;
+        },
+      };
+    },
+    lintedSqlTmplEngine,
+    sqlTmplEngineLintSummary: (options) => {
+      const {
+        noIssuesText =
+          "no template engine lint issues (typicalSqlTextLintManager)",
+      } = options ?? {};
+      return {
+        executeSqlBehavior: () => {
+          const result: SqlTextSupplier<Context> = {
+            SQL: (ctx) => {
+              const steOptions = ctx.sqlTextEmitOptions;
+              return lintedSqlTmplEngine.lintIssues.length > 0
+                // compute all lint issue texts, pass them through a Set to get unique only
+                ? Array.from(
+                  new Set(lintedSqlTmplEngine.lintIssues.map((li) => {
+                    // deno-fmt-ignore
+                    const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
+                    return steOptions.comments(message);
+                  })),
+                ).join("\n")
+                : steOptions.comments(noIssuesText);
+            },
+          };
+          return result;
+        },
+      };
+    },
+    ...inherit,
+  };
+}
+
+export function typicalSqlLintSummaries<Context extends SqlEmitContext>(
+  slm: SqlTextLintState<Context> | undefined,
+) {
+  function sqlTextLintSummary(_: Context): SqlTextBehaviorSupplier<Context> {
+    return slm?.sqlTextLintSummary?.() ?? {
+      executeSqlBehavior: () => {
+        return {
+          SQL: () =>
+            `-- no SQL text lint summary supplier (typicalSqlLintSummaries)`,
+        };
+      },
+    };
+  }
+
+  function sqlTmplEngineLintSummary(
+    _: Context,
+  ): SqlTextBehaviorSupplier<Context> {
+    return slm?.sqlTmplEngineLintSummary?.() ?? {
+      executeSqlBehavior: () => {
+        return {
+          SQL: () =>
+            `-- no SQL template engine lint summary supplier (typicalSqlLintSummaries)`,
+        };
+      },
+    };
+  }
+
+  return {
+    sqlTextLintSummary,
+    sqlTmplEngineLintSummary,
+  };
+}
+
 export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
   readonly sqlSuppliersDelimText?: string;
   readonly symbolsFirst?: boolean;
@@ -466,26 +582,7 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
     indexer: { activeIndex: number },
     speEE?: SqlPartialExprEventEmitter<Context>,
   ) => SqlTextSupplier<Context> | undefined;
-  readonly sqlTextLintIssues?: l.SqlLintIssueSupplier[];
-  readonly sqlTextLintSummary?: (
-    options?: {
-      noIssuesText?: string;
-      transform?: (
-        suggested: SqlTextSupplier<Context>,
-        lintIssues: l.SqlLintIssueSupplier[],
-      ) => SqlTextSupplier<Context>;
-    },
-  ) => SqlTextBehaviorSupplier<Context>;
-  readonly sqlTmplEngineLintIssues?: l.SqlLintIssueSupplier[];
-  readonly sqlTmplEngineLintSummary?: (
-    options?: {
-      noIssuesText?: string;
-      transform?: (
-        suggested: SqlTextSupplier<Context>,
-        lintIssues: l.SqlLintIssueSupplier[],
-      ) => SqlTextSupplier<Context>;
-    },
-  ) => SqlTextBehaviorSupplier<Context>;
+  readonly sqlTextLintState?: SqlTextLintState<Context>;
   readonly prepareEvents?: (
     speEE: SqlPartialExprEventEmitter<Context>,
   ) => SqlPartialExprEventEmitter<Context>;
@@ -494,8 +591,6 @@ export interface SqlTextSupplierOptions<Context extends SqlEmitContext> {
 export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
   inherit?: Partial<SqlTextSupplierOptions<Context>>,
 ): SqlTextSupplierOptions<Context> {
-  const sqlTextLintIssues: l.SqlLintIssueSupplier[] = [];
-  const sqlTmplEngineLintIssues: l.SqlLintIssueSupplier[] = [];
   return {
     sqlSuppliersDelimText: ";",
     exprInArrayDelim: (_, isLast) => isLast ? "" : "\n",
@@ -510,90 +605,14 @@ export function typicalSqlTextSupplierOptions<Context extends SqlEmitContext>(
       steEE?.emitSync("sqlPersisted", ctx, destPath, psts, emit);
       return emit;
     },
-    sqlTextLintIssues,
-    sqlTextLintSummary: (options) => {
-      const { noIssuesText = "no SQL lint issues", transform } = options ?? {};
-      return {
-        executeSqlBehavior: () => {
-          const result: SqlTextSupplier<Context> = {
-            SQL: (ctx) => {
-              const steOptions = ctx.sqlTextEmitOptions;
-              return sqlTextLintIssues.length > 0
-                ? sqlTextLintIssues.map((li) => {
-                  // deno-fmt-ignore
-                  const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-                  return steOptions.comments(message);
-                }).join("\n")
-                : steOptions.comments(noIssuesText);
-            },
-          };
-          return transform ? transform(result, sqlTextLintIssues) : result;
-        },
-      };
-    },
-    sqlTmplEngineLintIssues,
-    sqlTmplEngineLintSummary: (options) => {
-      const { noIssuesText = "no template engine lint issues", transform } =
-        options ?? {};
-      return {
-        executeSqlBehavior: () => {
-          const result: SqlTextSupplier<Context> = {
-            SQL: (ctx) => {
-              const steOptions = ctx.sqlTextEmitOptions;
-              return sqlTextLintIssues.length > 0
-                ? sqlTextLintIssues.map((li) => {
-                  // deno-fmt-ignore
-                  const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-                  return steOptions.comments(message);
-                }).join("\n")
-                : steOptions.comments(noIssuesText);
-            },
-          };
-          return transform ? transform(result, sqlTextLintIssues) : result;
-        },
-      };
-    },
+    sqlTextLintState: typicalSqlTextLintManager(),
     ...inherit,
-  };
-}
-
-export function typicalSqlTextLintSummary<
-  Context extends SqlEmitContext,
->(
-  _: Context,
-  options: SqlTextSupplierOptions<Context>,
-): SqlTextBehaviorSupplier<Context> {
-  return options?.sqlTextLintSummary?.() ?? {
-    executeSqlBehavior: () => {
-      return {
-        SQL: () => `-- no SQL lint summary supplier`,
-      };
-    },
-  };
-}
-
-export function typicalSqlTmplEngineLintSummary<
-  Context extends SqlEmitContext,
->(
-  _: Context,
-  options: SqlTextSupplierOptions<Context>,
-): SqlTextBehaviorSupplier<Context> {
-  return options?.sqlTmplEngineLintSummary?.() ?? {
-    executeSqlBehavior: () => {
-      return {
-        SQL: () => `-- no SQL lint summary supplier`,
-      };
-    },
   };
 }
 
 export type SqlPartialExpression<
   Context extends SqlEmitContext,
 > =
-  | ((
-    ctx: Context,
-    options: SqlTextSupplierOptions<Context>,
-  ) => c.TextContributionsPlaceholder)
   | ((
     ctx: Context,
     options: SqlTextSupplierOptions<Context>,
@@ -633,15 +652,12 @@ export function SQL<
   Expressions extends SqlPartialExpression<Context> = SqlPartialExpression<
     Context
   >,
->(
-  stsOptions: SqlTextSupplierOptions<Context> = typicalSqlTextSupplierOptions<
-    Context
-  >(),
-): (
+>(stsOptions: SqlTextSupplierOptions<Context>): (
   literals: TemplateStringsArray,
   ...expressions: Expressions[]
-) => SqlTextSupplier<Context> & Partial<l.SqlLintIssuesSupplier> {
-  const { sqlTextLintIssues, sqlTmplEngineLintIssues } = stsOptions;
+) => SqlTextSupplier<Context> & SqlTextLintIssuesPopulator<Context> & {
+  stsOptions: SqlTextSupplierOptions<Context>;
+} {
   return (literals, ...suppliedExprs) => {
     const {
       symbolsFirst,
@@ -651,6 +667,7 @@ export function SQL<
         isLast ? "" : "\n",
       persistIndexer = { activeIndex: 0 },
       prepareEvents,
+      sqlTextLintState,
     } = stsOptions ?? {};
     const speEE = prepareEvents
       ? prepareEvents(new SqlPartialExprEventEmitter<Context>())
@@ -661,45 +678,20 @@ export function SQL<
       ? stsOptions?.literalSupplier(literals, suppliedExprs)
       : (index: number) => literals[index];
     const interpolate: (ctx: Context) => string = (ctx) => {
-      // evaluate expressions and look for contribution placeholders;
-      // we pre-evaluate expressions so that text at the beginning of
-      // a template could refer to expressions at the bottom.
-      const placeholders: number[] = [];
-      const expressions: unknown[] = [];
-      let exprIndex = 0;
-      for (let i = 0; i < suppliedExprs.length; i++) {
-        const expr = suppliedExprs[i];
-        if (typeof expr === "function") {
-          const exprValue = expr(ctx, stsOptions);
-          if (c.isTextContributionsPlaceholder(exprValue)) {
-            placeholders.push(exprIndex);
-            expressions[exprIndex] = expr; // we're going to run the function later
-          } else {
-            // either a string, SqlTextSupplier (e.g. TableDefinition, et. al.), SqlTextBehavior
-            expressions[exprIndex] = exprValue;
-          }
-        } else {
-          expressions[exprIndex] = expr;
-        }
-        exprIndex++;
-      }
-      if (placeholders.length > 0) {
-        for (const ph of placeholders) {
-          const expr = expressions[ph];
-          if (typeof expr === "function") {
-            const tcph = expr(ctx);
-            expressions[ph] = c.isTextContributionsPlaceholder(tcph)
-              ? tcph.contributions.map((c) => c.content).join("\n")
-              : tcph;
-          }
-        }
-      }
+      const expressions = suppliedExprs.map((e) =>
+        typeof e === "function" ? e(ctx, stsOptions) : e
+      );
 
+      // we preprocess first so that some features (like linting) can be "run"
+      // early and tracked so that SQL that shows later in a template stream
+      // can be used earlier in the stream
       const preprocessSingleExpr = (expr: unknown) => {
-        if (sqlTextLintIssues && isSqlTextLintIssuesSupplier<Context>(expr)) {
-          expr.populateSqlTextLintIssues(sqlTextLintIssues, ctx);
+        if (sqlTextLintState && isSqlTextLintIssuesSupplier<Context>(expr)) {
+          expr.populateSqlTextLintIssues(sqlTextLintState.lintedSqlText, ctx);
         }
         if (symbolsFirst && isSqlSymbolSupplier(expr)) {
+          // if we are being asked to emit symbols first then we want to check
+          // early and exit otherwise we'll drop into SqlTextSupplier branches
           speEE?.emitSync("symbolEncountered", ctx, expr);
           return;
         }
@@ -726,7 +718,7 @@ export function SQL<
 
       let interpolated = "";
       let recentSTBET: SqlTextBehaviorEmitTransformer | undefined;
-      const processSingleExpr = (
+      const interpolateSingleExpr = (
         expr: unknown,
         exprIndex: number,
         inArray?: boolean,
@@ -754,8 +746,8 @@ export function SQL<
               // after persistence, if we want to store a remark or other SQL
               interpolated += persistenceSqlText.SQL(ctx);
             }
-          } else if (sqlTmplEngineLintIssues) {
-            sqlTmplEngineLintIssues.push({
+          } else if (sqlTextLintState) {
+            sqlTextLintState.lintedSqlTmplEngine.registerLintIssue({
               lintIssue:
                 `persistable SQL encountered but no persistence handler available: '${
                   Deno.inspect(expr)
@@ -799,7 +791,7 @@ export function SQL<
       for (let i = 0; i < expressions.length; i++) {
         // we have two main types of text that we emit: SqlTextSupplier ("STS")
         // and SqlTextBehaviorEmitTransformer ("STBET"); behaviors are arbitary
-        // and can (optionally) change the emit stream or they can supplyer SQL
+        // and can (optionally) change the emit stream or they can supply SQL
         // like like an STS. If we have a non-null recentSTBET it means that a
         // behavior emit transformer wants to change the stream otherwise we
         // just have a "normal" expression where the text is emitted without
@@ -814,10 +806,15 @@ export function SQL<
         if (Array.isArray(expr)) {
           const lastIndex = expr.length - 1;
           for (let eIndex = 0; eIndex < expr.length; eIndex++) {
-            processSingleExpr(expr[eIndex], eIndex, true, eIndex == lastIndex);
+            interpolateSingleExpr(
+              expr[eIndex],
+              eIndex,
+              true,
+              eIndex == lastIndex,
+            );
           }
         } else {
-          processSingleExpr(expr, i);
+          interpolateSingleExpr(expr, i);
         }
       }
       activeLiteral = literalSupplier(literals.length - 1);
@@ -827,11 +824,20 @@ export function SQL<
       interpolated += activeLiteral;
       return interpolated;
     };
+
     return {
       SQL: (ctx) => {
         return interpolate(ctx);
       },
-      lintIssues: sqlTmplEngineLintIssues,
+      populateSqlTextLintIssues: (lis, ctx) => {
+        suppliedExprs.map((e) => {
+          const expr = typeof e === "function" ? e(ctx, stsOptions) : e;
+          if (isSqlTextLintIssuesSupplier(expr)) {
+            expr.populateSqlTextLintIssues(lis, ctx);
+          }
+        });
+      },
+      stsOptions,
     };
   };
 }

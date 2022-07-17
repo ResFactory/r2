@@ -41,7 +41,7 @@ export function body<
     ...expressions: tmpl.SqlPartialExpression<Context>[]
   ):
     & govn.RoutineBody<BodyIdentity, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> => {
+    & tmpl.SqlTextLintIssuesPopulator<Context> => {
     const partial = ess.embeddedSQL<Context>({
       literalSupplier: ws.whitespaceSensitiveTemplateLiteralSupplier,
     });

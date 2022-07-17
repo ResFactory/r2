@@ -56,7 +56,7 @@ export function pgExtensionDefn<
   const { isIdempotent = true } = edOptions ?? {};
   const result:
     & ExtensionDefinition<SchemaName, ExtensionName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       isValid: true,
       schema,
       extension,

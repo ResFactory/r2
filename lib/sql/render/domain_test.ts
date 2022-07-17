@@ -13,6 +13,10 @@ Deno.test("type-safe data domains", async (tc) => {
     text_nullable: mod.textNullable(),
     text_custom: mod.text(ax.text($.string)),
     text_labeled_optional: mod.label(mod.textNullable(), "synthetic_label1"),
+    text_linted_optional: mod.lintedSqlDomain(
+      mod.textNullable(),
+      mod.domainLintIssue("synthetic lint issue"),
+    ),
     int: mod.integer(),
     int_nullable: mod.integerNullable(),
     int_custom: mod.integer(ax.integer($.number)),
@@ -96,10 +100,21 @@ Deno.test("type-safe data domains", async (tc) => {
       ta.assertEquals("intRef", intRefOther.identity);
     });
 
+    await tc.step("linted", () => {
+      const syntheticDomains = mod.sqlDomains(syntheticDecl);
+      const linted = Array.from(mod.lintedSqlDomains(syntheticDomains.domains));
+      ta.assertEquals(linted.length, 1);
+      ta.assertEquals("text_linted_optional", linted[0].identity);
+      ta.assertEquals(
+        "synthetic lint issue",
+        linted[0].lintIssues[0].lintIssue,
+      );
+    });
+
     await tc.step("labeled", () => {
       const syntheticDomains = mod.sqlDomains(syntheticDecl);
       const labeled = Array.from(
-        mod.labeledSqlDomains(syntheticDomains, (test) => {
+        mod.labeledSqlDomains(syntheticDomains.domains, (test) => {
           return test.labels.includes("synthetic_label1") ? true : false;
         }),
       );
@@ -134,6 +149,7 @@ Deno.test("type-safe data domains", async (tc) => {
     expectType<string>(synthetic.text);
     expectType<string>(synthetic.text_custom);
     expectType<string | undefined>(synthetic.text_labeled_optional);
+    expectType<string | undefined>(synthetic.text_linted_optional);
     expectType<number>(synthetic.int);
     expectType<number>(synthetic.int_custom);
     expectType<bigint>(synthetic.bigint);

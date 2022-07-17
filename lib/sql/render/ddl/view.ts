@@ -45,6 +45,7 @@ export interface ViewDefnOptions<
     vdOptions: ViewDefnOptions<ViewName, ColumnName, Context>,
   ) => tmpl.SqlTextSupplier<Context>;
   readonly sqlNS?: ns.SqlNamespaceSupplier;
+  readonly embeddedStsOptions: tmpl.SqlTextSupplierOptions<Context>;
 }
 
 export function viewDefinition<
@@ -74,7 +75,7 @@ export function viewDefinition<
     const viewDefn:
       & ViewDefinition<ViewName, Context>
       & tmpl.SqlSymbolSupplier<Context>
-      & tmpl.SqlTextLintIssuesSupplier<Context> = {
+      & tmpl.SqlTextLintIssuesPopulator<Context> = {
         isValid: selectStmt.isValid,
         viewName,
         isTemp,
@@ -102,7 +103,7 @@ export function viewDefinition<
             isIdempotent ? "IF NOT EXISTS " : ""
           }${ns.viewName(viewName)} AS\n${viewSelectStmtSqlText}`;
           return vdOptions?.before
-            ? ctx.embeddedSQL<Context>()`${[
+            ? ctx.embeddedSQL<Context>(vdOptions.embeddedStsOptions)`${[
               vdOptions.before(viewName, vdOptions),
               create,
             ]}`
@@ -128,7 +129,7 @@ export function safeViewDefinitionCustom<
   props: TPropAxioms,
   selectStmt:
     & ss.Select<Any, Context>
-    & Partial<tmpl.SqlTextLintIssuesSupplier<Context>>,
+    & Partial<tmpl.SqlTextLintIssuesPopulator<Context>>,
   vdOptions?:
     & ViewDefnOptions<ViewName, ColumnName, Context>
     & Partial<tmpl.EmbeddedSqlSupplier>
@@ -148,13 +149,13 @@ export function safeViewDefinitionCustom<
   const viewDefn:
     & ViewDefinition<ViewName, Context>
     & tmpl.SqlSymbolSupplier<Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       isValid: selectStmt.isValid,
       viewName,
       isTemp,
       isIdempotent,
-      populateSqlTextLintIssues: (lintIssues, steOptions) =>
-        selectStmt.populateSqlTextLintIssues?.(lintIssues, steOptions),
+      populateSqlTextLintIssues: (lis, steOptions) =>
+        selectStmt.populateSqlTextLintIssues?.(lis, steOptions),
       sqlSymbol: (ctx) =>
         ctx.sqlNamingStrategy(ctx, {
           quoteIdentifiers: true,
@@ -185,7 +186,7 @@ export function safeViewDefinitionCustom<
             : ""
         } AS\n${viewSelectStmtSqlText}`;
         return vdOptions?.before
-          ? ctx.embeddedSQL<Context>()`${[
+          ? ctx.embeddedSQL<Context>(vdOptions.embeddedStsOptions)`${[
             vdOptions.before(viewName, vdOptions),
             create,
           ]}`.SQL(ctx)

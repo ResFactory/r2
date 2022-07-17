@@ -62,7 +62,7 @@ export type SelectTemplateOptions<
   ) => true | l.SqlLintIssueSupplier;
   readonly onFirstTokenGuardFail?: (issue: l.SqlLintIssueSupplier) =>
     & Select<SelectStmtName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context>;
+    & tmpl.SqlTextLintIssuesPopulator<Context>;
 };
 
 export function selectTemplateResult<
@@ -108,16 +108,18 @@ export function selectTemplateResult<
 
   const result:
     & Select<SelectStmtName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       isValid: invalid === undefined,
       selectStmtName: selectStmtName,
       selectStmt,
       SQL: invalid
         ? ((ctx) => ctx.sqlTextEmitOptions.comments(invalid!.lintIssue))
         : selectStmt.SQL,
-      populateSqlTextLintIssues: (lintIssues) => {
-        if (invalid) lintIssues.push(invalid);
-        if (selectStmt.lintIssues) lintIssues.push(...selectStmt.lintIssues);
+      populateSqlTextLintIssues: (lis) => {
+        if (invalid) lis.registerLintIssue(invalid);
+        if (selectStmt.lintIssues) {
+          lis.registerLintIssue(...selectStmt.lintIssues);
+        }
       },
     };
   return result;

@@ -56,7 +56,7 @@ export function pgDomainDefn<
   const { isIdempotent = false, humanFriendlyFmtIndent: hffi } = ddOptions ??
     {};
   const result:
-    & tmpl.SqlTextLintIssuesSupplier<Context>
+    & tmpl.SqlTextLintIssuesPopulator<Context>
     & tmpl.SqlTextSupplier<Context> = {
       populateSqlTextLintIssues: () => {},
       SQL: (ctx) => {

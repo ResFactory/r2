@@ -34,9 +34,11 @@ export const isTemplateStringLintIssue = safety.typeGuard<
 >("lintIssue", "templateLiterals", "templateExprs");
 
 export interface SqlLintIssuesSupplier {
+  readonly registerLintIssue: (...slis: SqlLintIssueSupplier[]) => void;
   readonly lintIssues: SqlLintIssueSupplier[];
 }
 
 export const isSqlLintIssuesSupplier = safety.typeGuard<SqlLintIssuesSupplier>(
+  "registerLintIssue",
   "lintIssues",
 );

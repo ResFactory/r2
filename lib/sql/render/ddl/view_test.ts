@@ -27,6 +27,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
     "idempotent namespaced view with columns inferred from select",
     () => {
       const view = mod.viewDefinition("synthetic_view", {
+        embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
         sqlNS: sch.sqlSchemaDefn("synthetic_schema"),
       })`
       SELECT this, that, the_other
@@ -66,6 +67,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
 
   await tc.step("temp view (non-idempotent)", () => {
     const view = mod.viewDefinition("synthetic_view", {
+      embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
       isIdempotent: false,
       isTemp: true,
     })`
@@ -84,6 +86,7 @@ Deno.test("SQL Aide (SQLa) views", async (tc) => {
 
   await tc.step("drop first then create then drop", () => {
     const view = mod.viewDefinition("synthetic_view", {
+      embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
       isIdempotent: false,
       before: (viewName) => mod.dropView(viewName),
     })`

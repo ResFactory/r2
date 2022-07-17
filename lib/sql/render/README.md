@@ -373,18 +373,18 @@ References:
 
 The system generates lint messages:
 
+- [x] Plural vs. singular naming checks
+- [x] Foreign key column name should be `X_id` where `X` is the referenced Fkey
+      column name
+  - [x] `_id` attributes that are not foreign keys (might be OK, might be a
+        mistake)
+- [ ] Suggest foreign keys when column name is similar to a table names but fkey
+      is not defined
 - [ ] Integrate advice from
       [Ordering Table Columns in PostgreSQL](https://docs.gitlab.com/ee/development/ordering_table_columns.html)
 - [ ] Integrate [SQLFluff](https://github.com/sqlfluff/sqlfluff) or learn from
       their rules.
-- [ ] Foreign key column name should be `X_id` where `X` is the referenced Fkey
-      column name
-- [ ] Suggest foreign keys when column name and table names are simialr to each
-      other but fkey is not defined
 - [ ] Missing indexes for primary keys, foreign keys
-- [ ] `_id` attributes that are not foreign keys (might be OK, might be a
-      mistake)
-- [ ] Plural vs. singular naming checks
 - [ ] [Soda Checks Language](https://docs.soda.io/soda-cl/soda-cl-overview.html)
       (SodaCL) style validation rules
 

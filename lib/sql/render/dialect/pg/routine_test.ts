@@ -116,7 +116,10 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           arg1: d.text(),
         },
         (name, args) => mod.typedPlSqlBody(name, args, ctx),
-        { sqlNS: ddl.sqlSchemaDefn("synthetic_schema") },
+        {
+          embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
+          sqlNS: ddl.sqlSchemaDefn("synthetic_schema"),
+        },
       )`
       -- this is the stored procedure body`;
       ta.assertEquals(
@@ -141,7 +144,10 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
           arg4: mod.IN_OUT(d.date()),
         },
         (name, args, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
-        { before: (name) => mod.dropStoredProcedure(name) },
+        {
+          embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
+          before: (name) => mod.dropStoredProcedure(name),
+        },
       )`
       -- this is the stored procedure body`;
       ta.assertEquals(
@@ -237,6 +243,7 @@ Deno.test("SQL Aide (SQLa) anonymous stored routine", async (tc) => {
         "RECORD",
         (name, args, _, bo) => mod.typedPlPgSqlBody(name, args, ctx, bo),
         {
+          embeddedStsOptions: tmpl.typicalSqlTextSupplierOptions(),
           autoBeginEnd: false,
           isIdempotent: false,
           sqlNS: ddl.sqlSchemaDefn("synthetic_schema"),

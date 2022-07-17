@@ -62,7 +62,7 @@ export function sqlSchemaDefn<
   const { isIdempotent = false } = schemaDefnOptions ?? {};
   const result:
     & SchemaDefinition<SchemaName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       isValid: true,
       sqlNamespace: schemaName,
       isIdempotent,

@@ -1,6 +1,7 @@
 import * as safety from "../../../safety/mod.ts";
 import * as ax from "../../../axiom/mod.ts";
 import * as d from "../domain.ts";
+import * as l from "../lint.ts";
 import * as tmpl from "../template/mod.ts";
 import * as tr from "../../../tabular/mod.ts";
 import * as dml from "../dml/mod.ts";
@@ -580,44 +581,61 @@ export function tableDefinition<
     };
   }
 
-  const tableDefnResult: TableDefinition<TableName, Context> & {
-    readonly columns: ColumnDefns;
-    readonly primaryKey: PrimaryKeys;
-    readonly foreignKeyRef: ForeignKeyRefs;
-    readonly sqlNS?: ns.SqlNamespaceSupplier;
-  } & tmpl.SqlSymbolSupplier<Context> = {
-    tableName,
-    sqlSymbol: (ctx) =>
-      ctx.sqlNamingStrategy(ctx, {
-        quoteIdentifiers: true,
-        qnss: tdOptions?.sqlNS,
-      }).tableName(tableName),
-    SQL: (ctx) => {
-      const { sqlTextEmitOptions: steOptions } = ctx;
-      const ns = ctx.sqlNamingStrategy(ctx, {
-        quoteIdentifiers: true,
-        qnss: tdOptions?.sqlNS,
-      });
-      const indent = steOptions.indentation("define table column");
-      const afterCDs =
-        tdOptions?.sqlPartial?.("after all column definitions") ?? [];
-      const decoratorsSQL = [...afterColumnDefnsSS, ...afterCDs].map((sts) =>
-        sts.SQL(ctx)
-      ).join(`,\n${indent}`);
+  const tableDefnResult:
+    & TableDefinition<TableName, Context>
+    & {
+      readonly columns: ColumnDefns;
+      readonly primaryKey: PrimaryKeys;
+      readonly foreignKeyRef: ForeignKeyRefs;
+      readonly sqlNS?: ns.SqlNamespaceSupplier;
+    }
+    & tmpl.SqlSymbolSupplier<Context>
+    & l.SqlLintIssuesSupplier
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
+      tableName,
+      sqlSymbol: (ctx) =>
+        ctx.sqlNamingStrategy(ctx, {
+          quoteIdentifiers: true,
+          qnss: tdOptions?.sqlNS,
+        }).tableName(tableName),
+      populateSqlTextLintIssues: (lis) => {
+        for (const sdd of sd.domains) {
+          if (d.isLintedSqlDomain(sdd)) {
+            lis.registerLintIssue(...sdd.lintIssues);
+          }
+        }
+        lis.registerLintIssue(...tableDefnResult.lintIssues);
+      },
+      lintIssues: [],
+      registerLintIssue: (...li) => {
+        tableDefnResult.lintIssues.push(...li);
+      },
+      SQL: (ctx) => {
+        const { sqlTextEmitOptions: steOptions } = ctx;
+        const ns = ctx.sqlNamingStrategy(ctx, {
+          quoteIdentifiers: true,
+          qnss: tdOptions?.sqlNS,
+        });
+        const indent = steOptions.indentation("define table column");
+        const afterCDs =
+          tdOptions?.sqlPartial?.("after all column definitions") ?? [];
+        const decoratorsSQL = [...afterColumnDefnsSS, ...afterCDs].map((sts) =>
+          sts.SQL(ctx)
+        ).join(`,\n${indent}`);
 
-      const { isTemp, isIdempotent } = tdOptions ?? {};
-      // deno-fmt-ignore
-      const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
+        const { isTemp, isIdempotent } = tdOptions ?? {};
+        // deno-fmt-ignore
+        const result = `${steOptions.indentation("create table")}CREATE ${isTemp ? 'TEMP ' : ''}TABLE ${isIdempotent ? "IF NOT EXISTS " : ""}${ns.tableName(tableName)} (\n` +
         columnDefnsSS.map(cdss => cdss.SQL(ctx)).join(",\n") +
         (decoratorsSQL.length > 0 ? `,\n${indent}${decoratorsSQL}` : "") +
         "\n)";
-      return result;
-    },
-    columns,
-    primaryKey,
-    foreignKeyRef: fkRef,
-    sqlNS: tdOptions?.sqlNS,
-  };
+        return result;
+      },
+      columns,
+      primaryKey,
+      foreignKeyRef: fkRef,
+      sqlNS: tdOptions?.sqlNS,
+    };
 
   // we let Typescript infer function return to allow generics in sqlDomains to
   // be more effective but we want other parts of the `result` to be as strongly

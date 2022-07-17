@@ -31,6 +31,7 @@ export interface SqlTypeDefnOptions<
   FieldName extends string,
   Context extends tmpl.SqlEmitContext,
 > extends tmpl.SqlTextSupplierOptions<Context> {
+  readonly embeddedStsOptions: tmpl.SqlTextSupplierOptions<Context>;
   readonly before?: (
     viewName: TypeName,
     vdOptions: SqlTypeDefnOptions<TypeName, FieldName, Context>,
@@ -80,7 +81,7 @@ export function sqlTypeDefinition<
         }\n)`,
       );
       return tdOptions?.before
-        ? ctx.embeddedSQL<Context>()`${[
+        ? ctx.embeddedSQL<Context>(tdOptions.embeddedStsOptions)`${[
           tdOptions.before(typeName, tdOptions),
           create,
         ]}`.SQL(ctx)

@@ -31,7 +31,7 @@ export function pgSearchPath<
 >(...searchPath: sch.SchemaDefinition<SchemaName, Context>[]) {
   const result:
     & PostgresSchemaSearchPathDefinition<SchemaName, Context>
-    & tmpl.SqlTextLintIssuesSupplier<Context> = {
+    & tmpl.SqlTextLintIssuesPopulator<Context> = {
       searchPath: searchPath.map((s) => s.sqlNamespace),
       populateSqlTextLintIssues: () => {},
       SQL: (ctx) => {

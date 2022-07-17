@@ -20,7 +20,7 @@ export type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
  * @returns a single object with helper functions as properties (for building models)
  */
 export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
-  ddlOptions?: SQLa.SqlTextSupplierOptions<Context> & {
+  ddlOptions: SQLa.SqlTextSupplierOptions<Context> & {
     readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   },
 ) {
@@ -83,6 +83,7 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
   };
 
   const erdConfig = erd.typicalPlantUmlIeOptions();
+  const lintState = SQLa.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
 
   return {
     primaryKey,
@@ -90,5 +91,7 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
     table,
     defaultIspOptions,
     erdConfig,
+    sqlTextLintSummary: lintState.sqlTextLintSummary,
+    sqlTmplEngineLintSummary: lintState.sqlTmplEngineLintSummary,
   };
 }
