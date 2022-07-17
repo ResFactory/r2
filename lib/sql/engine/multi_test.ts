@@ -2,7 +2,7 @@ import { testingAsserts as ta } from "./deps-test.ts";
 import * as whs from "../../text/whitespace.ts";
 import * as eng from "./engine.ts";
 import * as SQLa from "../render/mod.ts";
-import * as mod from "./query-detectable.ts";
+import * as mod from "./multi.ts";
 import * as sh from "./shell.ts";
 
 // const isCICD = Deno.env.get("CI") ? true : false;
@@ -49,9 +49,9 @@ Deno.test("detect engine instance from query using custom instance preparer", as
     const result = stsEngineCustom.instance(ctx, osqValidTest);
     ta.assert(result);
     // make sure that the SQL is rewritten - removed `USE DATABASE osquery; -- https://osquery.io/\n` and left everything else
-    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.STS));
+    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.sqlTextSupplier));
     ta.assert(
-      result.detected.STS.SQL(ctx),
+      result.detected.sqlTextSupplier.SQL(ctx),
       whs.unindentWhitespace(`
         SELECT computer_name, hostname, cpu_brand, cpu_physical_cores, cpu_logical_cores, printf("%.2f", (physical_memory / 1024.0 / 1024.0 / 1024.0)) as memory_gb
           FROM system_info`),
@@ -82,9 +82,9 @@ Deno.test("detect engine instance from query using custom instance preparer", as
     const result = stsEngineCustom.instance(ctx, badInstanceTest);
     ta.assert(result);
     // make sure that the SQL is rewritten - removed `USE DATABASE bad_db_name; -- format is OK but name is not known` and left everything else
-    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.STS));
+    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.sqlTextSupplier));
     ta.assert(
-      result.detected.STS.SQL(ctx),
+      result.detected.sqlTextSupplier.SQL(ctx),
       whs.unindentWhitespace(`
         SELECT this
           FROM that`),
@@ -114,9 +114,9 @@ Deno.test("detect engine instance from query using named instance preparers", as
     const result = stsEngine.instance(ctx, sysInfoQuery);
     ta.assert(result);
     // make sure that the SQL is rewritten - removed `USE DATABASE osquery; -- https://osquery.io/\n` and left everything else
-    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.STS));
+    ta.assert(SQLa.isMutatedSqlTextSupplier(result.detected.sqlTextSupplier));
     ta.assert(
-      result.detected.STS.SQL(ctx),
+      result.detected.sqlTextSupplier.SQL(ctx),
       whs.unindentWhitespace(`
         SELECT computer_name, hostname, cpu_brand, cpu_physical_cores, cpu_logical_cores, printf("%.2f", (physical_memory / 1024.0 / 1024.0 / 1024.0)) as memory_gb
           FROM system_info`),
