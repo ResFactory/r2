@@ -63,6 +63,9 @@ Deno.test("osQuery SQL shell command", async (tc) => {
 });
 
 Deno.test("osQuery reflection", async (tc) => {
+  // GitHub actions won't have osQuery
+  if (isCICD) return;
+
   const ctx = SQLa.typicalSqlEmitContext();
   type Context = typeof ctx;
   const db = new mod.OsQueryCmdExecutive<Context>();
