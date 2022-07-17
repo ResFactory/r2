@@ -74,7 +74,12 @@ export interface SqlReflectConn<
     options?: {
       readonly filter?: { readonly tableName?: (name: string) => boolean };
     },
-  ) => AsyncGenerator<SQLa.TableDefinition<TableName, Context>>;
+  ) => AsyncGenerator<
+    & SQLa.TableDefinition<TableName, Context>
+    & SQLa.SqlDomainsSupplier<
+      Context
+    >
+  >;
 }
 
 export interface SqlWriteConn<

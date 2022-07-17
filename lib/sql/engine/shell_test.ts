@@ -1,69 +1,11 @@
 import { path, testingAsserts as ta } from "./deps-test.ts";
-import * as ax from "../../axiom/mod.ts";
 import * as whs from "../../text/whitespace.ts";
-import * as mod from "./shell.ts";
+import * as f from "./factory.ts";
 import * as SQLa from "../render/mod.ts";
-
-const isCICD = Deno.env.get("CI") ? true : false;
-
-Deno.test("osQuery SQL shell command", async (tc) => {
-  // GitHub actions won't have osQuery
-  if (isCICD) return;
-
-  const scEngine = mod.sqlShellCmdsEngine();
-  const osq = scEngine.osqueryi();
-  const ctx = SQLa.typicalSqlEmitContext();
-
-  await tc.step("untyped system_info query", async () => {
-    const sysInfoQuery = {
-      SQL: () =>
-        whs.unindentWhitespace(`
-          SELECT computer_name,
-                 hostname,
-                 cpu_brand,
-                 cpu_physical_cores,
-                 cpu_logical_cores,
-                 printf("%.2f", (physical_memory / 1024.0 / 1024.0 / 1024.0)) as memory_gb
-            FROM system_info`),
-    };
-    const osQER = await osq.recordsDQL(ctx, sysInfoQuery);
-    ta.assert(osQER);
-    ta.assert(osQER.records);
-  });
-
-  await tc.step("typed system_info query", async () => {
-    const sysInfoSerDe = ax.axiomSerDeObject({
-      computer_name: SQLa.text(),
-      hostname: SQLa.text(),
-      cpu_brand: SQLa.text(),
-      cpu_physical_cores: SQLa.integer(),
-      cpu_logical_cores: SQLa.integer(),
-      memory_gb: SQLa.integer(), // TODO: convert to float?
-    });
-
-    const sysInfoQuery = {
-      SQL: () =>
-        whs.unindentWhitespace(`
-          SELECT computer_name,
-                 hostname,
-                 cpu_brand,
-                 cpu_physical_cores,
-                 cpu_logical_cores,
-                 printf("%.2f", (physical_memory / 1024.0 / 1024.0 / 1024.0)) as memory_gb
-            FROM system_info`),
-    };
-    const osQER = await osq.firstRecordDQL(ctx, sysInfoQuery);
-    ta.assert(osQER);
-    ta.assert(osQER.record);
-    const typedRecord = sysInfoSerDe.fromTextRecord(osQER.record);
-    ta.assert(typedRecord.computer_name);
-    ta.assertEquals("number", typeof typedRecord.cpu_physical_cores);
-  });
-});
 
 Deno.test("fselect SQL shell command", async (tc) => {
   const thisTestFilePath = path.dirname(path.fromFileUrl(import.meta.url));
-  const scEngine = mod.sqlShellCmdsEngine();
+  const scEngine = f.sqlShellCmdsEngine();
   const fselect = scEngine.fselect();
   const ctx = SQLa.typicalSqlEmitContext();
 
@@ -78,15 +20,15 @@ Deno.test("fselect SQL shell command", async (tc) => {
     };
     const fsQER = await fselect.recordsDQL(ctx, sysInfoQuery);
     ta.assert(fsQER);
-    // there are eleven files in the current path
-    ta.assertEquals(11, fsQER.records.length);
+    // there are twelve files in the current path
+    ta.assertEquals(13, fsQER.records.length);
   });
 });
 
 Deno.test("mergestat Git SQL shell command", async (tc) => {
   const thisTestFilePath = path.dirname(path.fromFileUrl(import.meta.url));
   const gitProjectHome = path.resolve(thisTestFilePath, "../../..");
-  const scEngine = mod.sqlShellCmdsEngine();
+  const scEngine = f.sqlShellCmdsEngine();
   const mergestat = scEngine.mergestat();
   const ctx = SQLa.typicalSqlEmitContext();
 

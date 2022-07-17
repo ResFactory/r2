@@ -2,8 +2,7 @@ import { testingAsserts as ta } from "./deps-test.ts";
 import * as whs from "../../text/whitespace.ts";
 import * as eng from "./engine.ts";
 import * as SQLa from "../render/mod.ts";
-import * as mod from "./multi.ts";
-import * as sh from "./shell.ts";
+import * as mod from "./factory.ts";
 
 // const isCICD = Deno.env.get("CI") ? true : false;
 
@@ -96,7 +95,7 @@ Deno.test("detect engine instance from query using custom instance preparer", as
 Deno.test("detect engine instance from query using named instance preparers", async (tc) => {
   const ctx = SQLa.typicalSqlEmitContext();
   await tc.step("osQuery system_info execution", async () => {
-    const sscEngine = sh.sqlShellCmdsEngine();
+    const sscEngine = mod.sqlShellCmdsEngine();
     const stsEngine = mod.sqlTextSuppliedEngine({
       "osquery": (detected) => ({
         engineInstance: sscEngine.osqueryi(),

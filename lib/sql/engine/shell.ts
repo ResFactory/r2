@@ -57,64 +57,6 @@ export interface SqlShellCmdInit<Context extends SQLa.SqlEmitContext> {
 
 export type SqlShellCmdsEngine = eng.SqlEngine;
 
-export function sqlShellCmdsEngine<Context extends SQLa.SqlEmitContext>(
-  options?: {
-    readonly osQueryCmdPath?: string;
-    readonly felectCmdPath?: string;
-    readonly mergeStatCmdPath?: string;
-  },
-) {
-  const instances = new Map<string, SqlShellCmdExecutive<Context>>();
-  const result: SqlShellCmdsEngine = {
-    identity: "Shell Commands SQL Engine",
-  };
-  return {
-    ...result,
-    osqueryi: (
-      ssCI?: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">>,
-    ) => {
-      const identity = ssCI?.identity ?? `osqueryi`;
-      let instance = instances.get(identity);
-      if (!instance) {
-        instance = new OsQueryCmdExecutive({
-          ...ssCI,
-          osQueryCmdPath: options?.osQueryCmdPath,
-        });
-        instances.set(identity, instance);
-      }
-      return instance;
-    },
-    fselect: (
-      ssCI?: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">>,
-    ) => {
-      const identity = ssCI?.identity ?? `fselect`;
-      let instance = instances.get(identity);
-      if (!instance) {
-        instance = new FileSysQueryCmdExecutive({
-          ...ssCI,
-          felectCmdPath: options?.felectCmdPath,
-        });
-        instances.set(identity, instance);
-      }
-      return instance;
-    },
-    mergestat: (
-      ssCI?: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">>,
-    ) => {
-      const identity = ssCI?.identity ?? `mergestat`;
-      let instance = instances.get(identity);
-      if (!instance) {
-        instance = new GitQueryCmdExecutive({
-          ...ssCI,
-          mergeStatCmdPath: options?.mergeStatCmdPath,
-        });
-        instances.set(identity, instance);
-      }
-      return instance;
-    },
-  };
-}
-
 export async function executeShellCmd<TypedResult = unknown>(
   runOptsSupplier: () => Deno.RunOptions,
   onCmdFail: (
@@ -298,31 +240,6 @@ export class SqlShellCmdExecutive<Context extends SQLa.SqlEmitContext>
       },
     );
     return result;
-  }
-}
-
-export class OsQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
-  extends SqlShellCmdExecutive<Context> {
-  constructor(
-    ssCI: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">> & {
-      readonly osQueryCmdPath?: string;
-    },
-  ) {
-    const identity = ssCI.identity ?? `osQueryi`;
-    const osQueryCmdPath = ssCI.osQueryCmdPath ??
-      Deno.env.get("RF_SQL_SHELL_OSQUERYI_LOCATION") ??
-      "/usr/local/bin/osqueryi";
-    super({
-      identity,
-      prepareExecuteSqlCmd: (SQL) => {
-        // https://osquery.io/
-        return {
-          cmd: [osQueryCmdPath, "--json", SQL],
-          stdout: "piped",
-          stderr: "piped",
-        };
-      },
-    });
   }
 }
 

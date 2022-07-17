@@ -302,7 +302,10 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
       readonly filter?: { readonly tableName?: (name: string) => boolean };
     },
   ): AsyncGenerator<
-    SQLa.TableDefinition<TableName, Context>
+    & SQLa.TableDefinition<TableName, Context>
+    & SQLa.SqlDomainsSupplier<
+      Context
+    >
   > {
     const { filter } = options ?? {};
     const rd = await this.reflectDomains(ctx);
