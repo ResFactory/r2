@@ -97,8 +97,10 @@ following types of SQL language constructs.
       definition at domain level with enforcement in SQL
 - [ ] domain documentation for goverance ([DataHub](https://datahubproject.io/)
       style ERD documentation)
-- [x] domain labels/tags for governance ([DataHub](https://datahubproject.io/)
-      style meta data)
+- [x] type-safe domain labels/tags for governance
+      ([DataHub](https://datahubproject.io/) style meta data)
+  - [ ] scoped labels for additional governance (e.g. subject areas, PII, PHI,
+        etc. grouping)
   - [ ] label sensitive ("secrets") columns so separate meta data is not
         required
   - [ ] label identity (PII, PHI) columns so separate meta data is not required
@@ -369,10 +371,11 @@ References:
 - [x] Extensions
 - [x] search_path
 
-### Lint Rules
+### Structural Lint Rules
 
 The system generates lint messages:
 
+- [ ] Missing indexes for primary keys, foreign keys
 - [x] Plural vs. singular naming checks
 - [x] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
@@ -384,7 +387,9 @@ The system generates lint messages:
       [Ordering Table Columns in PostgreSQL](https://docs.gitlab.com/ee/development/ordering_table_columns.html)
 - [ ] Integrate [SQLFluff](https://github.com/sqlfluff/sqlfluff) or learn from
       their rules.
-- [ ] Missing indexes for primary keys, foreign keys
+
+### Content Lint and Data Validation Rules
+
 - [ ] [Soda Checks Language](https://docs.soda.io/soda-cl/soda-cl-overview.html)
       (SodaCL) style validation rules
 

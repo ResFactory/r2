@@ -1,5 +1,8 @@
 import * as safety from "../../safety/mod.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 export interface SqlLintIssueSupplier {
   readonly lintIssue: string;
   readonly location?: (options?: { maxLength?: number }) => string;
@@ -42,3 +45,16 @@ export const isSqlLintIssuesSupplier = safety.typeGuard<SqlLintIssuesSupplier>(
   "registerLintIssue",
   "lintIssues",
 );
+
+export interface SqlLintRule<Options = unknown> {
+  readonly lint: (lis: SqlLintIssuesSupplier, options?: Options) => void;
+}
+
+export function aggregatedSqlLintRules<Options = Any>(
+  ...rules: SqlLintRule<Options>[]
+) {
+  const rule: SqlLintRule<Options> = {
+    lint: (lis, lOptions) => rules.forEach((r) => r.lint(lis, lOptions)),
+  };
+  return rule;
+}
