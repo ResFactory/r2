@@ -407,6 +407,10 @@ The system generates lint messages:
   - [ ] [Kysely](https://github.com/koskimas/kysely)
   - [ ] https://mikro-orm.io/
   - [ ] TypeORM
+- [ ] Zod interoperability (convert to/from Axiom and
+      [Zod](https://github.com/colinhacks/zod)) because
+      [Zod's ecosystem](https://github.com/colinhacks/zod#ecosystem) appears
+      robust
 
 ## Architecture
 
@@ -414,6 +418,9 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] Incorporate A16z's
+      [Emerging Architectures](https://future.com/emerging-architectures-modern-data-infrastructure/)
+      nomenclature and concepts.
 - [ ] Check out [Cell Programming Language](https://www.cell-lang.net/) for
       ideas around "stateful programs" and their built-in relationships (vs.
       objects capabilities)
