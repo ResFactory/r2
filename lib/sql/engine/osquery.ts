@@ -45,10 +45,6 @@ export class OsQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
   ): Promise<
     Map<DomainID, (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>>
   > {
-    const result = new Map<
-      DomainID,
-      (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>
-    >();
     const colTypesQER = await this.recordsDQL<{ type: string }>(ctx, {
       SQL: () => `
         SELECT DISTINCT table_info.type
@@ -56,39 +52,9 @@ export class OsQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
           JOIN pragma_table_info(sqlite_master.name) as table_info
          WHERE table_info.type <> ''`,
     });
-    for (const row of colTypesQER.records) {
-      const domainID = row.type as DomainID;
-      switch (domainID) {
-        case "INTEGER":
-          result.set(
-            domainID,
-            (nullable) => nullable ? SQLa.integerNullable() : SQLa.integer(),
-          );
-          break;
-        case "DATETIME":
-          result.set(
-            domainID,
-            (nullable) => nullable ? SQLa.dateTimeNullable() : SQLa.dateTime(),
-          );
-          break;
-
-        default:
-          if (domainID.startsWith("NUMERIC")) {
-            // TODO: add "real" or "float"
-            result.set(
-              domainID,
-              (nullable) => nullable ? SQLa.integerNullable() : SQLa.integer(),
-            );
-          } else {
-            // if "text" or "NVARCHAR" or any other type
-            result.set(
-              domainID,
-              (nullable) => nullable ? SQLa.textNullable() : SQLa.text(),
-            );
-          }
-      }
-    }
-    return result;
+    return SQLa.typicalDomainFromTextFactory<DomainID, Context>(
+      ...colTypesQER.records.map((r) => r.type as DomainID),
+    );
   }
 
   async *reflectTables<TableName extends string>(

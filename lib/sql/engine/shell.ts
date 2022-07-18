@@ -243,16 +243,52 @@ export class SqlShellCmdExecutive<Context extends SQLa.SqlEmitContext>
   }
 }
 
+// use `fselect --help` at the command line to see all the columns supported
+// TODO: for now, everything is untyped but needs to be typed properly
+export const fselectPathAxiomProps = {
+  name: SQLa.untypedNullable(),
+  extension: SQLa.untypedNullable(),
+  path: SQLa.untypedNullable(),
+  abspath: SQLa.untypedNullable(),
+  directory: SQLa.untypedNullable(),
+  absdir: SQLa.untypedNullable(),
+  size: SQLa.untypedNullable(),
+  fsize: SQLa.untypedNullable(),
+  accessed: SQLa.untypedNullable(),
+  created: SQLa.untypedNullable(),
+  modified: SQLa.untypedNullable(),
+  user: SQLa.untypedNullable(),
+  group: SQLa.untypedNullable(),
+  mime: SQLa.untypedNullable(),
+  is_binary: SQLa.untypedNullable(),
+  is_text: SQLa.untypedNullable(),
+  is_image: SQLa.untypedNullable(),
+  line_count: SQLa.untypedNullable(),
+  sha1: SQLa.untypedNullable(),
+  sha2_256: SQLa.untypedNullable(),
+  sha2_512: SQLa.untypedNullable(),
+  sha3_512: SQLa.untypedNullable(),
+};
+
 export class FileSysQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
-  extends SqlShellCmdExecutive<Context> {
+  extends SqlShellCmdExecutive<Context>
+  implements
+    eng.SqlReflectConn<
+      SqlShellCmdsEngine,
+      FileSysQueryCmdExecutive<Context>,
+      Context
+    > {
   static firstWordRegEx = /^\s*([a-zA-Z0-9]+)/;
+  readonly felectCmdPath: string;
+  readonly reflectPathsAsTables?: Iterable<string>;
   constructor(
-    ssCI: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">> & {
+    ssCI?: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">> & {
       readonly felectCmdPath?: string;
+      readonly reflectPathsAsTables?: Iterable<string>;
     },
   ) {
-    const identity = ssCI.identity ?? `osQueryi`;
-    const felectCmdPath = ssCI.felectCmdPath ??
+    const identity = ssCI?.identity ?? `osQueryi`;
+    const felectCmdPath = ssCI?.felectCmdPath ??
       Deno.env.get("RF_SQL_SHELL_FSELECT_LOCATION") ??
       path.join(
         path.dirname(path.fromFileUrl(import.meta.url)),
@@ -285,18 +321,58 @@ export class FileSysQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
         };
       },
     });
+    this.felectCmdPath = felectCmdPath;
+    this.reflectPathsAsTables = ssCI?.reflectPathsAsTables;
+  }
+
+  // deno-lint-ignore require-await
+  async reflectDomains<DomainID extends string = "UNTYPED">(
+    _ctx: Context,
+  ): Promise<
+    Map<DomainID, (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>>
+  > {
+    return SQLa.typicalDomainFromTextFactory<DomainID, Context>(
+      "UNTYPED" as DomainID,
+    );
+  }
+
+  async *reflectTables<TableName extends string>(
+    _ctx: Context,
+    options?: {
+      readonly filter?: { readonly tableName?: (name: string) => boolean };
+    },
+  ): AsyncGenerator<
+    & SQLa.TableDefinition<TableName, Context>
+    & SQLa.SqlDomainsSupplier<Context>
+  > {
+    const { filter } = options ?? {};
+    if (this.reflectPathsAsTables) {
+      for (const pathTableName of this.reflectPathsAsTables) {
+        if (filter?.tableName && !filter.tableName(pathTableName)) continue;
+        yield SQLa.tableDefinition(
+          pathTableName as TableName,
+          fselectPathAxiomProps,
+        );
+      }
+    }
   }
 }
 
 export class GitQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
-  extends SqlShellCmdExecutive<Context> {
+  extends SqlShellCmdExecutive<Context>
+  implements
+    eng.SqlReflectConn<
+      SqlShellCmdsEngine,
+      GitQueryCmdExecutive<Context>,
+      Context
+    > {
   constructor(
-    ssCI: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">> & {
+    ssCI?: Partial<Omit<SqlShellCmdInit<Context>, "prepareExecuteSqlCmd">> & {
       readonly mergeStatCmdPath?: string;
     },
   ) {
-    const identity = ssCI.identity ?? `mergestat`;
-    const mergeStatCmdPath = ssCI.mergeStatCmdPath ??
+    const identity = ssCI?.identity ?? `mergestat`;
+    const mergeStatCmdPath = ssCI?.mergeStatCmdPath ??
       Deno.env.get("RF_SQL_SHELL_MERGESTAT_LOCATION") ??
       path.join(
         path.dirname(path.fromFileUrl(import.meta.url)),
@@ -315,5 +391,76 @@ export class GitQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
         };
       },
     });
+  }
+
+  // deno-lint-ignore require-await
+  async reflectDomains<DomainID extends string = "UNTYPED">(
+    _ctx: Context,
+  ): Promise<
+    Map<DomainID, (nullable?: boolean) => SQLa.AxiomSqlDomain<Any, Context>>
+  > {
+    return SQLa.typicalDomainFromTextFactory<DomainID, Context>(
+      "UNTYPED" as DomainID,
+    );
+  }
+
+  tables() {
+    // TODO: for now, everything is untyped but needs to be typed properly
+    return {
+      commits: SQLa.tableDefinition("commits", {
+        hash: SQLa.untypedNullable(),
+        date: SQLa.untypedNullable(),
+        author_name: SQLa.untypedNullable(),
+        author_email: SQLa.untypedNullable(),
+        author_when: SQLa.untypedNullable(),
+        committer_name: SQLa.untypedNullable(),
+        committer_email: SQLa.untypedNullable(),
+        committer_when: SQLa.untypedNullable(),
+        message: SQLa.untypedNullable(),
+        parents: SQLa.untypedNullable(),
+      }),
+      refs: SQLa.tableDefinition("refs", {
+        hash: SQLa.untypedNullable(),
+        name: SQLa.untypedNullable(),
+        full_name: SQLa.untypedNullable(),
+        type: SQLa.untypedNullable(),
+        remote: SQLa.untypedNullable(),
+        target: SQLa.untypedNullable(),
+      }),
+      stats: SQLa.tableDefinition("stats", {
+        file_path: SQLa.untypedNullable(),
+        additions: SQLa.untypedNullable(),
+        deletions: SQLa.untypedNullable(),
+      }),
+      files: SQLa.tableDefinition("files", {
+        path: SQLa.untypedNullable(),
+        executable: SQLa.untypedNullable(),
+        content: SQLa.untypedNullable(),
+      }),
+    };
+  }
+
+  async *reflectTables<
+    TableName extends string = "commits" | "refs" | "stats" | "files",
+  >(
+    _ctx: Context,
+    options?: {
+      readonly filter?: { readonly tableName?: (name: string) => boolean };
+    },
+  ): AsyncGenerator<
+    & SQLa.TableDefinition<TableName, Context>
+    & SQLa.SqlDomainsSupplier<Context>
+  > {
+    const { filter } = options ?? {};
+    const tables = this.tables();
+    for (const td of Object.values(tables)) {
+      if (filter?.tableName && !filter.tableName(td.tableName)) {
+        continue;
+      }
+      yield td as unknown as (
+        & SQLa.TableDefinition<TableName, Context>
+        & SQLa.SqlDomainsSupplier<Context>
+      );
+    }
   }
 }

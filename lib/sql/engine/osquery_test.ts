@@ -98,7 +98,7 @@ const systemInfoTableGolden = `CREATE TABLE "system_info" (
     "cpu_physical_cores" INTEGER,
     "cpu_logical_cores" INTEGER,
     "cpu_microcode" TEXT,
-    "physical_memory" TEXT,
+    "physical_memory" BIGINT,
     "hardware_vendor" TEXT,
     "hardware_model" TEXT,
     "hardware_version" TEXT,

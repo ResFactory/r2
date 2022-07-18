@@ -123,6 +123,7 @@ following types of SQL language constructs.
       schema collection)
 - [ ] Delimited text (e.g. CSV) schema properties contributions (each domain can
       contribute to the definition of tabular data structure)
+- [ ] [Invisible XML](https://invisiblexml.org/) schema properties contributions
 - [ ] SQL constraints at storage layer
 - [ ] TS/JS constraints for user agent business logic and presentation layers
 
@@ -156,6 +157,7 @@ When two or more domains need to be coordinated, they are called multi-domains.
   - [ ] rollup identity-labeled (PII, PHI) columns and auto-label tables as
         PII/PHI
 - [ ] JSON Schema
+- [ ] [Invisible XML](https://invisiblexml.org/) schema
 - [ ] [CSV Schema](http://digital-preservation.github.io/csv-schema/csv-schema-1.1.html),
       [examples](https://github.com/digital-preservation/csv-schema/tree/master/example-schemas)
 
@@ -193,6 +195,7 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 - [ ] Support idempotent _evolution_ (_migration_) DDL generation
 - [x] CREATE: This command is used to create the database or its objects (like
       table, index, function, views, store procedure, and triggers).
+  - [ ] Optionally show lint issues as comments
 - [x] DROP: This command is used to delete objects from the database.
 - [ ] ALTER: This is used to alter the structure of the database.
 - [ ] TRUNCATE: This is used to remove all records from a table, including all

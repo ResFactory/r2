@@ -1,13 +1,15 @@
 import { path, testingAsserts as ta } from "./deps-test.ts";
 import * as whs from "../../text/whitespace.ts";
-import * as f from "./factory.ts";
 import * as SQLa from "../render/mod.ts";
+import * as mod from "./shell.ts";
 
 Deno.test("fselect SQL shell command", async (tc) => {
   const thisTestFilePath = path.dirname(path.fromFileUrl(import.meta.url));
-  const scEngine = f.sqlShellCmdsEngine();
-  const fselect = scEngine.fselect();
+  const fselect = new mod.FileSysQueryCmdExecutive({
+    reflectPathsAsTables: [thisTestFilePath],
+  });
   const ctx = SQLa.typicalSqlEmitContext();
+  type Context = typeof ctx;
 
   await tc.step(`*.ts files in ${thisTestFilePath}`, async () => {
     const sysInfoQuery = {
@@ -23,14 +25,31 @@ Deno.test("fselect SQL shell command", async (tc) => {
     // there are twelve files in the current path
     ta.assertEquals(13, fsQER.records.length);
   });
+
+  await tc.step(`reflect file path as table`, async () => {
+    const tables = new Map<
+      string,
+      & SQLa.TableDefinition<string, Context>
+      & SQLa.SqlDomainsSupplier<Context>
+    >();
+    for await (const td of fselect.reflectTables(ctx)) {
+      tables.set(td.tableName, td);
+      ta.assert(td.SQL(ctx));
+    }
+    ta.assert(tables.size);
+
+    const si = tables.get(thisTestFilePath);
+    ta.assert(si);
+    ta.assertEquals(22, si.domains.length);
+  });
 });
 
 Deno.test("mergestat Git SQL shell command", async (tc) => {
   const thisTestFilePath = path.dirname(path.fromFileUrl(import.meta.url));
   const gitProjectHome = path.resolve(thisTestFilePath, "../../..");
-  const scEngine = f.sqlShellCmdsEngine();
-  const mergestat = scEngine.mergestat();
+  const mergestat = new mod.GitQueryCmdExecutive();
   const ctx = SQLa.typicalSqlEmitContext();
+  type Context = typeof ctx;
 
   await tc.step(
     `total commits counts grouped by author in ${gitProjectHome}`,
@@ -66,4 +85,14 @@ Deno.test("mergestat Git SQL shell command", async (tc) => {
       ta.assert(gitQER.records.length);
     },
   );
+
+  await tc.step(`reflect tables`, async () => {
+    const tables = mergestat.tables();
+    let tablesCount = 0;
+    for await (const td of mergestat.reflectTables(ctx)) {
+      ta.assertEquals(tables[td.tableName].tableName, td.tableName);
+      tablesCount++;
+    }
+    ta.assertEquals(4, tablesCount);
+  });
 });
