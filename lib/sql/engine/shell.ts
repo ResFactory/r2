@@ -243,33 +243,6 @@ export class SqlShellCmdExecutive<Context extends SQLa.SqlEmitContext>
   }
 }
 
-// use `fselect --help` at the command line to see all the columns supported
-// TODO: for now, everything is untyped but needs to be typed properly
-export const fselectPathAxiomProps = {
-  name: SQLa.untypedNullable(),
-  extension: SQLa.untypedNullable(),
-  path: SQLa.untypedNullable(),
-  abspath: SQLa.untypedNullable(),
-  directory: SQLa.untypedNullable(),
-  absdir: SQLa.untypedNullable(),
-  size: SQLa.untypedNullable(),
-  fsize: SQLa.untypedNullable(),
-  accessed: SQLa.untypedNullable(),
-  created: SQLa.untypedNullable(),
-  modified: SQLa.untypedNullable(),
-  user: SQLa.untypedNullable(),
-  group: SQLa.untypedNullable(),
-  mime: SQLa.untypedNullable(),
-  is_binary: SQLa.untypedNullable(),
-  is_text: SQLa.untypedNullable(),
-  is_image: SQLa.untypedNullable(),
-  line_count: SQLa.untypedNullable(),
-  sha1: SQLa.untypedNullable(),
-  sha2_256: SQLa.untypedNullable(),
-  sha2_512: SQLa.untypedNullable(),
-  sha3_512: SQLa.untypedNullable(),
-};
-
 export class FileSysQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
   extends SqlShellCmdExecutive<Context>
   implements
@@ -336,6 +309,35 @@ export class FileSysQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
     );
   }
 
+  table<TableName extends string>(pathTableName: TableName) {
+    // use `fselect --help` at the command line to see all the columns supported
+    // TODO: for now, everything is untyped but needs to be typed properly
+    return SQLa.tableDefinition(pathTableName, {
+      name: SQLa.untypedNullable(),
+      extension: SQLa.untypedNullable(),
+      path: SQLa.untypedNullable(),
+      abspath: SQLa.untypedNullable(),
+      directory: SQLa.untypedNullable(),
+      absdir: SQLa.untypedNullable(),
+      size: SQLa.untypedNullable(),
+      fsize: SQLa.untypedNullable(),
+      accessed: SQLa.untypedNullable(),
+      created: SQLa.untypedNullable(),
+      modified: SQLa.untypedNullable(),
+      user: SQLa.untypedNullable(),
+      group: SQLa.untypedNullable(),
+      mime: SQLa.untypedNullable(),
+      is_binary: SQLa.untypedNullable(),
+      is_text: SQLa.untypedNullable(),
+      is_image: SQLa.untypedNullable(),
+      line_count: SQLa.untypedNullable(),
+      sha1: SQLa.untypedNullable(),
+      sha2_256: SQLa.untypedNullable(),
+      sha2_512: SQLa.untypedNullable(),
+      sha3_512: SQLa.untypedNullable(),
+    });
+  }
+
   async *reflectTables<TableName extends string>(
     _ctx: Context,
     options?: {
@@ -349,10 +351,7 @@ export class FileSysQueryCmdExecutive<Context extends SQLa.SqlEmitContext>
     if (this.reflectPathsAsTables) {
       for (const pathTableName of this.reflectPathsAsTables) {
         if (filter?.tableName && !filter.tableName(pathTableName)) continue;
-        yield SQLa.tableDefinition(
-          pathTableName as TableName,
-          fselectPathAxiomProps,
-        );
+        yield this.table(pathTableName as TableName);
       }
     }
   }
