@@ -210,6 +210,38 @@ export function label<
   };
 }
 
+export function untyped<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<unknown> = ax.untyped(),
+  asdOptions?: Partial<AxiomSqlDomain<unknown, Context>>,
+): AxiomSqlDomain<unknown, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `/* untyped */` }),
+    isOptional: false,
+    referenceASD: () => untyped(),
+    referenceNullableASD: () => untypedNullable(),
+    ...asdOptions,
+  };
+}
+
+export function untypedNullable<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<unknown | undefined> = ax.untypedOptional(),
+  asdOptions?: Partial<AxiomSqlDomain<unknown, Context>>,
+): AxiomSqlDomain<unknown | undefined, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `/* untyped */` }),
+    isOptional: true,
+    referenceASD: () => untyped(),
+    referenceNullableASD: () => untypedNullable(),
+    ...asdOptions,
+  };
+}
+
 export function text<
   Context extends tmpl.SqlEmitContext,
 >(
@@ -532,4 +564,82 @@ export function* labeledSqlDomains<
       if (!include || include(d)) yield d;
     }
   }
+}
+
+/**
+ * Prepare map of common domain constructors from typical text values defining
+ * domain 'types'. This function is useful for parsing DDL or other schema and
+ * preparing runtime domain definitions from the schema ('reflection')
+ *
+ * For example, the following query could be used to determine all the types in
+ * a SQLite database:
+ *
+ * SELECT DISTINCT table_info.type
+ *   FROM sqlite_master
+ *   JOIN pragma_table_info(sqlite_master.name) as table_info
+ *  WHERE table_info.type <> ''`
+ *
+ * The results of that query could be passed into this function to prepare a map
+ * that, given a type name, could give back a function which prepares/constructs
+ * a domain for that type.
+ *
+ * @param domainIDs the list of domain IDs the prepare a domain factory map for
+ * returns a map which can be used to do construct domain factories
+ */
+export function typicalDomainFromTextFactory<
+  DomainID extends string,
+  Context extends tmpl.SqlEmitContext,
+>(...domainIDs: DomainID[]) {
+  const result = new Map<
+    DomainID,
+    (nullable?: boolean) => AxiomSqlDomain<Any, Context>
+  >();
+  for (const domainID of domainIDs) {
+    switch (domainID) {
+      case "":
+      case "UNTYPED":
+        result.set(
+          domainID,
+          (nullable) => nullable ? untypedNullable() : untyped(),
+        );
+        break;
+
+      case "INTEGER":
+        result.set(
+          domainID,
+          (nullable) => nullable ? integerNullable() : integer(),
+        );
+        break;
+
+      case "BIGINT":
+        result.set(
+          domainID,
+          (nullable) => nullable ? bigintNullable() : bigint(),
+        );
+        break;
+
+      case "DATETIME":
+        result.set(
+          domainID,
+          (nullable) => nullable ? dateTimeNullable() : dateTime(),
+        );
+        break;
+
+      default:
+        if (domainID.startsWith("NUMERIC")) {
+          // TODO: add "real" or "float"
+          result.set(
+            domainID,
+            (nullable) => nullable ? integerNullable() : integer(),
+          );
+        } else {
+          // if "text" or "NVARCHAR" or any other type
+          result.set(
+            domainID,
+            (nullable) => nullable ? textNullable() : text(),
+          );
+        }
+    }
+  }
+  return result;
 }

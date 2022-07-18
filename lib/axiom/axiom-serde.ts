@@ -133,6 +133,25 @@ export function defaultable<TsValueType>(
   return { ...toggle, defaultValue, isDefaultable };
 }
 
+export function untyped(
+  axiom: ax.Axiom<unknown> = ax.$.unknown,
+  atOptions?: Partial<AxiomSerDe<unknown>>,
+): AxiomSerDe<unknown> {
+  return {
+    ...axiom,
+    fromText: (text) => text,
+    isOptional: false,
+    ...atOptions,
+  };
+}
+
+export function untypedOptional(
+  axiom: ax.Axiom<unknown | undefined> = ax.$.string.optional(),
+  atOptions?: Partial<AxiomSerDe<unknown>>,
+): AxiomSerDe<unknown | undefined> {
+  return { ...axiom, fromText: (text) => text, isOptional: true, ...atOptions };
+}
+
 export function text(
   axiom: ax.Axiom<string> = ax.$.string,
   atOptions?: Partial<AxiomSerDe<string>>,
