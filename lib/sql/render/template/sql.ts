@@ -224,6 +224,67 @@ export function typicalSqlNamingStrategy(): SqlObjectNamesSupplier {
   return result;
 }
 
+export function bracketSqlNamingStrategy(): SqlObjectNamesSupplier {
+  const quotedIdentifiersNS: SqlObjectNames = {
+    schemaName: (name) => `[${name}]`,
+    tableName: (name) => `[${name}]`,
+    domainName: (name) => `[${name}]`,
+    tableColumnName: (tc, qtn) =>
+      qtn
+        // deno-fmt-ignore
+        ? `${quotedIdentifiersNS.tableName(tc.tableName)}${qtn}[${tc.columnName}]`
+        : `[${tc.columnName}]`,
+    viewName: (name) => `[${name}]`,
+    viewColumnName: (vc, qvn) =>
+      qvn
+        ? `${quotedIdentifiersNS.viewName(vc.viewName)}${qvn}[${vc.columnName}]`
+        : `[${vc.columnName}]`,
+    typeName: (name) => `[${name}]`,
+    typeFieldName: (tf, qtn) =>
+      qtn
+        ? `${quotedIdentifiersNS.typeName(tf.typeName)}${qtn}[${tf.fieldName}]`
+        : `[${tf.fieldName}]`,
+    storedRoutineName: (name) => `[${name}]`,
+    storedRoutineArgName: (name) => `[${name}]`,
+    storedRoutineReturns: (name) => `[${name}]`,
+  };
+
+  const bareIdentifiersNS: SqlObjectNames = {
+    schemaName: (name) => name,
+    tableName: (name) => name,
+    domainName: (name) => name,
+    tableColumnName: (tc, qtn) =>
+      qtn
+        ? `${bareIdentifiersNS.tableName(tc.tableName)}${qtn}${tc.columnName}`
+        : tc.columnName,
+    viewName: (name) => name,
+    viewColumnName: (vc, qvn) =>
+      qvn
+        ? `${bareIdentifiersNS.viewName(vc.viewName)}${qvn}${vc.columnName}`
+        : vc.columnName,
+    typeName: (name) => name,
+    typeFieldName: (tf, qtn) =>
+      qtn
+        ? `${bareIdentifiersNS.typeName(tf.fieldName)}${qtn}${tf.fieldName}`
+        : tf.fieldName,
+    storedRoutineName: (name) => name,
+    storedRoutineArgName: (name) => name,
+    storedRoutineReturns: (name) => name,
+  };
+
+  const result: SqlObjectNamesSupplier = (
+    ctx,
+    nsOptions,
+  ) => {
+    const ns = nsOptions?.quoteIdentifiers
+      ? quotedIdentifiersNS
+      : bareIdentifiersNS;
+    return nsOptions?.qnss ? nsOptions.qnss.qualifiedNames(ctx, ns) : ns;
+  };
+
+  return result;
+}
+
 export function typicalSqlTextEmitOptions(): SqlTextEmitOptions {
   return {
     quotedLiteral: typicalQuotedSqlLiteral,
