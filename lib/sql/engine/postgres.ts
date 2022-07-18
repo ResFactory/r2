@@ -106,7 +106,11 @@ export class PostgreSqlEventEmitter<
   releasing(c: Connection): void;
 
   constructStorage(cc: eng.SqlDefineConn<Engine, Instance, Context>): void;
-  constructIdempotent(cc: eng.SqlReadConn<Engine, Instance, Context>): void;
+  constructIdempotent(
+    cc:
+      | eng.SqlReadRowsConn<Engine, Instance, Context>
+      | eng.SqlReadRecordsConn<Engine, Instance, Context>,
+  ): void;
   populateSeedData(cc: eng.SqlWriteConn<Engine, Instance, Context>): void;
 
   executedDDL(result: ex.QueryExecutionRowsSupplier<Any, Context>): void;
@@ -270,7 +274,12 @@ export class PostgreSqlInstance<Context extends SQLa.SqlEmitContext>
   implements
     eng.SqlEngineInstance<PostgreSqlEngine>,
     eng.SqlDefineConn<PostgreSqlEngine, PostgreSqlInstance<Context>, Context>,
-    eng.SqlReadConn<PostgreSqlEngine, PostgreSqlInstance<Context>, Context>,
+    eng.SqlReadRowsConn<PostgreSqlEngine, PostgreSqlInstance<Context>, Context>,
+    eng.SqlReadRecordsConn<
+      PostgreSqlEngine,
+      PostgreSqlInstance<Context>,
+      Context
+    >,
     eng.SqlWriteConn<PostgreSqlEngine, PostgreSqlInstance<Context>, Context> {
   readonly identity: string;
   readonly dbClientOptions: pg.ClientOptions;

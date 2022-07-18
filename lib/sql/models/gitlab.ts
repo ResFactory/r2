@@ -310,7 +310,7 @@ export function gitLabSqlStmts() {
 }
 
 export function gitLabContent<Context extends GitLabSqlEmitContext>(
-  readConnSupplier: (ctx: Context) => eng.SqlReadConn<Any, Any, Context>,
+  readConnSupplier: (ctx: Context) => eng.SqlReadRecordsConn<Any, Any, Context>,
   glCtx = gitLabSqlEmitContext<Context>(),
 ) {
   const glSS = gitLabSqlStmts();

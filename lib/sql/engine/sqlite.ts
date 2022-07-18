@@ -19,7 +19,11 @@ export class SqliteEventEmitter<
   closedDatabase(i: Instance): void;
 
   constructStorage(cc: eng.SqlDefineConn<Engine, Instance, Context>): void;
-  constructIdempotent(cc: eng.SqlReadConn<Engine, Instance, Context>): void;
+  constructIdempotent(
+    cc:
+      | eng.SqlReadRowsConn<Engine, Instance, Context>
+      | eng.SqlReadRecordsConn<Engine, Instance, Context>,
+  ): void;
   populateSeedData(cc: eng.SqlWriteConn<Engine, Instance, Context>): void;
 
   executedDDL(result: ex.QueryExecutionRowsSupplier<Any, Context>): void;
@@ -130,7 +134,8 @@ export class SqliteInstance<Context extends SQLa.SqlEmitContext>
   implements
     eng.SqlEngineInstance<SqliteEngine>,
     eng.SqlDefineConn<SqliteEngine, SqliteInstance<Context>, Context>,
-    eng.SqlReadConn<SqliteEngine, SqliteInstance<Context>, Context>,
+    eng.SqlReadRowsConn<SqliteEngine, SqliteInstance<Context>, Context>,
+    eng.SqlReadRecordsConn<SqliteEngine, SqliteInstance<Context>, Context>,
     eng.SqlWriteConn<SqliteEngine, SqliteInstance<Context>, Context>,
     eng.SqlReflectConn<SqliteEngine, SqliteInstance<Context>, Context> {
   readonly identity: string;

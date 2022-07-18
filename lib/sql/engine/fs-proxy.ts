@@ -76,7 +76,8 @@ export function fileSysSqlProxyEngine<Context extends SQLa.SqlEmitContext>() {
     canonicalFsProxy: (
       fsProxy: FileSysSqlProxy<Context>,
       canonicalSupplier: () =>
-        | eng.SqlReadConn<Any, Any, Context> // when canonical is available
+        | eng.SqlReadRowsConn<Any, Any, Context> // when canonical is available
+        | eng.SqlReadRecordsConn<Any, Any, Context> // when canonical is available
         | undefined, // in case canonical is not available,
       identity = fsProxy.identity,
     ) => {
@@ -230,7 +231,16 @@ export function fsSqlProxyRecordsExecutor<Context extends SQLa.SqlEmitContext>(
 export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   implements
     eng.SqlEngineInstance<FileSysSqlProxyEngine>,
-    eng.SqlReadConn<FileSysSqlProxyEngine, FileSysSqlProxy<Context>, Context>,
+    eng.SqlReadRowsConn<
+      FileSysSqlProxyEngine,
+      FileSysSqlProxy<Context>,
+      Context
+    >,
+    eng.SqlReadRecordsConn<
+      FileSysSqlProxyEngine,
+      FileSysSqlProxy<Context>,
+      Context
+    >,
     ex.QueryExecutionProxyStore<Context> {
   readonly identity: string;
   readonly resultsStoreHome: string;
@@ -470,7 +480,12 @@ export class FileSysSqlProxy<Context extends SQLa.SqlEmitContext>
 export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   implements
     eng.SqlEngineInstance<FileSysSqlProxyEngine>,
-    eng.SqlReadConn<
+    eng.SqlReadRowsConn<
+      FileSysSqlProxyEngine,
+      CanonicalFileSysSqlProxy<Context>,
+      Context
+    >,
+    eng.SqlReadRecordsConn<
       FileSysSqlProxyEngine,
       CanonicalFileSysSqlProxy<Context>,
       Context
@@ -478,7 +493,8 @@ export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
   constructor(
     readonly fsProxy: FileSysSqlProxy<Context>,
     readonly canonicalSupplier: () =>
-      | eng.SqlReadConn<Any, Any, Context> // when canonical is available
+      | eng.SqlReadRowsConn<Any, Any, Context> // when canonical is available
+      | eng.SqlReadRecordsConn<Any, Any, Context> // when canonical is available
       | undefined, // in case canonical is not available
     readonly identity = fsProxy.identity,
   ) {
@@ -492,6 +508,22 @@ export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     const result = await this.fsProxy.rowsDQL<Row>(ctx, query, options);
     if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
       const ce = this.canonicalSupplier();
+      if (
+        !eng.isSqlReadRowsConn<
+          FileSysSqlProxyEngine,
+          CanonicalFileSysSqlProxy<Context>,
+          Context
+        >(ce)
+      ) {
+        return {
+          query,
+          rows: [],
+          error: new Error(
+            `isSqlReadRowsConn(canonical) false, no support for reading rows`,
+          ),
+        };
+      }
+
       if (ce) {
         return ce.rowsDQL<Row>(ctx, query, options);
       }
@@ -512,6 +544,22 @@ export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     const result = await this.fsProxy.recordsDQL<Object>(ctx, query, options);
     if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
       const ce = this.canonicalSupplier();
+      if (
+        !eng.isSqlReadRecordsConn<
+          FileSysSqlProxyEngine,
+          CanonicalFileSysSqlProxy<Context>,
+          Context
+        >(ce)
+      ) {
+        return {
+          query,
+          records: [],
+          error: new Error(
+            `isSqlReadRecordsConn(canonical) false, no support for reading records`,
+          ),
+        };
+      }
+
       if (ce) {
         return ce.recordsDQL<Object>(ctx, query, options);
       }
@@ -546,6 +594,23 @@ export class CanonicalFileSysSqlProxy<Context extends SQLa.SqlEmitContext>
     );
     if (!result || this.fsProxy.isRevivedQueryExecResultExpired(result)) {
       const ce = this.canonicalSupplier();
+      if (
+        !eng.isSqlReadRecordsConn<
+          FileSysSqlProxyEngine,
+          CanonicalFileSysSqlProxy<Context>,
+          Context
+        >(ce)
+      ) {
+        return {
+          query,
+          records: [],
+          record: await options?.onNotFound?.() ?? {} as Any,
+          error: new Error(
+            `isSqlReadRecordsConn(canonical) false, no support for reading records`,
+          ),
+        };
+      }
+
       if (ce) {
         return ce.firstRecordDQL<Object>(ctx, query, options);
       }

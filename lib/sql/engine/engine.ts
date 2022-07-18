@@ -34,12 +34,19 @@ export interface SqlDefineConn<
   readonly rowsDDL: ex.QueryRowsExecutor<Context>;
 }
 
-export interface SqlReadConn<
+export interface SqlReadRowsConn<
   Engine extends SqlEngine,
   Instance extends SqlEngineInstance<Engine>,
   Context extends SQLa.SqlEmitContext,
 > extends SqlEngineConnection<Engine, Instance> {
   readonly rowsDQL: ex.QueryRowsExecutor<Context>;
+}
+
+export interface SqlReadRecordsConn<
+  Engine extends SqlEngine,
+  Instance extends SqlEngineInstance<Engine>,
+  Context extends SQLa.SqlEmitContext,
+> extends SqlEngineConnection<Engine, Instance> {
   readonly recordsDQL: ex.QueryRecordsExecutor<Context>;
   readonly firstRecordDQL: <Object extends ex.SqlRecord>(
     ctx: Context,
@@ -110,21 +117,40 @@ export function isSqlDefineConn<
   return isSDC(o);
 }
 
-export function isSqlReadConn<
+export function isSqlReadRowsConn<
   Engine extends SqlEngine,
   Instance extends SqlEngineInstance<Engine>,
   Context extends SQLa.SqlEmitContext,
->(o: unknown): o is SqlReadConn<
+>(o: unknown): o is SqlReadRowsConn<
   Engine,
   Instance,
   Context
 > {
   const isSRC = safety.typeGuard<
-    SqlReadConn<
+    SqlReadRowsConn<
       Engine,
       Instance,
       Context
     >
-  >("rowsDQL", "recordsDQL", "firstRecordDQL");
+  >("rowsDQL");
+  return isSRC(o);
+}
+
+export function isSqlReadRecordsConn<
+  Engine extends SqlEngine,
+  Instance extends SqlEngineInstance<Engine>,
+  Context extends SQLa.SqlEmitContext,
+>(o: unknown): o is SqlReadRecordsConn<
+  Engine,
+  Instance,
+  Context
+> {
+  const isSRC = safety.typeGuard<
+    SqlReadRecordsConn<
+      Engine,
+      Instance,
+      Context
+    >
+  >("recordsDQL", "firstRecordDQL");
   return isSRC(o);
 }

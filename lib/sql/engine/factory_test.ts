@@ -122,7 +122,7 @@ Deno.test("detect engine instance from query using named instance preparers", as
     );
     ta.assert(result.engineInstance);
     ta.assert(result.engineInstance.identity, "osqueryi");
-    ta.assert(eng.isSqlReadConn(result.engineInstance));
+    ta.assert(eng.isSqlReadRecordsConn(result.engineInstance));
     const osQER = await result.engineInstance.recordsDQL(ctx, sysInfoQuery);
     ta.assert(osQER);
     ta.assert(osQER.records);

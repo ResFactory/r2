@@ -171,7 +171,7 @@ export function sqlShellCmdRecordsExecutor<Context extends SQLa.SqlEmitContext>(
 export class SqlShellCmdExecutive<Context extends SQLa.SqlEmitContext>
   implements
     eng.SqlEngineInstance<SqlShellCmdsEngine>,
-    eng.SqlReadConn<
+    eng.SqlReadRecordsConn<
       SqlShellCmdsEngine,
       SqlShellCmdExecutive<Context>,
       Context
@@ -191,16 +191,6 @@ export class SqlShellCmdExecutive<Context extends SQLa.SqlEmitContext>
 
     this.rowsExec = sqlShellCmdRowsExecutor(this.prepareExecuteSqlCmd);
     this.recordsExec = sqlShellCmdRecordsExecutor(this.prepareExecuteSqlCmd);
-  }
-
-  async rowsDQL<Row extends ex.SqlRow>(
-    ctx: Context,
-    query: ex.SqlBindParamsTextSupplier<Context>,
-    options?: ex.QueryRowsExecutorOptions<Row, Context>,
-  ): Promise<ex.QueryExecutionRowsSupplier<Row, Context>> {
-    const result = await this.rowsExec<Row>(ctx, query, options);
-    this.fsspEE.emit("executedDQL", result);
-    return result;
   }
 
   async recordsDQL<Object extends ex.SqlRecord>(
