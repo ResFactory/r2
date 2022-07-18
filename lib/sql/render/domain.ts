@@ -584,7 +584,7 @@ export function* labeledSqlDomains<
  * a domain for that type.
  *
  * @param domainIDs the list of domain IDs the prepare a domain factory map for
- * returns a map which can be used to do construct domain factories
+ * @returns a map which can be used to do construct domain factories
  */
 export function typicalDomainFromTextFactory<
   DomainID extends string,
@@ -642,4 +642,63 @@ export function typicalDomainFromTextFactory<
     }
   }
   return result;
+}
+
+/**
+ * domainFromValue creates a domain by inspecting a Javascript value.
+ *
+ * @param value the value to inspect
+ * @returns a map which can be used to do construct domain factories
+ */
+export function domainFromValue<
+  TsValueType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  value: TsValueType,
+  isNullable = false,
+) {
+  switch (typeof value) {
+    case "string":
+      return isNullable ? textNullable<Context>() : text<Context>();
+
+    // TODO: set this to "real" or "float"?
+
+    case "number":
+      return isNullable ? integerNullable<Context>() : integer<Context>();
+
+    case "bigint":
+      return isNullable ? bigintNullable<Context>() : bigint<Context>();
+
+    // TODO: add other types
+
+    default:
+      return undefined;
+  }
+}
+
+export function domainAxiomsFromObject<
+  Object extends Record<string, unknown>,
+  Context extends tmpl.SqlEmitContext,
+  TPropAxioms extends Record<keyof Object, ax.Axiom<Any>> = Record<
+    keyof Object,
+    ax.Axiom<Any>
+  >,
+>(exemplar: Object) {
+  const axioms: TPropAxioms = {} as Any;
+  for (const entry of Object.entries(exemplar)) {
+    const [key, value] = entry;
+    (axioms[key] as Any) = domainFromValue<Any, Context>(value);
+  }
+  return axioms;
+}
+
+export function untypeDomainsAxiomsFromKeys<
+  Identity extends string,
+  Context extends tmpl.SqlEmitContext,
+>(...keys: Identity[]) {
+  const axioms: Record<Identity, ax.Axiom<Any>> = {} as Any;
+  for (const key of keys) {
+    (axioms[key] as Any) = untyped<Context>();
+  }
+  return axioms;
 }
