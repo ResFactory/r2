@@ -89,6 +89,16 @@ export interface SqlReflectConn<
   >;
 }
 
+export interface SqlReflectDatabasesConn<
+  Engine extends SqlEngine,
+  Instance extends SqlEngineInstance<Engine>,
+  Context extends SQLa.SqlEmitContext,
+> extends SqlEngineConnection<Engine, Instance> {
+  readonly reflectDatabases: <DatabaseID extends string>(
+    ctx: Context,
+  ) => AsyncGenerator<{ databaseID: DatabaseID }>;
+}
+
 export interface SqlWriteConn<
   Engine extends SqlEngine,
   Instance extends SqlEngineInstance<Engine>,
