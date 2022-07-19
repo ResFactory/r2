@@ -400,6 +400,9 @@ The system generates lint messages:
 
 - [x] Dependency graphs (relationships from FKs, links, etc.)
 - [x] Generate PlantUML Information Engineering diagrams
+- [ ] Consider whether SQLa could join the [UnifiedJs](https://unifiedjs.com/)
+      community as another ecosystem (like `remark`, `rehype`, `redot`, etc.)
+      with a custom SQL syntax tree (`sst`?) or `unist`.
 - [ ] Generate `IMM` markdown files as human-readable documentation
 - [ ] Generate [DataHub](https://datahubproject.io/)-ingestable governance meta
       data
