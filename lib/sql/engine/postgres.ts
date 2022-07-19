@@ -6,6 +6,7 @@ import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 import * as eng from "./engine.ts";
 import * as fsP from "./fs-proxy.ts";
+import * as cu from "./conn-uri.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -53,6 +54,50 @@ export function pgDbConnEnvConfig(
       ...validate: (keyof DbConnConfig)[]
     ) => {
       return dbConnConfig.missingValues(dbc, ...validate);
+    },
+  };
+}
+
+export function pgDbConnUriConfig() {
+  type ConnProps = cu.EngineInstanceConnProps & {
+    readonly applicationName?: string;
+    readonly tls?: { enabled: boolean };
+    readonly dbConnPoolCount?: number;
+  };
+
+  return {
+    configure: (
+      dbURI: string | (() => string),
+      options?: cu.EngineConnPropsOptions<ConnProps>,
+    ) => {
+      return cu.engineConnProps<ConnProps>(dbURI, {
+        transformQueryParam: (key, value) => {
+          if (key == "appname") return { key: "applicationName", value };
+          if (key == "tls") {
+            return {
+              key,
+              value: { enabled: value == "true" || value == "yes" },
+            };
+          }
+          return { key: key as keyof ConnProps, value };
+        },
+        ...options,
+      });
+    },
+    isValid: (connProps: ConnProps) =>
+      connProps && connProps.driver == "postgres" && connProps.database &&
+      connProps.host,
+    pgClientOptions: (connProps: ConnProps) => {
+      const pgco: pg.ClientOptions = {
+        applicationName: connProps.applicationName,
+        database: connProps.database,
+        hostname: connProps.host,
+        port: connProps.port,
+        user: connProps.username,
+        password: connProps.password,
+        tls: connProps.tls,
+      };
+      return pgco;
     },
   };
 }

@@ -6,10 +6,10 @@ import * as ex from "../execute/mod.ts";
 
 const isCICD = Deno.env.get("CI") ? true : false;
 
-Deno.test("PostgreSQL engine connection configuration", async (tc) => {
+Deno.test("PostgreSQL engine connection properties configuration", async (tc) => {
   const pgdbcc = mod.pgDbConnEnvConfig();
 
-  await tc.step("from code", () => {
+  await tc.step("from code, individual properties", () => {
     const config = pgdbcc.configure({
       identity: "appName",
       database: "database",
@@ -113,6 +113,44 @@ Deno.test("PostgreSQL engine connection configuration", async (tc) => {
     Object.keys(syntheticEnv).forEach((envVarName) => {
       Deno.env.delete(envVarName);
     });
+  });
+});
+
+Deno.test("PostgreSQL engine connection URI configuration", async (tc) => {
+  const pgdbcuc = mod.pgDbConnUriConfig();
+  await tc.step("from code", () => {
+    const config = pgdbcuc.configure(
+      `postgres://user:password@hostname:5433/database?appname=appName`,
+    );
+    ta.assert(config);
+    ta.assert(pgdbcuc.isValid(config));
+    const pgClient = pgdbcuc.pgClientOptions(config);
+    ta.assert(pgClient);
+    ta.assertEquals(pgClient.applicationName, "appName");
+    ta.assertEquals(pgClient.database, "database");
+    ta.assertEquals(pgClient.hostname, "hostname");
+    ta.assertEquals(pgClient.port, 5433);
+    ta.assertEquals(pgClient.user, "user");
+    ta.assertEquals(pgClient.password, "password");
+  });
+
+  await tc.step("from env var", () => {
+    Deno.env.set(
+      "SYNTHETIC_ENV",
+      `postgres://user:password@hostname:5433/database?appname=appName`,
+    );
+    const config = pgdbcuc.configure(() => Deno.env.get("SYNTHETIC_ENV")!);
+    Deno.env.delete("SYNTHETIC_ENV");
+    ta.assert(config);
+    ta.assert(pgdbcuc.isValid(config));
+    const pgClient = pgdbcuc.pgClientOptions(config);
+    ta.assert(pgClient);
+    ta.assertEquals(pgClient.applicationName, "appName");
+    ta.assertEquals(pgClient.database, "database");
+    ta.assertEquals(pgClient.hostname, "hostname");
+    ta.assertEquals(pgClient.port, 5433);
+    ta.assertEquals(pgClient.user, "user");
+    ta.assertEquals(pgClient.password, "password");
   });
 });
 
