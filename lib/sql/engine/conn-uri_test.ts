@@ -41,6 +41,35 @@ Deno.test("Engine instance connection URI properties", async (tc) => {
       });
     });
 
+    await tc.step(
+      "typical without query params and un/pw interpolated from env",
+      () => {
+        Deno.env.set("SYNTHETIC_PGDB_USERNAME", "synthUSER");
+        Deno.env.set("SYNTHETIC_PGDB_PASSWORD", "synthPASS");
+        const pgCP = mod.engineConnProps(
+          "postgres://${USERNAME}:${PASSWORD}@localhost:5433/dbinstance",
+          {
+            envVarNamingStrategy: (envVarName) =>
+              `SYNTHETIC_PGDB_${envVarName}`,
+          },
+        );
+        ta.assertEquals(pgCP, {
+          driver: "postgres",
+          username: "synthUSER",
+          password: "synthPASS",
+          host: "localhost",
+          database: "dbinstance",
+          port: 5433,
+          interpolatables: {
+            USERNAME: "synthUSER",
+            PASSWORD: "synthPASS",
+          },
+        });
+        Deno.env.delete("SYNTHETIC_PGDB_USERNAME");
+        Deno.env.delete("SYNTHETIC_PGDB_PASSWORD");
+      },
+    );
+
     await tc.step("with query params", () => {
       type Custom = mod.EngineInstanceConnProps & {
         readonly some?: string;
@@ -125,6 +154,38 @@ Deno.test("Engine instance connection URI properties", async (tc) => {
         host: "server.heroku.com",
         port: 1337,
         database: "herokudb",
+      });
+    });
+  });
+
+  await tc.step("shell", async (tc) => {
+    await tc.step("osQuery", () => {
+      const pgCP = mod.engineConnProps(
+        "shell://osquery",
+      );
+      ta.assertEquals(pgCP, {
+        driver: "shell",
+        host: "osquery",
+      });
+    });
+
+    await tc.step("mergestat", () => {
+      const pgCP = mod.engineConnProps(
+        "shell://mergestat",
+      );
+      ta.assertEquals(pgCP, {
+        driver: "shell",
+        host: "mergestat",
+      });
+    });
+
+    await tc.step("fselect", () => {
+      const pgCP = mod.engineConnProps(
+        "shell://fselect",
+      );
+      ta.assertEquals(pgCP, {
+        driver: "shell",
+        host: "fselect",
       });
     });
   });

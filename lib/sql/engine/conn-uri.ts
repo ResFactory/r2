@@ -1,5 +1,13 @@
+import * as interp from "../../text/interpolate.ts";
+
 // deno-lint-ignore no-explicit-any
 type Any = any;
+
+export interface EngineInstanceConnInterpolatable
+  extends Record<string, string> {
+  USERNAME: string;
+  PASSWORD: string;
+}
 
 export interface EngineInstanceConnProps {
   driver?: string;
@@ -9,29 +17,35 @@ export interface EngineInstanceConnProps {
   port?: number;
   database?: string;
   filename?: string; // For SQLite
+  interpolatables?: EngineInstanceConnInterpolatable;
 }
 
 export interface EngineConnPropsOptions<
-  ConnPropsMutable extends EngineInstanceConnProps,
-  ConnProps extends Readonly<ConnPropsMutable> = Readonly<ConnPropsMutable>,
+  ConnProps extends EngineInstanceConnProps,
   ConnPropKey extends keyof ConnProps = keyof ConnProps,
 > {
   readonly transformQueryParam?: (
     key: string,
     value: string,
   ) => { key: ConnPropKey; value: unknown };
-  readonly transform?: (cpm: ConnPropsMutable) => ConnProps;
-  readonly onInvalid?: (error: Error) => ConnProps | undefined;
+  readonly transform?: (cpm: ConnProps) => Readonly<ConnProps>;
+  readonly onInvalid?: (error: Error) => Readonly<ConnProps> | undefined;
+  readonly envVarNamingStrategy?: (
+    supplied: keyof EngineInstanceConnInterpolatable,
+  ) => string;
+  readonly interpolateStrategy?: interp.TextInterpolateStrategy<
+    EngineInstanceConnInterpolatable
+  >;
 }
 
 export function engineConnProps<
-  ConnPropsMutable extends EngineInstanceConnProps,
-  ConnProps extends Readonly<ConnPropsMutable> = Readonly<ConnPropsMutable>,
+  ConnProps extends EngineInstanceConnProps,
   ConnPropKey extends keyof ConnProps = keyof ConnProps,
 >(
   dbUriSupplier: string | (() => string),
-  options?: EngineConnPropsOptions<ConnPropsMutable, ConnProps>,
-): ConnProps | undefined {
+  options?: EngineConnPropsOptions<ConnProps>,
+): Readonly<ConnProps> | undefined {
+  const { envVarNamingStrategy } = options ?? {};
   const {
     transformQueryParam = (key: string, value: string) => ({
       key: key as ConnPropKey,
@@ -39,14 +53,31 @@ export function engineConnProps<
     }),
     transform,
     onInvalid,
+    interpolateStrategy = envVarNamingStrategy
+      ? {
+        replace: {
+          "USERNAME": () =>
+            Deno.env.get(envVarNamingStrategy("USERNAME")) ?? "",
+          "PASSWORD": () =>
+            Deno.env.get(envVarNamingStrategy("PASSWORD")) ?? "",
+        },
+      }
+      : undefined,
   } = options ?? {};
+  const interpolator = interpolateStrategy
+    ? interp.textInterpolator(interpolateStrategy)
+    : undefined;
 
   try {
-    const dbURI = typeof dbUriSupplier === "function"
+    const dbUriSupplied = typeof dbUriSupplier === "function"
       ? dbUriSupplier()
       : dbUriSupplier;
+    const { transformedText: dbURI, interpolated } = interpolator
+      ? interpolator.interpolateObservable(dbUriSupplied)
+      : { transformedText: dbUriSupplied, interpolated: undefined };
     const url = new URL(dbURI);
-    const config: ConnPropsMutable = {} as ConnPropsMutable;
+    const config: ConnProps = {} as ConnProps;
+    if (interpolated) config.interpolatables = interpolated;
 
     // any arbitrary query params kv pairs become part of the conn props
     for (const [spKey, spValue] of url.searchParams.entries()) {
@@ -88,7 +119,7 @@ export function engineConnProps<
       if (url.port) config.port = parseInt(url.port);
     }
 
-    return transform ? transform(config) : config as ConnProps;
+    return transform ? transform(config) : config as Readonly<ConnProps>;
   } catch (error) {
     return onInvalid?.(error);
   }
