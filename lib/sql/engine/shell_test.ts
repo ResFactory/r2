@@ -23,7 +23,7 @@ Deno.test("fselect SQL shell command", async (tc) => {
     const fsQER = await fselect.recordsDQL(ctx, sysInfoQuery);
     ta.assert(fsQER);
     // if fselect worked it should return totals files in the current path
-    ta.assertEquals(15, fsQER.records.length);
+    ta.assertEquals(17, fsQER.records.length);
   });
 
   await tc.step(`reflect file path as table`, async () => {
