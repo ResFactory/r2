@@ -1,4 +1,5 @@
-import { path, testingAsserts as ta } from "../render/deps-test.ts";
+import { testingAsserts as ta } from "./deps-test.ts";
+import { path } from "./deps.ts";
 import * as ws from "../../text/whitespace.ts";
 import * as mdf from "./typical_test-fixtures.ts";
 import * as SQLa from "../render/mod.ts";

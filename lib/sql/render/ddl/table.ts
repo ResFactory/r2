@@ -53,6 +53,25 @@ export function isTableColumnInsertDmlExclusionSupplier<
   return isIDES(o);
 }
 
+export type TableColumnInsertableOptionalSupplier<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+> = d.AxiomSqlDomain<ColumnTsType, Context> & {
+  readonly isOptionalInInsertableRecord: true;
+};
+
+export function isTableColumnInsertableOptionalSupplier<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  o: unknown,
+): o is TableColumnInsertableOptionalSupplier<ColumnTsType, Context> {
+  const isIDES = safety.typeGuard<
+    TableColumnInsertableOptionalSupplier<ColumnTsType, Context>
+  >("isOptionalInInsertableRecord");
+  return isIDES(o);
+}
+
 export type TableColumnFilterCriteriaDqlExclusionSupplier<
   ColumnTsType,
   Context extends tmpl.SqlEmitContext,
@@ -123,6 +142,48 @@ export function autoIncPrimaryKey<
       return axiom.sqlPartial?.(dest);
     },
   };
+}
+
+/**
+ * Declare a "user agent defaultable" (`uaDefaultable`) primary key domain.
+ * uaDefaultable means that the primary key is required on the way into the
+ * database but can be defaulted on the user agent ("UA") side. This type of
+ * AxiomSqlDomain is useful when the primary key is assigned a value from the
+ * client app/service before going into the database.
+ * @param axiom
+ * @returns
+ */
+export function uaDefaultablePrimaryKey<
+  ColumnTsType,
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom:
+    & d.AxiomSqlDomain<ColumnTsType, Context>
+    & ax.DefaultableAxiomSerDe<ColumnTsType>,
+) {
+  const result:
+    & d.AxiomSqlDomain<ColumnTsType, Context>
+    & ax.DefaultableAxiomSerDe<ColumnTsType>
+    & TablePrimaryKeyColumnDefn<ColumnTsType, Context>
+    & TableColumnInsertableOptionalSupplier<ColumnTsType, Context> = {
+      ...axiom,
+      isPrimaryKey: true,
+      isAutoIncrement: false,
+      isOptionalInInsertableRecord: true,
+      sqlPartial: (dest) => {
+        if (dest === "create table, column defn decorators") {
+          const ctcdd = axiom?.sqlPartial?.(
+            "create table, column defn decorators",
+          );
+          const decorators: tmpl.SqlTextSupplier<Context> = {
+            SQL: () => `PRIMARY KEY`,
+          };
+          return ctcdd ? [decorators, ...ctcdd] : [decorators];
+        }
+        return axiom.sqlPartial?.(dest);
+      },
+    };
+  return result;
 }
 
 export type TableBelongsToForeignKeyRelNature<
@@ -549,10 +610,30 @@ export function tableDefinition<
       Context
     >;
   };
+  type DefaultableValues = {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { defaultValue: Any } ? Property
+          : never
+      >
+    ]: (
+      ctx?: Context,
+    ) => TPropAxioms[Property] extends ax.Axiom<infer T> ? T | Promise<T>
+      : never;
+  };
+
   const primaryKey: PrimaryKeys = {} as Any;
+  const defaultValues: DefaultableValues = {} as Any;
   for (const column of sd.domains) {
     if (isTablePrimaryKeyColumnDefn(column)) {
       primaryKey[column.identity as (keyof PrimaryKeys)] = column as Any;
+    }
+
+    if (ax.isDefaultableAxiomSerDe(column)) {
+      defaultValues[column.identity as (keyof DefaultableValues)] = (
+        ctx,
+      ) => column.defaultValue?.(ctx) as Any;
     }
   }
 
@@ -587,6 +668,7 @@ export function tableDefinition<
       readonly columns: ColumnDefns;
       readonly primaryKey: PrimaryKeys;
       readonly foreignKeyRef: ForeignKeyRefs;
+      readonly default: DefaultableValues;
       readonly sqlNS?: ns.SqlNamespaceSupplier;
     }
     & tmpl.SqlSymbolSupplier<Context>
@@ -634,6 +716,7 @@ export function tableDefinition<
       columns,
       primaryKey,
       foreignKeyRef: fkRef,
+      default: defaultValues,
       sqlNS: tdOptions?.sqlNS,
     };
 
@@ -684,7 +767,7 @@ export function tableDomainsRowFactory<
   type EntireRecord =
     & tr.UntypedTabularRecordObject
     & ScalarValueOrSqlExpr<ax.AxiomType<typeof sd>>;
-  type ExcludeFromInsert = {
+  type ExcludeFromInsertDML = {
     [
       Property in keyof TPropAxioms as Extract<
         Property,
@@ -694,11 +777,33 @@ export function tableDomainsRowFactory<
       >
     ]: true;
   };
-  type ExcludePropertyName = Extract<
+  type ExcludeKeysFromFromInsertDML = Extract<
     keyof EntireRecord,
-    keyof ExcludeFromInsert
+    keyof ExcludeFromInsertDML
   >;
-  type InsertableRecord = Omit<EntireRecord, ExcludePropertyName>;
+
+  type OptionalInInsertableRecord = {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { isOptionalInInsertableRecord: true }
+          ? Property
+          : never
+      >
+    ]: true;
+  };
+  type OptionalKeysInInsertableRecord = Extract<
+    keyof EntireRecord,
+    keyof OptionalInInsertableRecord
+  >;
+
+  type AllButExcludedAndOptional = Omit<
+    Omit<EntireRecord, ExcludeKeysFromFromInsertDML>,
+    OptionalKeysInInsertableRecord
+  >;
+  type InsertableRecord =
+    & AllButExcludedAndOptional
+    & Partial<Pick<EntireRecord, OptionalKeysInInsertableRecord>>;
   type InsertableColumnName = keyof InsertableRecord & string;
   type InsertableObject = tr.TabularRecordToObject<InsertableRecord>;
 
@@ -722,14 +827,14 @@ export function tableDomainsRowFactory<
         if (group === "primary-keys") {
           return sd.domains.filter((d) =>
             isTablePrimaryKeyColumnDefn(d) ? true : false
-          ).map((d) => d.identity) as InsertableColumnName[];
+          );
         }
         return sd.domains.filter((d) =>
           isTableColumnInsertDmlExclusionSupplier(d) &&
             d.isExcludedFromInsertDML
             ? false
             : true
-        ).map((d) => d.identity) as InsertableColumnName[];
+        );
       },
       tdrfOptions?.defaultIspOptions,
     ),
@@ -755,11 +860,28 @@ export function tableSelectFactory<
 ) {
   const sd = d.sqlDomains(props, tdrfOptions);
 
+  type OptionalInInsertableRecord = {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { isOptionalInInsertableRecord: true }
+          ? Property
+          : never
+      >
+    ]: true;
+  };
+  type OptionalKeysInInsertableRecord = Extract<
+    keyof EntireRecord,
+    keyof OptionalInInsertableRecord
+  >;
+
   type EntireRecord =
     & tr.UntypedTabularRecordObject
     & cr.FilterableRecordValues<ax.AxiomType<typeof sd>, Context>;
 
-  type FilterableRecord = EntireRecord; // nothing is excluded for now, maybe later?
+  type FilterableRecord =
+    & Omit<EntireRecord, OptionalKeysInInsertableRecord>
+    & Partial<Pick<EntireRecord, OptionalKeysInInsertableRecord>>;
   type FilterableColumnName = keyof FilterableRecord & string;
   type FilterableObject = tr.TabularRecordToObject<FilterableRecord>;
 

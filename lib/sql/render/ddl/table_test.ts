@@ -4,6 +4,7 @@ import * as tmpl from "../template/mod.ts";
 import * as d from "../domain.ts";
 import * as l from "../lint.ts";
 import * as ax from "../../../axiom/mod.ts";
+import * as axsdc from "../../../axiom/axiom-serde-crypto.ts";
 import * as sch from "./schema.ts";
 import * as dql from "../dql/mod.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
@@ -26,7 +27,13 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     {
       synthetic_table1_id: mod.autoIncPrimaryKey(d.integer()),
       column_one_text: d.text(),
-      column_two_text_nullable: d.textNullable(),
+      column_two_text_nullable_defaultable: ax.defaultableOptional<
+        string | undefined
+      >(
+        d.textNullable(),
+        () => `synthetic-defaulted`,
+      ),
+      column_three_text_digest: d.sha1Digest(() => `synthetic-digest-source`),
       column_unique: mod.unique(d.text()),
       column_linted: d.lintedSqlDomain(
         d.text(),
@@ -70,21 +77,30 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
 
   const ctx = tmpl.typicalSqlEmitContext();
 
-  await tc.step("table 1 definition", () => {
+  await tc.step("table 1 definition", async () => {
     ta.assert(mod.isTableDefinition(syntheticTable1Defn));
     ta.assert(syntheticTable1Defn);
     ta.assertEquals("synthetic_table1", syntheticTable1Defn.tableName);
-    ta.assert(syntheticTable1Defn.domains.length == 6);
+    ta.assert(syntheticTable1Defn.domains.length == 7);
     ta.assertEquals(
       [
         "synthetic_table1_id",
         "column_one_text",
-        "column_two_text_nullable",
+        "column_two_text_nullable_defaultable",
+        "column_three_text_digest",
         "column_unique",
         "column_linted",
         "created_at",
       ],
       syntheticTable1Defn.domains.map((cd) => cd.identity),
+    );
+    ta.assertEquals(
+      `synthetic-defaulted`,
+      syntheticTable1Defn.default.column_two_text_nullable_defaultable(),
+    );
+    ta.assertEquals(
+      await axsdc.sha1Digest(`synthetic-digest-source`),
+      await syntheticTable1Defn.default.column_three_text_digest(),
     );
   });
 
@@ -102,7 +118,8 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         CREATE TABLE "synthetic_table1" (
             "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
             "column_one_text" TEXT NOT NULL,
-            "column_two_text_nullable" TEXT,
+            "column_two_text_nullable_defaultable" TEXT,
+            "column_three_text_digest" TEXT NOT NULL,
             "column_unique" TEXT NOT NULL,
             "column_linted" TEXT NOT NULL,
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -119,6 +136,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       columnOneText: "text",
       columnUnique: "unique",
       columnLinted: "linted",
+      columnThreeTextDigest: axsdc.sha1DigestUndefined,
     });
     expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(
       row.column_one_text,
@@ -129,8 +147,8 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     ta.assertEquals(
       syntheticTable1DefnVW.SQL(ctx),
       uws(`
-        CREATE VIEW IF NOT EXISTS "synthetic_table1_vw"("synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") AS
-            SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at"
+        CREATE VIEW IF NOT EXISTS "synthetic_table1_vw"("synthetic_table1_id", "column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") AS
+            SELECT "synthetic_table1_id", "column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at"
               FROM "synthetic_table1"`),
     );
   });
@@ -194,10 +212,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     const synthetic1: Synthetic1 = {
       synthetic_table1_id: 1,
       column_one_text: "text",
-      // TODO: figure out why removing this nullable text fails the test
-      column_two_text_nullable: "TODO: should be nullable but test fails",
       column_unique: "unique",
       column_linted: "linted",
+      column_three_text_digest: axsdc.sha1DigestUndefined,
       created_at: new Date(),
     };
     ta.assert(syntheticTable1Defn.test(synthetic1, {
@@ -207,17 +224,19 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     }));
   });
 
-  await tc.step("typed table 1 DML row values", () => {
+  await tc.step("typed table 1 DML row values", async () => {
     const insertable = syntheticTable1DefnRF.prepareInsertable({
       columnOneText: "text",
       columnUnique: "value",
       columnLinted: "linted",
+      columnThreeTextDigest: await syntheticTable1Defn.default
+        .column_three_text_digest(),
       createdAt: new Date(),
     });
     ta.assert(insertable);
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ('text', 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', '${
         String(insertable.created_at)
       }')`,
     );
@@ -230,19 +249,21 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
           `select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
         column_unique: "value",
         column_linted: "linted",
+        column_three_text_digest: await syntheticTable1Defn.default
+          .column_three_text_digest(),
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), NULL, 'value', 'linted', NULL)`,
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', NULL)`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "*" }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ('text', 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', '${
         String(insertable.created_at)
       }') RETURNING *`,
     );
     ta.assertEquals(
       syntheticTable1DefnRF.insertDML(insertable, { returning: "primary-keys" })
         .SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ('text', 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', '${
         String(insertable.created_at)
       }') RETURNING "synthetic_table1_id"`,
     );
@@ -251,7 +272,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         returning: { columns: ["synthetic_table1_id"] },
         onConflict: { SQL: () => `ON CONFLICT ("synthetic_table1_id") IGNORE` },
       }).SQL(ctx),
-      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable", "column_unique", "column_linted", "created_at") VALUES ('text', NULL, 'value', 'linted', '${
+      `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ('text', 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', '${
         String(insertable.created_at)
       }') ON CONFLICT ("synthetic_table1_id") IGNORE RETURNING "synthetic_table1_id"`,
     );

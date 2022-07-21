@@ -1,5 +1,7 @@
+import * as ax from "../../../axiom/mod.ts";
 import * as safety from "../../../safety/mod.ts";
 import * as tmpl from "../template/mod.ts";
+import * as d from "../domain.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -26,11 +28,13 @@ export interface InsertStmtPreparerOptions<
   readonly isColumnEmittable?: (
     columnName: keyof InsertableRecord,
     record: InsertableRecord,
+    columnDefn: d.IdentifiableSqlDomain<Any, Context>,
     tableName: TableName,
   ) => boolean;
   readonly emitColumn?: (
     columnName: keyof InsertableRecord,
     record: InsertableRecord,
+    columnDefn: d.IdentifiableSqlDomain<Any, Context>,
     tableName: TableName,
     ns: tmpl.SqlObjectNames,
     ctx: Context,
@@ -79,6 +83,7 @@ export interface InsertStmtPreparer<
     >,
   ): tmpl.SqlTextSupplier<Context> & {
     readonly insertable: InsertableRecord;
+    readonly returnable: (ir: InsertableRecord) => ReturnableRecord;
   };
 }
 
@@ -90,7 +95,9 @@ export function typicalInsertStmtPreparer<
   InsertableColumnName extends keyof InsertableRecord = keyof InsertableRecord,
 >(
   tableName: TableName,
-  candidateColumns: (group?: "all" | "primary-keys") => InsertableColumnName[],
+  candidateColumns: (
+    group?: "all" | "primary-keys",
+  ) => d.IdentifiableSqlDomain<Any, Context>[],
   defaultIspOptions?: InsertStmtPreparerOptions<
     TableName,
     InsertableRecord,
@@ -106,6 +113,7 @@ export function typicalInsertStmtPreparer<
   return (ir, ispOptions = defaultIspOptions) => {
     return {
       insertable: ir,
+      returnable: (ir) => ir as unknown as ReturnableRecord,
       SQL: (ctx) => {
         const {
           isColumnEmittable,
@@ -120,8 +128,13 @@ export function typicalInsertStmtPreparer<
         });
         const names: InsertableColumnName[] = [];
         const values: [value: unknown, valueSqlText: string][] = [];
-        candidateColumns().forEach((c) => {
-          if (isColumnEmittable && !isColumnEmittable(c, ir, tableName)) return;
+        candidateColumns().forEach((cdom) => {
+          const cn = cdom.identity as InsertableColumnName;
+          if (
+            isColumnEmittable && !isColumnEmittable(cn, ir, cdom, tableName)
+          ) {
+            return;
+          }
 
           let ec: [
             columNameSqlText: string,
@@ -129,19 +142,25 @@ export function typicalInsertStmtPreparer<
             valueSqlText: string,
           ] | undefined;
           if (emitColumn) {
-            ec = emitColumn(c, ir, tableName, ns, ctx);
+            ec = emitColumn(cn, ir, cdom, tableName, ns, ctx);
           } else {
             const { quotedLiteral } = eo;
-            const recordValueRaw = (ir as Any)[c];
+            let recordValueRaw = (ir as Any)[cn];
             if (tmpl.isSqlTextSupplier(recordValueRaw)) {
               ec = [
-                c as string,
+                cn as string,
                 recordValueRaw,
                 `(${recordValueRaw.SQL(ctx)})`, // e.g. `(SELECT x from y) as SQL expr`
               ];
             } else {
+              if (
+                ax.isDefaultableAxiomSerDe(cdom) &&
+                cdom.isDefaultable(recordValueRaw)
+              ) {
+                recordValueRaw = cdom.defaultValue?.(ctx);
+              }
               const qValue = quotedLiteral(recordValueRaw);
-              ec = [c as string, ...qValue];
+              ec = [cn as string, ...qValue];
             }
           }
           if (ec) {
@@ -172,8 +191,8 @@ export function typicalInsertStmtPreparer<
               break;
             case "primary-keys":
               returningSQL = ` RETURNING ${
-                candidateColumns("primary-keys").map((n) =>
-                  ns.tableColumnName({ tableName, columnName: String(n) })
+                candidateColumns("primary-keys").map((isd) =>
+                  ns.tableColumnName({ tableName, columnName: isd.identity })
                 ).join(", ")
               }`;
               break;

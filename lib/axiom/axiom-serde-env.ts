@@ -45,7 +45,11 @@ export function envVarAxiomSD<
     }
     return defaultValue;
   };
-  return axsd.defaultable(axiomSD, defaultValueSupplier, isDefaultable);
+  return axsd.defaultable(
+    axiomSD,
+    defaultValueSupplier,
+    isDefaultable ?? ((value) => value == undefined ? true : false),
+  );
 }
 
 export function envBuilder(options?: {
@@ -245,8 +249,8 @@ export function deserializeFullRecordUsingIndividualEnvVars<
       }
 
       if (!aliasFound) {
-        if (evDefn.defaultValue) {
-          const dv = evDefn.defaultValue<Context>(dieOptions?.ctx);
+        if (axsd.isDefaultableAxiomSerDe(evDefn)) {
+          const dv = evDefn.defaultValue<Context>(dieOptions?.ctx) as Any;
           serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = dv;
           searched.defaulted = true;
           searched.defaultValue = dv;

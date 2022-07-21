@@ -1,6 +1,7 @@
 import * as ax from "../../axiom/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as erd from "../diagram/mod.ts";
+import * as axsdUlid from "../../axiom/axiom-serde-ulid.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -27,6 +28,8 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
   // TODO: convert this to a UUID to allow database row merging/syncing
   const primaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
+  const ulidPrimaryKey = () =>
+    SQLa.uaDefaultablePrimaryKey(SQLa.ulid<Context>());
 
   function housekeeping<
     Context extends SQLa.SqlEmitContext,
@@ -65,32 +68,64 @@ export function typicalModelsGovn<Context extends SQLa.SqlEmitContext>(
   >(
     tableName: TableName,
     props: TPropAxioms,
+    options?: {
+      readonly lint?:
+        & SQLa.TableNameConsistencyLintOptions
+        & SQLa.FKeyColNameConsistencyLintOptions<Context>;
+    },
   ) => {
-    return {
-      ...SQLa.tableDefinition(tableName, props, {
-        isIdempotent: true,
-        sqlNS: ddlOptions?.sqlNS,
-      }),
-      ...SQLa.tableDomainsRowFactory(tableName, props, { defaultIspOptions }),
-      ...SQLa.tableSelectFactory(tableName, props),
-      view: SQLa.tableDomainsViewWrapper(
+    const result = {
+      ...ax.axiomSerDeObject(props),
+      ...SQLa.tableDefinition<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+        {
+          isIdempotent: true,
+          sqlNS: ddlOptions?.sqlNS,
+        },
+      ),
+      ...SQLa.tableDomainsRowFactory<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+        { defaultIspOptions },
+      ),
+      ...SQLa.tableSelectFactory<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+      ),
+      view: SQLa.tableDomainsViewWrapper<
+        `${TableName}_vw`,
+        TableName,
+        TPropAxioms,
+        Context
+      >(
         `${tableName}_vw`,
         tableName,
         props,
       ),
       defaultIspOptions, // in case others need to wrap the call
     };
+
+    const rules = tableLintRules.typical(result);
+    rules.lint(result, options?.lint);
+
+    return result;
   };
 
   const erdConfig = erd.typicalPlantUmlIeOptions();
   const lintState = SQLa.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
+  const tableLintRules = SQLa.tableLintRules<Context>();
 
   return {
     primaryKey,
+    ulidPrimaryKey,
     housekeeping,
     table,
+    tableLintRules,
     defaultIspOptions,
     erdConfig,
+    enumTable: SQLa.enumTable,
+    enumTextTable: SQLa.enumTextTable,
     sqlTextLintSummary: lintState.sqlTextLintSummary,
     sqlTmplEngineLintSummary: lintState.sqlTmplEngineLintSummary,
   };

@@ -31,7 +31,7 @@ export function pgDbConnEnvConfig(
     envBuilder: eb,
     dbConnConfig,
     configure: (init?: DbConnConfig) => {
-      return dbConnConfig.prepareRecord(init);
+      return dbConnConfig.prepareRecordSync(init);
     },
     pgClientOptions: (configured: DbConnConfig) => {
       const textValue = (text: string) =>

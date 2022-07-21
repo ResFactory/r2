@@ -1,5 +1,8 @@
-import { path } from "../render/deps-test.ts";
+import { path } from "../render/deps.ts";
 import * as SQLa from "../render/mod.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 // typical.ts is not auto-exported in ./mod.ts because it's not universally
 // applicable, so it should be imported explictly by consumers
@@ -42,6 +45,15 @@ export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
     mutation_count: SQLa.integer(),
     numeric_enum: numericEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
+  }, {
+    lint: {
+      ignoreFKeyColNameMissing_id: (
+        fkeyColDefn,
+      ) => ((fkeyColDefn as unknown as SQLa.IdentifiableSqlDomain<Any, Context>)
+          .identity == "numeric_enum"
+        ? true
+        : false),
+    },
   });
 
   const publBuildEventName = "publ_build_event" as const;
@@ -57,6 +69,15 @@ export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
     resources_memoized_count: SQLa.integer(),
     text_enum: textEnumModel.foreignKeyRef.code(),
     ...mg.housekeeping(),
+  }, {
+    lint: {
+      ignoreFKeyColNameMissing_id: (
+        fkeyColDefn,
+      ) => ((fkeyColDefn as unknown as SQLa.IdentifiableSqlDomain<Any, Context>)
+          .identity == "text_enum"
+        ? true
+        : false),
+    },
   });
 
   const publServerService = mg.table("publ_server_service", {

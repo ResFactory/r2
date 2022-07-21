@@ -87,7 +87,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       // hover over 'names' to see quasi-typed names
       const _sdNames = syntheticASDO.axiomProps.map((sda) => sda.identity);
       const _sdDefault = syntheticASDO.axiomProps.map((sda) =>
-        sda.defaultValue
+        mod.isDefaultableAxiomSerDe(sda) ? sda.defaultValue : undefined
       );
     });
 

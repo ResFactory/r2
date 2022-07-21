@@ -15,7 +15,7 @@ Deno.test(`partial record from env using axiomSerDeDefaults`, () => {
 
   Deno.env.set("SYNTHETIC_INT", String(10267));
 
-  const defaults = syntheticASDO.prepareRecord({
+  const defaults = syntheticASDO.prepareRecordSync({
     text: envBuilder.textEnvPlaceholder,
     number: 100,
     numberEnv: -1,
@@ -120,12 +120,20 @@ Deno.test(`full record from env using deserializeIndividualEnv`, async (tc) => {
     () => {
       const syntheticRecord = {
         text: axsd.text(),
-        number: axsd.defaultable(axsd.integerOptional(), () => 47),
+        number: axsd.defaultable(
+          axsd.integerOptional(),
+          () => 47,
+          (value) => value == undefined ? true : false,
+        ),
         maxAgeInMS: mod.alias(
           axsd.bigintOptional(),
           "CFGTEST_MAXAGEINMS_ALIAS",
         ),
-        bool: axsd.defaultable(axsd.boolean(), () => true),
+        bool: axsd.defaultable(
+          axsd.boolean(),
+          () => true,
+          (value) => value == undefined ? true : false,
+        ),
         complexType: axsd.objectOptional({
           innerText: axsd.text(),
           innerNumber: axsd.integer(),

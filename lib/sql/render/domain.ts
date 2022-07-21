@@ -1,5 +1,7 @@
 import * as safety from "../../safety/mod.ts";
 import * as ax from "../../axiom/mod.ts";
+import * as axsdu from "../../axiom/axiom-serde-ulid.ts";
+import * as axsdc from "../../axiom/axiom-serde-crypto.ts";
 import * as tmpl from "./template/mod.ts";
 import * as lab from "./label.ts";
 import * as l from "./lint.ts";
@@ -438,6 +440,35 @@ export function jsonTextNullable<
     isOptional: true,
     referenceASD: () => jsonText(),
     referenceNullableASD: () => jsonTextNullable(),
+    ...asdOptions,
+  };
+}
+
+export function ulid<Context extends tmpl.SqlEmitContext>(
+  axiom = axsdu.ulidAxiomSD(),
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string, Context> & ax.DefaultableAxiomSerDe<string> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isOptional: false,
+    referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
+    ...asdOptions,
+  };
+}
+
+export function sha1Digest<Context extends tmpl.SqlEmitContext>(
+  digestValue: () => string | Promise<string>,
+  axiom = axsdc.sha1DigestAxiomSD(digestValue),
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string, Context> & ax.DefaultableAxiomSerDe<string> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isOptional: false,
+    referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
     ...asdOptions,
   };
 }
