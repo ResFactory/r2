@@ -235,8 +235,7 @@ export class AlaSqlProxy<
   ): string {
     return `CREATE TABLE ${tableName} (\n ${
       // use [colName] so that reserved SQL keywords can be used as column name
-      Array.from(columnDefns).map((colName) => `[${colName}]`).join(",\n ")
-    })`;
+      Array.from(columnDefns).map((colName) => `[${colName}]`).join(",\n ")})`;
   }
 
   // deno-lint-ignore ban-types

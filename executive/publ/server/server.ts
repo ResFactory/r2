@@ -382,8 +382,7 @@ export class PublicationServer {
         colors.dim(
           `stored in ${
             this.publication.config.operationalCtx.publStateDbLocation(true)
-          } table ${stored?.tableName} ID ${stored?.logged
-            ?.publServerErrorLogId}`,
+          } table ${stored?.tableName} ID ${stored?.logged?.publServerErrorLogId}`,
         )
       }`,
     );

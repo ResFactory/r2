@@ -35,10 +35,10 @@ export function matrixCactusCommentsContribs(
   contribs: ds.HtmlLayoutContributions,
   mcConfig: CactusMatrixServerConfig,
 ): void {
-  contribs.scripts.aft
-    `<script type="text/javascript" src="https://latest.cactus.chat/cactus.js"></script>`;
-  contribs.stylesheets.prime
-    `<link rel="stylesheet" href="https://latest.cactus.chat/style.css" type="text/css">`;
+  contribs.scripts
+    .aft`<script type="text/javascript" src="https://latest.cactus.chat/cactus.js"></script>`;
+  contribs.stylesheets
+    .prime`<link rel="stylesheet" href="https://latest.cactus.chat/style.css" type="text/css">`;
   contribs.bodyMainContent.aft`<div id="comment-section"></div>`;
   contribs.domContentLoadedJS.aft`
     const domainDetails = new URL(window.location.href);

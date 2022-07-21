@@ -245,8 +245,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       syntheticTable1DefnRF.insertDML({
         // { symbolsFirst: true } means that ${XYZ} in dql.select()`${XYZ}`
         // will try to find name of object first
-        column_one_text: dql.untypedSelect(ctx, { symbolsFirst: true })
-          `select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
+        column_one_text: dql.untypedSelect(ctx, {
+          symbolsFirst: true,
+        })`select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
         column_unique: "value",
         column_linted: "linted",
         column_three_text_digest: await syntheticTable1Defn.default

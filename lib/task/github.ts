@@ -41,11 +41,11 @@ export function extractSingleFileFromTarGZ(
   return async (archiveFsPath, finalize, ghbs, options) => {
     dzx.$.verbose = options?.verbose ?? false;
     if (esfOptions?.stripComponents) {
-      await dzx.$
-        `tar -xz -f ${archiveFsPath} -C ${ghbs.destPath} --strip-components=${esfOptions.stripComponents} ${archiveName}`;
+      await dzx
+        .$`tar -xz -f ${archiveFsPath} -C ${ghbs.destPath} --strip-components=${esfOptions.stripComponents} ${archiveName}`;
     } else {
-      await dzx.$
-        `tar -xz -f ${archiveFsPath} -C ${ghbs.destPath} ${archiveName}`;
+      await dzx
+        .$`tar -xz -f ${archiveFsPath} -C ${ghbs.destPath} ${archiveName}`;
     }
     const destFsPath = path.join(ghbs.destPath, destName);
     await finalize(destFsPath, ghbs);

@@ -200,8 +200,7 @@ export class PublicationSqlProxy extends alaSQL.AlaSqlProxy {
               // use [colName] so that reserved SQL keywords can be used as column name
               columns.map((col) => `[${String(col.identity)}]`).join(
                 ",\n ", // TODO: columns are untyped for now, should they be typed?
-              )
-            })`);
+              )})`);
             const viewData = await otr.dataRows();
             db.tables[tableName].data = viewData;
           } else {

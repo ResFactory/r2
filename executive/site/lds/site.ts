@@ -162,11 +162,11 @@ export class SiteDesignSystem implements lds.LightningDesignSystemFactory {
         if (this.cactusConfig) {
           ugcCMC.matrixCactusCommentsContribs(suggested, this.cactusConfig);
         } else {
-          suggested.body.fore
-            `UGC comments requested but these env vars not found: ${
-              this.cactusConfigEnvVarsSought?.join(", ") ??
-                "unable to determine"
-            } `;
+          suggested.body
+            .fore`UGC comments requested but these env vars not found: ${
+            this.cactusConfigEnvVarsSought?.join(", ") ??
+              "unable to determine"
+          } `;
         }
       }
     }
