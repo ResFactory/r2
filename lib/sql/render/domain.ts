@@ -51,6 +51,9 @@ export type AxiomSqlDomain<
   readonly sqlDefaultValue?: (
     purpose: "create table column" | "stored routine arg",
   ) => tmpl.SqlTextSupplier<Context>;
+  readonly sqlDmlTransformInsertableValue?: (
+    supplied: TsValueType | undefined,
+  ) => TsValueType;
   readonly sqlPartial?: (
     destination:
       | "create table, full column defn"
@@ -459,8 +462,18 @@ export function ulid<Context extends tmpl.SqlEmitContext>(
 }
 
 export function sha1Digest<Context extends tmpl.SqlEmitContext>(
-  digestValue: () => string | Promise<string>,
-  axiom = axsdc.sha1DigestAxiomSD(digestValue),
+  digestValue?: <ASDVSC extends ax.AxiomSerDeValueSupplierContext & Context>(
+    currentValue?: string | undefined,
+    ctx?: ASDVSC,
+  ) => string | Promise<string>,
+  axiom = axsdc.sha1DigestAxiomSD(
+    digestValue as
+      | (<ASDVSC extends ax.AxiomSerDeValueSupplierContext>(
+        currentValue?: string | undefined,
+        ctx?: ASDVSC,
+      ) => string | Promise<string>)
+      | undefined,
+  ),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string, Context> & ax.DefaultableAxiomSerDe<string> {
   return {

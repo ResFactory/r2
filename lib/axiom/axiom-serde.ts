@@ -62,12 +62,24 @@ export function isAxiomSerDeLabelsSupplier<Label extends string>(
   return isLSD(o);
 }
 
-export type AxiomSerDeValueSupplierSync<TsValueType> = <Context>(
+export type AxiomSerDeValueSupplierContext = {
+  readonly isAsync?: boolean;
+};
+
+export type AxiomSerDeValueSupplierSync<TsValueType> = <
+  Context extends AxiomSerDeValueSupplierContext,
+>(
+  currentValue?: TsValueType | undefined,
   ctx?: Context,
+  ...args: Any[]
 ) => TsValueType;
 
-export type AxiomSerDeValueSupplier<TsValueType> = <Context>(
+export type AxiomSerDeValueSupplier<TsValueType> = <
+  Context extends AxiomSerDeValueSupplierContext,
+>(
+  currentValue?: TsValueType | undefined,
   ctx?: Context,
+  ...args: Any[]
 ) => Promise<TsValueType>;
 
 export type AxiomSerDe<TsValueType> = ax.Axiom<TsValueType> & {
@@ -102,7 +114,7 @@ export function isIdentifiableAxiomSerDe<
 }
 
 export type DefaultableAxiomSerDe<TsValueType> = {
-  readonly isDefaultable: <Context>(
+  readonly isDefaultable: <Context extends AxiomSerDeValueSupplierContext>(
     value?: TsValueType,
     ctx?: Context,
   ) => boolean;
@@ -111,9 +123,9 @@ export type DefaultableAxiomSerDe<TsValueType> = {
     | AxiomSerDeValueSupplier<TsValueType>;
 };
 
-export function isDefaultableAxiomSerDe<
-  TsValueType,
->(o: unknown): o is DefaultableAxiomSerDe<TsValueType> {
+export function isDefaultableAxiomSerDe<TsValueType>(
+  o: unknown,
+): o is DefaultableAxiomSerDe<TsValueType> {
   const isDASD = safety.typeGuard<DefaultableAxiomSerDe<TsValueType>>(
     "isDefaultable",
     "defaultValue",
@@ -147,11 +159,11 @@ export function isLabeledAxiomSerDe<TsValueType, Label extends string>(
 }
 
 export function label<TsValueType, Label extends string>(
-  toggle: AxiomSerDe<TsValueType>,
+  axiom: AxiomSerDe<TsValueType>,
   ...labels: Label[]
 ): LabeledAxiomSerDe<TsValueType, Label> {
   return {
-    ...toggle,
+    ...axiom,
     labels,
   };
 }
@@ -161,7 +173,10 @@ export function defaultable<TsValueType>(
   defaultValue:
     | AxiomSerDeValueSupplierSync<TsValueType>
     | AxiomSerDeValueSupplier<TsValueType>,
-  isDefaultable: <Context>(value?: TsValueType, ctx?: Context) => boolean,
+  isDefaultable: <Context extends AxiomSerDeValueSupplierContext>(
+    value?: TsValueType,
+    ctx?: Context,
+  ) => boolean,
 ): AxiomSerDe<TsValueType> & DefaultableAxiomSerDe<TsValueType> {
   return { ...axiom, defaultValue, isDefaultable };
 }
@@ -412,6 +427,41 @@ export function isAxiomsSerDeSupplier<TsValueType>(
   return isSDS(o);
 }
 
+type AxiomSerDeDefaultables<TPropAxioms extends Record<string, ax.Axiom<Any>>> =
+  {
+    [
+      Property in keyof TPropAxioms as Extract<
+        Property,
+        TPropAxioms[Property] extends { defaultValue: Any } ? Property
+          : never
+      >
+    ]: <ASDVSC extends AxiomSerDeValueSupplierContext>(
+      currentValue?:
+        | (TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never)
+        | undefined,
+      ctx?: ASDVSC,
+    ) => TPropAxioms[Property] extends ax.Axiom<infer T> ? T | Promise<T>
+      : never;
+  };
+
+export function axiomSerDeObjectDefaultables<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+>(...axiomProps: IdentifiableAxiomSerDe<Any>[]) {
+  type Defaultables = AxiomSerDeDefaultables<TPropAxioms>;
+  type DefaultableValueKey = keyof Defaultables;
+
+  const defaultValues: Defaultables = {} as Any;
+  for (const ap of axiomProps) {
+    if (isDefaultableAxiomSerDe(ap)) {
+      defaultValues[ap.identity as DefaultableValueKey] = (
+        currentValue: Any | undefined,
+        ctx: Any,
+      ) => ap.defaultValue?.(currentValue, ctx) as Any;
+    }
+  }
+  return defaultValues;
+}
+
 export function axiomSerDeObject<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
 >(
@@ -420,7 +470,7 @@ export function axiomSerDeObject<
     readonly onPropertyNotSerDeAxiom?: (
       name: string,
       axiom: Any,
-      toggles: IdentifiableAxiomSerDe<Any>[],
+      axiomSD: IdentifiableAxiomSerDe<Any>[],
     ) => void;
   },
 ) { // we let Typescript infer function return to allow generics to be more effective
@@ -449,8 +499,9 @@ export function axiomSerDeObject<
   const result = {
     ...axiom,
     axiomProps,
+    defaultable: axiomSerDeObjectDefaultables<TPropAxioms>(...axiomProps),
     /**
-     * Construct an empty record filled with defaults
+     * Construct an empty record filled with defaults, synchronously
      * @param initValues Start with values from this optional object
      * @param ctx arbitrary context to pass into AxiomSerDe defaultValue() function
      * @returns an "empty" typed SerDeRecord with defaults filled in
@@ -463,11 +514,12 @@ export function axiomSerDeObject<
 
       for (const a of axiomProps) {
         if (isDefaultableAxiomSerDe(a)) {
-          if (!a.isDefaultable<Context>(defaults[a.identity], ctx)) {
+          const currentValue = defaults[a.identity];
+          if (!a.isDefaultable<Context>(currentValue, ctx)) {
             continue;
           }
           defaults[a.identity] = isDefaultableAxiomSerDeSync(a)
-            ? a.defaultValue(ctx)
+            ? a.defaultValue(currentValue, { isAsync: true, ...ctx })
             : undefined;
         }
       }
@@ -475,7 +527,7 @@ export function axiomSerDeObject<
       return defaults as SerDeRecord;
     },
     /**
-     * Construct an empty record filled with defaults
+     * Construct an empty record filled with defaults, asynchronously
      * @param initValues Start with values from this optional object
      * @param ctx arbitrary context to pass into AxiomSerDe defaultValue() function
      * @returns an "empty" typed SerDeRecord with defaults filled in
@@ -488,12 +540,16 @@ export function axiomSerDeObject<
 
       for (const a of axiomProps) {
         if (isDefaultableAxiomSerDe(a)) {
-          if (!a.isDefaultable<Context>(defaults[a.identity], ctx)) {
+          const currentValue = defaults[a.identity];
+          if (!a.isDefaultable<Context>(currentValue, ctx)) {
             continue;
           }
           defaults[a.identity] = isDefaultableAxiomSerDeAsync(a)
-            ? await a.defaultValue(ctx)
-            : a.defaultValue(ctx);
+            ? await a.defaultValue(
+              currentValue,
+              ctx as AxiomSerDeValueSupplierContext,
+            )
+            : a.defaultValue(currentValue, { isAsync: true, ...ctx });
         }
       }
 

@@ -21,11 +21,11 @@ export function uuidAxiomSD(
 }
 
 export async function sha1Digest(
-  textSupplier: string | (() => string | Promise<string>),
+  textSupplier: string | Promise<string> | (() => string | Promise<string>),
 ) {
   const text = typeof textSupplier === "function"
     ? await textSupplier()
-    : textSupplier;
+    : await textSupplier;
   const digest = await crypto.subtle.digest(
     "sha-1",
     new TextEncoder().encode(text),
@@ -36,20 +36,32 @@ export async function sha1Digest(
 export const sha1DigestUndefined = `sha1DigestPlacholder` as const;
 
 /**
- * TODO: An AxiomSerDe supplier which sets the default value of the Axiom to a SHA-1
- * digest of a given value. THIS DOES NOT WORK RIGHT NOW BUT NEEDS TO BE IMPLEMENTED.
+ * An AxiomSerDe supplier which sets the default value of the Axiom to a SHA-1
+ * digest of a given value. This default value supplier only works in an async
+ * context (because of crypto library usage).
  * @param axiomSD the AxiomSerDe base
  * @param isDefaultable a function which determines whether the default value should be used
  * @returns an AxiomSerDe definition can be assigned to an axioms record collection
  */
 export function sha1DigestAxiomSD(
-  digestValue: () => string | Promise<string>,
+  digestValue?: <Context extends axsd.AxiomSerDeValueSupplierContext>(
+    currentValue?: string | undefined,
+    ctx?: Context,
+  ) => string | Promise<string>,
   axiomSD = axsd.text(),
   isDefaultable?: <Context>(value?: string, ctx?: Context) => boolean,
 ) {
   return axsd.defaultable(
     axiomSD,
-    async () => await sha1Digest(digestValue),
+    async <Context extends axsd.AxiomSerDeValueSupplierContext>(
+      currentValue?: string | undefined,
+      ctx?: Context,
+    ) =>
+      currentValue == undefined || currentValue == sha1DigestUndefined
+        ? sha1DigestUndefined
+        : await sha1Digest(
+          digestValue ? await digestValue(currentValue, ctx) : currentValue,
+        ),
     isDefaultable ??
       ((value) =>
         value == undefined || value == sha1DigestUndefined ? true : false),

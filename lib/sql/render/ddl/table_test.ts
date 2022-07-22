@@ -9,6 +9,9 @@ import * as sch from "./schema.ts";
 import * as dql from "../dql/mod.ts";
 import { unindentWhitespace as uws } from "../../../text/whitespace.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 type HousekeepingColumnsDefns<Context extends tmpl.SqlEmitContext> = {
   readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
 };
@@ -33,7 +36,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         d.textNullable(),
         () => `synthetic-defaulted`,
       ),
-      column_three_text_digest: d.sha1Digest(() => `synthetic-digest-source`),
+      column_three_text_digest: d.sha1Digest(),
       column_unique: mod.unique(d.text()),
       column_linted: d.lintedSqlDomain(
         d.text(),
@@ -42,6 +45,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       ...housekeeping(),
     },
   );
+  const syntheticTable1DefnDefaultable = ax.axiomSerDeObjectDefaultables<
+    typeof syntheticTable1Defn.axiomObjectDecl
+  >(...syntheticTable1Defn.domains);
   const syntheticTable1DefnRF = mod.tableDomainsRowFactory(
     syntheticTable1Defn.tableName,
     syntheticTable1Defn.axiomObjectDecl,
@@ -96,11 +102,13 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
     );
     ta.assertEquals(
       `synthetic-defaulted`,
-      syntheticTable1Defn.default.column_two_text_nullable_defaultable(),
+      syntheticTable1DefnDefaultable.column_two_text_nullable_defaultable(),
     );
     ta.assertEquals(
       await axsdc.sha1Digest(`synthetic-digest-source`),
-      await syntheticTable1Defn.default.column_three_text_digest(),
+      await syntheticTable1DefnDefaultable.column_three_text_digest(
+        `synthetic-digest-source`,
+      ),
     );
   });
 
@@ -229,8 +237,8 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       columnOneText: "text",
       columnUnique: "value",
       columnLinted: "linted",
-      columnThreeTextDigest: await syntheticTable1Defn.default
-        .column_three_text_digest(),
+      columnThreeTextDigest: await syntheticTable1DefnDefaultable
+        .column_three_text_digest(`synthetic-digest-source`),
       createdAt: new Date(),
     });
     ta.assert(insertable);
@@ -250,8 +258,8 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         })`select ${sdc.column_one_text} from ${syntheticTable1Defn}`, // the value will be a SQL expression
         column_unique: "value",
         column_linted: "linted",
-        column_three_text_digest: await syntheticTable1Defn.default
-          .column_three_text_digest(),
+        column_three_text_digest: await syntheticTable1DefnDefaultable
+          .column_three_text_digest(`synthetic-digest-source`),
       }).SQL(ctx),
       `INSERT INTO "synthetic_table1" ("column_one_text", "column_two_text_nullable_defaultable", "column_three_text_digest", "column_unique", "column_linted", "created_at") VALUES ((select "column_one_text" from "synthetic_table1"), 'synthetic-defaulted', 'b7f479332024c700953eb2e7431e791b1ae35b75', 'value', 'linted', NULL)`,
     );

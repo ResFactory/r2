@@ -610,30 +610,10 @@ export function tableDefinition<
       Context
     >;
   };
-  type DefaultableValues = {
-    [
-      Property in keyof TPropAxioms as Extract<
-        Property,
-        TPropAxioms[Property] extends { defaultValue: Any } ? Property
-          : never
-      >
-    ]: (
-      ctx?: Context,
-    ) => TPropAxioms[Property] extends ax.Axiom<infer T> ? T | Promise<T>
-      : never;
-  };
-
   const primaryKey: PrimaryKeys = {} as Any;
-  const defaultValues: DefaultableValues = {} as Any;
   for (const column of sd.domains) {
     if (isTablePrimaryKeyColumnDefn(column)) {
       primaryKey[column.identity as (keyof PrimaryKeys)] = column as Any;
-    }
-
-    if (ax.isDefaultableAxiomSerDe(column)) {
-      defaultValues[column.identity as (keyof DefaultableValues)] = (
-        ctx,
-      ) => column.defaultValue?.(ctx) as Any;
     }
   }
 
@@ -668,7 +648,6 @@ export function tableDefinition<
       readonly columns: ColumnDefns;
       readonly primaryKey: PrimaryKeys;
       readonly foreignKeyRef: ForeignKeyRefs;
-      readonly default: DefaultableValues;
       readonly sqlNS?: ns.SqlNamespaceSupplier;
     }
     & tmpl.SqlSymbolSupplier<Context>
@@ -716,7 +695,6 @@ export function tableDefinition<
       columns,
       primaryKey,
       foreignKeyRef: fkRef,
-      default: defaultValues,
       sqlNS: tdOptions?.sqlNS,
     };
 
@@ -743,6 +721,13 @@ export function typicalKeysTableDefinition<
   return tableDefinition(tableName, props, tdOptions);
 }
 
+export type TableColumnsScalarValuesOrSqlExprs<
+  T,
+  Context extends tmpl.SqlEmitContext,
+> = {
+  [K in keyof T]: T[K] | tmpl.SqlTextSupplier<Context>;
+};
+
 export function tableDomainsRowFactory<
   TableName extends string,
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
@@ -761,12 +746,10 @@ export function tableDomainsRowFactory<
 ) {
   const sd = d.sqlDomains(props, tdrfOptions);
 
-  type ScalarValueOrSqlExpr<T> = {
-    [K in keyof T]: T[K] | tmpl.SqlTextSupplier<Context>;
-  };
-  type EntireRecord =
-    & tr.UntypedTabularRecordObject
-    & ScalarValueOrSqlExpr<ax.AxiomType<typeof sd>>;
+  type EntireRecord = TableColumnsScalarValuesOrSqlExprs<
+    ax.AxiomType<typeof sd>,
+    Context
+  >;
   type ExcludeFromInsertDML = {
     [
       Property in keyof TPropAxioms as Extract<
@@ -807,16 +790,20 @@ export function tableDomainsRowFactory<
   type InsertableColumnName = keyof InsertableRecord & string;
   type InsertableObject = tr.TabularRecordToObject<InsertableRecord>;
 
+  const defaultables = ax.axiomSerDeObjectDefaultables<TPropAxioms>(
+    ...sd.domains,
+  );
+
   // we let Typescript infer function return to allow generics in sqlDomains to
   // be more effective but we want other parts of the `result` to be as strongly
   // typed as possible
-  return {
+  const result = {
     prepareInsertable: (
       o: InsertableObject,
       rowState?: tr.TransformTabularRecordsRowState<InsertableRecord>,
       options?: tr.TransformTabularRecordOptions<InsertableRecord>,
     ) => tr.transformTabularRecord(o, rowState, options),
-    insertDML: dml.typicalInsertStmtPreparer<
+    insertDML: dml.typicalInsertStmtPreparerSync<
       TableName,
       InsertableRecord,
       EntireRecord,
@@ -836,9 +823,40 @@ export function tableDomainsRowFactory<
             : true
         );
       },
+      undefined,
       tdrfOptions?.defaultIspOptions,
     ),
+    insertCustomDML: (
+      mutateValues: (
+        ir: safety.Writeable<InsertableRecord>,
+        defaultable: typeof defaultables,
+      ) => Promise<void>,
+    ) =>
+      dml.typicalInsertStmtPreparer<
+        TableName,
+        InsertableRecord,
+        EntireRecord,
+        Context
+      >(
+        tableName,
+        (group) => {
+          if (group === "primary-keys") {
+            return sd.domains.filter((d) =>
+              isTablePrimaryKeyColumnDefn(d) ? true : false
+            );
+          }
+          return sd.domains.filter((d) =>
+            isTableColumnInsertDmlExclusionSupplier(d) &&
+              d.isExcludedFromInsertDML
+              ? false
+              : true
+          );
+        },
+        (ir) => mutateValues(ir, defaultables),
+        tdrfOptions?.defaultIspOptions,
+      ),
   };
+  return result;
 }
 
 export function tableSelectFactory<

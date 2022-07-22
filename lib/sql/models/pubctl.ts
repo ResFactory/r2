@@ -1,23 +1,138 @@
 import { path } from "../render/deps.ts";
+import * as ax from "../../axiom/mod.ts";
 import * as SQLa from "../render/mod.ts";
+import * as erd from "../diagram/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-// typical.ts is not auto-exported in ./mod.ts because it's not universally
-// applicable, so it should be imported explictly by consumers
-import * as typ from "./typical.ts";
+/**
+ * pubCtlModelsGovn is a "models governer" helpers object that supplies functions
+ * for "typical" RDBMS schemas that prepare tables in a "governed" fashion with a
+ * primary key named `<tableName>_id` and with standard "housekeeping" columns such
+ * as `created_at`.
+ * @param ddlOptions optional DDL string template literal options
+ * @returns a single object with helper functions as properties (for building models)
+ */
+export function pubCtlModelsGovn<Context extends SQLa.SqlEmitContext>(
+  ddlOptions: SQLa.SqlTextSupplierOptions<Context> & {
+    readonly sqlNS?: SQLa.SqlNamespaceSupplier;
+  },
+) {
+  // TODO: convert this to a UUID to allow database row merging/syncing
+  const primaryKey = () =>
+    SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
 
-const expectType = <T>(_value: T) => {
-  // Do nothing, the TypeScript compiler handles this for us
-};
+  type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
+    readonly created_at: SQLa.AxiomSqlDomain<Date | undefined, Context>;
+  };
 
-export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
+  function housekeeping<
+    Context extends SQLa.SqlEmitContext,
+  >(): HousekeepingColumnsDefns<Context> {
+    return {
+      created_at: SQLa.createdAt(),
+    };
+  }
+
+  // "created_at" is considered "housekeeping" with a default so don't
+  // emit it as part of the insert DML statement
+  const defaultIspOptions: SQLa.InsertStmtPreparerOptions<
+    Any,
+    Any,
+    Any,
+    Context
+  > = { isColumnEmittable: (name) => name == "created_at" ? false : true };
+
+  /**
+   * All of our "content" or "transaction" tables will follow a specific format,
+   * namely that they will have a single primary key with the same name as the
+   * table with _id appended and common "houskeeping" columns like created_at.
+   * TODO: figure out how to automatically add ...housekeeping() to the end of
+   * each table (it's easy to add at the start of each table, but we want them
+   * at the end after all the "content" columns).
+   * @param tableName
+   * @param props
+   * @returns
+   */
+  const table = <
+    TableName extends string,
+    TPropAxioms extends
+      & Record<string, ax.Axiom<Any>>
+      & Record<`${TableName}_id`, ax.Axiom<Any>>
+      & HousekeepingColumnsDefns<Context>,
+  >(
+    tableName: TableName,
+    props: TPropAxioms,
+    options?: {
+      readonly lint?:
+        & SQLa.TableNameConsistencyLintOptions
+        & SQLa.FKeyColNameConsistencyLintOptions<Context>;
+    },
+  ) => {
+    const asdo = ax.axiomSerDeObject(props);
+    const result = {
+      ...asdo,
+      ...SQLa.tableDefinition<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+        {
+          isIdempotent: true,
+          sqlNS: ddlOptions?.sqlNS,
+        },
+      ),
+      ...SQLa.tableDomainsRowFactory<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+        { defaultIspOptions },
+      ),
+      ...SQLa.tableSelectFactory<TableName, TPropAxioms, Context>(
+        tableName,
+        props,
+      ),
+      view: SQLa.tableDomainsViewWrapper<
+        `${TableName}_vw`,
+        TableName,
+        TPropAxioms,
+        Context
+      >(
+        `${tableName}_vw`,
+        tableName,
+        props,
+      ),
+      defaultIspOptions, // in case others need to wrap the call
+    };
+
+    const rules = tableLintRules.typical(result);
+    rules.lint(result, options?.lint);
+
+    return result;
+  };
+
+  const erdConfig = erd.typicalPlantUmlIeOptions();
+  const lintState = SQLa.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
+  const tableLintRules = SQLa.tableLintRules<Context>();
+
+  return {
+    primaryKey,
+    housekeeping,
+    table,
+    tableLintRules,
+    defaultIspOptions,
+    erdConfig,
+    enumTable: SQLa.enumTable,
+    enumTextTable: SQLa.enumTextTable,
+    sqlTextLintSummary: lintState.sqlTextLintSummary,
+    sqlTmplEngineLintSummary: lintState.sqlTmplEngineLintSummary,
+  };
+}
+
+export function pubCtlDatabaseDefn<Context extends SQLa.SqlEmitContext>(
   ddlOptions: SQLa.SqlTextSupplierOptions<Context> & {
     readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   } = SQLa.typicalSqlTextSupplierOptions(),
 ) {
-  const mg = typ.typicalModelsGovn(ddlOptions);
+  const mg = pubCtlModelsGovn(ddlOptions);
 
   enum syntheticEnum1 {
     code1, // code is text, value is a number
@@ -122,6 +237,9 @@ export function syntheticDatabaseDefn<Context extends SQLa.SqlEmitContext>(
   // this is added for testing purposes to make sure Axiom/Domain is creating
   // proper type-safe objects, otherwise will result in Typescript compile error;
   // expectType calls are not required for non-test or production use cases
+  const expectType = <T>(_value: T) => {
+    // Do nothing, the TypeScript compiler handles this for us
+  };
   type tablePK = SQLa.TablePrimaryKeyColumnDefn<number, Context>;
   expectType<tablePK>(publHost.primaryKey.publ_host_id);
   expectType<
@@ -174,7 +292,7 @@ if (import.meta.main) {
   // if we're being called as a CLI, just emit the DDL SQL:
   //    deno run -A lib/sql/render/mod_test-fixtures.ts > synthetic.sql
   //    deno run -A lib/sql/render/mod_test-fixtures.ts | sqlite3 synthetic.sqlite.db
-  const dbDefn = syntheticDatabaseDefn();
+  const dbDefn = pubCtlDatabaseDefn();
   const ctx = SQLa.typicalSqlEmitContext();
   console.log(dbDefn.DDL.SQL(ctx));
 }

@@ -250,10 +250,13 @@ export function deserializeFullRecordUsingIndividualEnvVars<
 
       if (!aliasFound) {
         if (axsd.isDefaultableAxiomSerDe(evDefn)) {
-          const dv = evDefn.defaultValue<Context>(dieOptions?.ctx) as Any;
-          serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = dv;
+          const dv = evDefn.defaultValue(undefined, {
+            isAsync: true,
+            ...dieOptions?.ctx,
+          });
+          serDeAxiomRecord[evDefn.identity as (keyof SerDeRecord)] = dv as Any;
           searched.defaulted = true;
-          searched.defaultValue = dv;
+          searched.defaultValue = dv as Any;
         }
       }
     }

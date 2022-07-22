@@ -1,11 +1,11 @@
 import { testingAsserts as ta } from "../render/deps-test.ts";
 import * as SQLa from "../render/mod.ts";
 import * as mod from "./plantuml-ie-notation.ts";
-import * as tf from "../models/typical_test-fixtures.ts";
+import * as tf from "../models/pubctl.ts";
 import * as ws from "../../text/whitespace.ts";
 
 Deno.test("PlantUML IE Diagram (full)", () => {
-  const defns = tf.syntheticDatabaseDefn();
+  const defns = tf.pubCtlDatabaseDefn();
   const puml = mod.plantUmlIE(
     SQLa.typicalSqlEmitContext(),
     function* () {
@@ -122,7 +122,7 @@ Deno.test("PlantUML IE Diagram (entitites and relationships only, no attributes 
   const puml = mod.plantUmlIE(
     SQLa.typicalSqlEmitContext(),
     function* () {
-      const defns = tf.syntheticDatabaseDefn();
+      const defns = tf.pubCtlDatabaseDefn();
       for (const defn of Object.values(defns)) {
         if (SQLa.isTableDefinition(defn)) {
           yield defn;

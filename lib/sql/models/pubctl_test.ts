@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { path } from "./deps.ts";
 import * as ws from "../../text/whitespace.ts";
-import * as mdf from "./typical_test-fixtures.ts";
+import * as pubCtl from "./pubctl.ts";
 import * as SQLa from "../render/mod.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -15,7 +15,7 @@ const stContext = (): SyntheticTmplContext => SQLa.typicalSqlEmitContext();
 
 Deno.test("SQL Aide (SQLa) type-safe string template", () => {
   const ctx = stContext();
-  const dbDefn = mdf.syntheticDatabaseDefn<SyntheticTmplContext>();
+  const dbDefn = pubCtl.pubCtlDatabaseDefn<SyntheticTmplContext>();
   const persist = (
     sts: SQLa.SqlTextSupplier<SyntheticTmplContext>,
     basename: string,
