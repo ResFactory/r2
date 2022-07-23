@@ -670,13 +670,41 @@ export function tableDefinition<
       Context
     >;
   };
+  type ForeignKeyNullableRefs = {
+    [Property in keyof TPropAxioms]: (
+      foreignRelNature?: TableForeignKeyRelNature<Context>,
+      domainOptions?: Partial<
+        d.AxiomSqlDomain<
+          TPropAxioms[Property] extends ax.Axiom<infer T> ? (T | undefined)
+            : never,
+          Context
+        >
+      >,
+    ) => TableForeignKeyColumnDefn<
+      TPropAxioms[Property] extends ax.Axiom<infer T> ? (T | undefined) : never,
+      TableName,
+      Context
+    >;
+  };
   const fkRef: ForeignKeyRefs = {} as Any;
+  const fkNullableRef: ForeignKeyNullableRefs = {} as Any;
   for (const column of sd.domains) {
     fkRef[column.identity as (keyof TPropAxioms)] = (
       foreignRelNature,
       domainOptions,
     ) => {
       return foreignKey(tableName, column, foreignRelNature, domainOptions);
+    };
+    fkNullableRef[column.identity as (keyof TPropAxioms)] = (
+      foreignRelNature,
+      domainOptions,
+    ) => {
+      return foreignKeyNullable(
+        tableName,
+        column,
+        foreignRelNature,
+        domainOptions,
+      );
     };
   }
 
@@ -690,6 +718,7 @@ export function tableDefinition<
       readonly columns: ColumnDefns;
       readonly primaryKey: PrimaryKeys;
       readonly foreignKeyRef: ForeignKeyRefs;
+      readonly fkNullableRef: ForeignKeyNullableRefs;
       readonly sqlNS?: ns.SqlNamespaceSupplier;
     }
     & tmpl.SqlSymbolSupplier<Context>
@@ -737,6 +766,7 @@ export function tableDefinition<
       columns,
       primaryKey,
       foreignKeyRef: fkRef,
+      fkNullableRef: fkNullableRef,
       sqlNS: tdOptions?.sqlNS,
     };
 
