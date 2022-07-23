@@ -20,15 +20,12 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
     readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   },
 ) {
-  // TODO: convert this to a UUID to allow database row merging/syncing
-  const autoIncPrimaryKey = () =>
-    SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
-  const ulidPrimaryKey = () =>
-    SQLa.uaDefaultablePrimaryKey(SQLa.ulid<Context>());
   const primaryKey = () =>
     SQLa.uaDefaultablePrimaryKey(
       SQLa.sha1Digest(() => axsdc.sha1DigestUndefined),
     );
+  const autoIncPrimaryKey = () =>
+    SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
 
   type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
     readonly created_at: SQLa.AxiomSqlDomain<Date | undefined, Context>;
@@ -68,16 +65,36 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
       & Record<string, ax.Axiom<Any>>
       & Record<`${TableName}_id`, ax.Axiom<Any>>
       & HousekeepingColumnsDefns<Context>,
+    ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
   >(
     tableName: TableName,
     props: TPropAxioms,
     options?: {
+      readonly pkDigestColumns?: ColumnName[];
+      readonly constraints?: SQLa.TableColumnsConstraint<
+        TPropAxioms,
+        Context
+      >[];
       readonly lint?:
         & SQLa.TableNameConsistencyLintOptions
         & SQLa.FKeyColNameConsistencyLintOptions<Context>;
     },
   ) => {
     const asdo = ax.axiomSerDeObject(props);
+    const pkColumn = asdo.axiomProps.find((ap) =>
+      SQLa.isTablePrimaryKeyColumnDefn<Any, Context>(ap)
+    ) as unknown as (
+      | (
+        & SQLa.IdentifiableSqlDomain<string, Context>
+        & ax.DefaultableAxiomSerDe<string>
+      )
+      | undefined
+    );
+    const tdrf = SQLa.tableDomainsRowFactory<TableName, TPropAxioms, Context>(
+      tableName,
+      props,
+      { defaultIspOptions },
+    );
     const result = {
       ...asdo,
       ...SQLa.tableDefinition<TableName, TPropAxioms, Context>(
@@ -86,24 +103,21 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
         {
           isIdempotent: true,
           sqlNS: ddlOptions?.sqlNS,
+          constraints: options?.constraints,
         },
       ),
-      ...SQLa.tableDomainsRowFactory<TableName, TPropAxioms, Context>(
-        tableName,
-        props,
-        { defaultIspOptions },
-      ),
+      // we want a custom, async, insertDML since some of our primary keys are
+      //  "digest" type and we need to generate the digest from content in the
+      // record
+      insertDML: tdrf.insertCustomDML(async (ir) => {
+        if (options?.pkDigestColumns && pkColumn) {
+          const untypedIR = ir as Any;
+          const dc = options?.pkDigestColumns.map((dc) => untypedIR[dc] as Any)
+            .join("::");
+          untypedIR[pkColumn.identity] = await pkColumn.defaultValue(dc);
+        }
+      }),
       ...SQLa.tableSelectFactory<TableName, TPropAxioms, Context>(
-        tableName,
-        props,
-      ),
-      view: SQLa.tableDomainsViewWrapper<
-        `${TableName}_vw`,
-        TableName,
-        TPropAxioms,
-        Context
-      >(
-        `${tableName}_vw`,
         tableName,
         props,
       ),
@@ -121,9 +135,8 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
   const tableLintRules = SQLa.tableLintRules<Context>();
 
   return {
-    autoIncPrimaryKey,
     primaryKey,
-    ulidPrimaryKey,
+    autoIncPrimaryKey,
     housekeeping,
     table,
     tableLintRules,
@@ -166,20 +179,8 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
     host: SQLa.unique(SQLa.text()), // add label "surrogate key"
     host_meta: SQLa.jsonTextNullable(),
     ...mg.housekeeping(),
-  });
-  const fsOriginInsertDML = fsOrigin.insertCustomDML(
-    async (ir, defaultable) => {
-      if (typeof ir.host === "string") {
-        ir.fs_origin_id = await defaultable.fs_origin_id(ir.host);
-      } else {
-        throw new Error(
-          `typeof ir.host === "${typeof ir.host}" instead of "string"`,
-        );
-      }
-    },
-  );
+  }, { pkDigestColumns: ["host"] });
 
-  // TODO: create unique index for fs_origin_id, label
   const fsEntryPK = mg.autoIncPrimaryKey();
   const fsEntry = mg.table("fs_entry", {
     fs_entry_id: fsEntryPK,
@@ -188,9 +189,8 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
     parent_id: SQLa.selfRefForeignKeyNullable(fsEntryPK),
     label: SQLa.text(), // how the entry is known, abs_path for a directory, file_abs_path_and_file_name_extn for file
     ...mg.housekeeping(),
-  });
+  }, { constraints: [SQLa.uniqueTableCols("fs_origin_id", "label")] });
 
-  // TODO: create unique index for fs_origin_id, abs_path
   const fsePathPK = mg.autoIncPrimaryKey();
   const fsePath = mg.table("fs_entry_path", {
     fs_entry_path_id: fsePathPK,
@@ -200,20 +200,22 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
     abs_path: SQLa.text(),
     parent_abs_path: SQLa.textNullable(), // TODO: add governance details such as "denormalized"
     ...mg.housekeeping(),
-  });
+  }, { constraints: [SQLa.uniqueTableCols("fs_origin_id", "abs_path")] });
 
-  // TODO: create unique index for fs_origin_id, file_extn, file_extn_modifiers
   const fseFileExtn = mg.table("fs_entry_file_extn", {
     fs_entry_file_extn_id: mg.autoIncPrimaryKey(),
     fs_origin_id: fsOrigin.foreignKeyRef.fs_origin_id(),
     file_extn: SQLa.text(),
     file_extn_modifiers: SQLa.textNullable(),
     ...mg.housekeeping(),
+  }, {
+    constraints: [
+      SQLa.uniqueTableCols("fs_origin_id", "file_extn", "file_extn_modifiers"),
+    ],
   });
 
-  const fseFilePK = mg.autoIncPrimaryKey();
   const fseFile = mg.table("fs_entry_file", {
-    fs_entry_file_id: fseFilePK,
+    fs_entry_file_id: mg.primaryKey(),
     fs_entry_id: fsEntry.foreignKeyRef.fs_entry_id(SQLa.belongsTo()), // TODO: belongsTo should be isA(), requires 1:1
     fse_path_id: fsePath.foreignKeyRef.fs_entry_path_id(SQLa.belongsTo()),
     file_abs_path_and_file_name_extn: SQLa.text(),
@@ -225,7 +227,7 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
     file_extn: SQLa.textNullable(),
     file_extn_modifiers: SQLa.textNullable(),
     ...mg.housekeeping(),
-  });
+  }, { pkDigestColumns: ["file_abs_path_and_file_name_extn"] });
 
   const fsWalk = mg.table("fs_walk", {
     fs_walk_id: mg.autoIncPrimaryKey(),
@@ -290,33 +292,39 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
       };
 
       const activeHost = storeSQL(
-        await fsOriginInsertDML({ host: Deno.hostname() }),
+        await fsOrigin.insertDML({ host: Deno.hostname() }),
       );
       const { fs_origin_id } = activeHost.returnable(activeHost.insertable);
 
-      const storePathSQL = (absPath: string) => {
-        const entryDML = storeSQL(fsEntry.insertDML({
-          fse_nature_id: FileSystemEntryNature.PATH,
-          label: absPath,
-          fs_origin_id,
-        }));
+      const storePathSQL = async (absPath: string) => {
+        const entryDML = storeSQL(
+          await fsEntry.insertDML({
+            fse_nature_id: FileSystemEntryNature.PATH,
+            label: absPath,
+            fs_origin_id,
+          }),
+        );
         return [
           entryDML,
-          storeSQL(fsePath.insertDML({
-            fs_entry_id: fsEntry.select(entryDML.insertable),
-            fs_origin_id,
-            abs_path: absPath,
-          })),
+          storeSQL(
+            await fsePath.insertDML({
+              fs_entry_id: fsEntry.select(entryDML.insertable),
+              fs_origin_id,
+              abs_path: absPath,
+            }),
+          ),
         ];
       };
 
       for (const srcGlob of globs) {
-        const [_, walkRootPathDML] = storePathSQL(srcGlob.originRootPath);
-        const walkDML = storeSQL(fsWalk.insertDML({
-          fs_path_id: fsePath.select(walkRootPathDML.insertable),
-          fs_origin_id,
-          glob: srcGlob.glob,
-        }));
+        const [_, walkRootPathDML] = await storePathSQL(srcGlob.originRootPath);
+        const walkDML = storeSQL(
+          await fsWalk.insertDML({
+            fs_path_id: fsePath.select(walkRootPathDML.insertable),
+            fs_origin_id,
+            glob: srcGlob.glob,
+          }),
+        );
         for await (
           const we of fs.expandGlob(
             srcGlob.glob,
@@ -324,12 +332,15 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
           )
         ) {
           if (srcGlob.include(we) && we.isFile) {
-            const [pathEntryDML, pathDML] = storePathSQL(path.dirname(we.path));
-            const fileEntryDML = storeSQL(fsEntry.insertDML({
-              fse_nature_id: FileSystemEntryNature.FILE,
-              label: we.path,
-              fs_origin_id,
-            }));
+            const parentPath = path.dirname(we.path);
+            const [pathEntryDML, pathDML] = await storePathSQL(parentPath);
+            // const fileEntryDML = storeSQL(
+            //   await fsEntry.insertDML({
+            //     fse_nature_id: FileSystemEntryNature.FILE,
+            //     label: we.path,
+            //     fs_origin_id,
+            //   }),
+            // );
             // const fileDML = storeSQL(fseFile.insertDML({
 
             // }))
@@ -357,6 +368,8 @@ if (import.meta.main) {
   (await dbDefn.walkedDML(ctx, {
     originRootPath: path.resolve(
       path.dirname(path.fromFileUrl(import.meta.url)),
+      "..",
+      "..",
     ),
     glob: "**/*",
     include: (we) => we.isFile,
