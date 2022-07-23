@@ -32,8 +32,8 @@ export function enumTable<
   TableName extends string,
   Context extends tmpl.SqlEmitContext,
   TPropAxioms extends Record<string, ax.Axiom<Any>> = {
-    readonly code: d.AxiomSqlDomain<number, Context>;
-    readonly value: d.AxiomSqlDomain<string, Context>;
+    readonly code: d.AxiomSqlDomain<TEnumValue, Context>;
+    readonly value: d.AxiomSqlDomain<TEnumCode, Context>;
     readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
   },
 >(
@@ -123,7 +123,7 @@ export function enumTextTable<
   Context extends tmpl.SqlEmitContext,
   TPropAxioms extends Record<string, ax.Axiom<Any>> = {
     readonly code: d.AxiomSqlDomain<TEnumCode, Context>;
-    readonly value: d.AxiomSqlDomain<string, Context>;
+    readonly value: d.AxiomSqlDomain<TEnumValue, Context>;
     readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
   },
 >(

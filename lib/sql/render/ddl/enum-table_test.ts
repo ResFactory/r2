@@ -49,7 +49,7 @@ Deno.test("SQL Aide (SQLa) numeric enum table", async (tc) => {
     };
     const row = numericEnumModel.prepareInsertable({
       code: syntheticEnum1.code1,
-      value: "code0-value",
+      value: "code1",
     });
     expectType<number | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.code); // should see compile error if this doesn't work
     expectType<string | tmpl.SqlTextSupplier<tmpl.SqlEmitContext>>(row.value); // should see compile error if this doesn't work
@@ -59,7 +59,7 @@ Deno.test("SQL Aide (SQLa) numeric enum table", async (tc) => {
     type Synthetic = ax.AxiomType<typeof numericEnumModel>;
     const synthetic: Synthetic = {
       code: 1,
-      value: "text",
+      value: "code1",
       created_at: new Date(),
     };
     ta.assert(numericEnumModel.test(synthetic, {
