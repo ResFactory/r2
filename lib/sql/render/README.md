@@ -400,6 +400,8 @@ The system generates lint messages:
 
 - [ ] Integrate [xlite](https://github.com/x2bool/xlite) SQLite extension to
       query Excel (.xlsx, .xls, .ods) files as virtual tables
+- [ ] Integrate [litetree](https://github.com/aergoio/litetree), SQLite with
+      Branches (`git`-style)
 - [x] Dependency graphs (relationships from FKs, links, etc.)
 - [x] Generate PlantUML Information Engineering diagrams
 - [ ] Consider whether SQLa could join the [UnifiedJs](https://unifiedjs.com/)
