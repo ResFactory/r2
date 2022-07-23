@@ -31,10 +31,15 @@ export function enumTable<
   TEnumValue extends number,
   TableName extends string,
   Context extends tmpl.SqlEmitContext,
+  TPropAxioms extends Record<string, ax.Axiom<Any>> = {
+    readonly code: d.AxiomSqlDomain<number, Context>;
+    readonly value: d.AxiomSqlDomain<string, Context>;
+    readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
+  },
 >(
   tableName: TableName,
   seedEnum: { [key in TEnumCode]: TEnumValue },
-  tdOptions?: tbl.TableDefnOptions<Context>,
+  tdOptions?: tbl.TableDefnOptions<TPropAxioms, Context>,
 ) {
   const seedRows: {
     readonly code: number;
@@ -56,7 +61,7 @@ export function enumTable<
     code: tbl.primaryKey(d.integer()),
     value: d.text(),
     created_at: d.createdAt(),
-  };
+  } as unknown as TPropAxioms;
   const tdrf = tbl.tableDomainsRowFactory(tableName, props, {
     // "created_at" is considered "housekeeping" with a default so don't
     // emit it as part of the insert DML statement
@@ -116,10 +121,15 @@ export function enumTextTable<
   TEnumValue extends string,
   TableName extends string,
   Context extends tmpl.SqlEmitContext,
+  TPropAxioms extends Record<string, ax.Axiom<Any>> = {
+    readonly code: d.AxiomSqlDomain<TEnumCode, Context>;
+    readonly value: d.AxiomSqlDomain<string, Context>;
+    readonly created_at: d.AxiomSqlDomain<Date | undefined, Context>;
+  },
 >(
   tableName: TableName,
   seedEnum: { [key in TEnumCode]: TEnumValue },
-  tdOptions?: tbl.TableDefnOptions<Context>,
+  tdOptions?: tbl.TableDefnOptions<TPropAxioms, Context>,
 ) {
   const seedRows: {
     readonly code: string;
@@ -174,7 +184,7 @@ export function enumTextTable<
     code: tbl.primaryKey(codeDomain),
     value: valueDomain,
     created_at: d.createdAt(),
-  };
+  } as unknown as TPropAxioms;
   const tdrf = tbl.tableDomainsRowFactory(tableName, props, {
     // "created_at" is considered "housekeeping" with a default so don't
     // emit it as part of the insert DML statement

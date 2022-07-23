@@ -531,7 +531,44 @@ export function isTableDefinition<
   return isTD(o);
 }
 
+export type TableConstraint<Context extends tmpl.SqlEmitContext> =
+  tmpl.SqlTextSupplier<Context>;
+
+export type IdentifiableTableConstraint<
+  ConstraintIdentity extends string,
+  Context extends tmpl.SqlEmitContext,
+> = TableConstraint<Context> & {
+  readonly constraintIdentity: ConstraintIdentity;
+};
+
+export type TableColumnsConstraint<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+  ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
+> =
+  & TableConstraint<Context>
+  & {
+    readonly constrainedColumnNames: ColumnName[];
+  };
+
+export function uniqueTableCols<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+  ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
+>(...columnNames: ColumnName[]) {
+  const result: TableColumnsConstraint<TPropAxioms, Context> = {
+    constrainedColumnNames: columnNames,
+    SQL: (ctx) => {
+      const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
+      const ucQuoted = columnNames.map((c) => ns.domainName(String(c)));
+      return `UNIQUE(${ucQuoted.join(", ")})`;
+    },
+  };
+  return result;
+}
+
 export interface TableDefnOptions<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context extends tmpl.SqlEmitContext,
 > {
   readonly isIdempotent?: boolean;
@@ -545,6 +582,7 @@ export interface TableDefnOptions<
     domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
   readonly sqlNS?: ns.SqlNamespaceSupplier;
+  readonly constraints?: TableColumnsConstraint<TPropAxioms, Context>[];
 }
 
 export function tableDefinition<
@@ -554,7 +592,7 @@ export function tableDefinition<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdOptions?: TableDefnOptions<Context>,
+  tdOptions?: TableDefnOptions<TPropAxioms, Context>,
 ) {
   const columnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
   const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
@@ -642,6 +680,10 @@ export function tableDefinition<
     };
   }
 
+  if (tdOptions?.constraints) {
+    afterColumnDefnsSS.push(...tdOptions?.constraints);
+  }
+
   const tableDefnResult:
     & TableDefinition<TableName, Context>
     & {
@@ -716,7 +758,7 @@ export function typicalKeysTableDefinition<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdOptions?: TableDefnOptions<Context>,
+  tdOptions?: TableDefnOptions<TPropAxioms, Context>,
 ) {
   return tableDefinition(tableName, props, tdOptions);
 }
@@ -735,7 +777,7 @@ export function tableDomainsRowFactory<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdrfOptions?: TableDefnOptions<Context> & {
+  tdrfOptions?: TableDefnOptions<TPropAxioms, Context> & {
     defaultIspOptions?: dml.InsertStmtPreparerOptions<
       TableName,
       Any,
@@ -866,7 +908,7 @@ export function tableSelectFactory<
 >(
   tableName: TableName,
   props: TPropAxioms,
-  tdrfOptions?: TableDefnOptions<Context> & {
+  tdrfOptions?: TableDefnOptions<TPropAxioms, Context> & {
     defaultFcpOptions?: cr.FilterCriteriaPreparerOptions<Any, Context>;
     defaultSspOptions?: ss.SelectStmtPreparerOptions<
       TableName,

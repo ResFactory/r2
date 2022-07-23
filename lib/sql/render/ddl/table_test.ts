@@ -44,6 +44,20 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       ),
       ...housekeeping(),
     },
+    {
+      // test "manual" creation of constraints
+      sqlPartial: (destination) => {
+        if (destination == "after all column definitions") {
+          return [
+            {
+              SQL: () => `UNIQUE(column_one_text, column_three_text_digest)`,
+            },
+          ];
+        }
+      },
+      // test "automatic" creation of unique constraints
+      constraints: [mod.uniqueTableCols("column_unique", "created_at")],
+    },
   );
   const syntheticTable1DefnDefaultable = ax.axiomSerDeObjectDefaultables<
     typeof syntheticTable1Defn.axiomObjectDecl
@@ -131,7 +145,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
             "column_unique" TEXT NOT NULL,
             "column_linted" TEXT NOT NULL,
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE("column_unique")
+            UNIQUE("column_unique"),
+            UNIQUE("column_unique", "created_at"),
+            UNIQUE(column_one_text, column_three_text_digest)
         );`),
     );
   });
