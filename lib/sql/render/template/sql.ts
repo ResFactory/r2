@@ -509,6 +509,7 @@ export class SqlPartialExprEventEmitter<
 }> {}
 
 export interface SqlTextLintState<Context extends SqlEmitContext> {
+  readonly isFatalIssue: (lis: l.SqlLintIssueSupplier) => boolean;
   readonly lintedSqlText: l.SqlLintIssuesSupplier;
   readonly sqlTextLintSummary: (options?: {
     noIssuesText?: string;
@@ -534,7 +535,22 @@ export function typicalSqlTextLintManager<Context extends SqlEmitContext>(
       lintedSqlTmplEngine.lintIssues.push(...slis);
     },
   };
+  const lintMessage = (li: l.SqlLintIssueSupplier) => {
+    return `${li.consequence ? `[${li.consequence}] ` : ""}${li.lintIssue}${
+      li.location
+        ? ` (${
+          typeof li.location === "string"
+            ? li.location.slice(0, 50)
+            : li.location({ maxLength: 50 })
+        })`
+        : ""
+    }`;
+  };
   return {
+    isFatalIssue: (lis: l.SqlLintIssueSupplier) =>
+      lis.consequence && lis.consequence.toString().startsWith("FATAL")
+        ? true
+        : false,
     lintedSqlText,
     sqlTextLintSummary: (options) => {
       const {
@@ -548,11 +564,9 @@ export function typicalSqlTextLintManager<Context extends SqlEmitContext>(
               return lintedSqlText.lintIssues.length > 0
                 // compute all lint issue texts, pass them through a Set to get unique only
                 ? Array.from(
-                  new Set(lintedSqlText.lintIssues.map((li) => {
-                    // deno-fmt-ignore
-                    const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-                    return steOptions.comments(message);
-                  })),
+                  new Set(lintedSqlText.lintIssues.map((li) =>
+                    steOptions.comments(lintMessage(li))
+                  )),
                 ).join("\n")
                 : steOptions.comments(noIssuesText);
             },
@@ -575,11 +589,9 @@ export function typicalSqlTextLintManager<Context extends SqlEmitContext>(
               return lintedSqlTmplEngine.lintIssues.length > 0
                 // compute all lint issue texts, pass them through a Set to get unique only
                 ? Array.from(
-                  new Set(lintedSqlTmplEngine.lintIssues.map((li) => {
-                    // deno-fmt-ignore
-                    const message = `${li.lintIssue}${li.location ? ` (${li.location({ maxLength: 50 })})` : ""}`;
-                    return steOptions.comments(message);
-                  })),
+                  new Set(lintedSqlTmplEngine.lintIssues.map((li) =>
+                    steOptions.comments(lintMessage(li))
+                  )),
                 ).join("\n")
                 : steOptions.comments(noIssuesText);
             },

@@ -163,16 +163,18 @@ export function domainLintIssue<
   Context extends tmpl.SqlEmitContext,
 >(
   lintIssue: string,
-  location?: string | ((options?: { maxLength?: number }) => string),
+  options?: Partial<Omit<l.SqlLintIssueSupplier, "lintIssue">>,
 ): SqlDomainLintIssueSupplier<TsValueType, Context> {
+  const { location, consequence } = options ?? {};
   return {
     lintIssue,
     location: location
       ? (typeof location === "string"
         ? ((options) =>
-          options?.maxLength ? location.slice(0, options.maxLength) : location)
+          options?.maxLength ? location!.slice(0, options.maxLength) : location)
         : location)
       : undefined,
+    consequence,
   };
 }
 

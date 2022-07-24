@@ -1060,6 +1060,52 @@ export function tableDomainsViewWrapper<
   return vw.safeViewDefinitionCustom(viewName, props, selectStmt, tdvwOptions);
 }
 
+export type TableNamePrimaryKeyLintOptions = {
+  readonly ignoreTableLacksPrimaryKey?:
+    | boolean
+    | ((tableName: string) => boolean);
+};
+
+/**
+ * Lint rule which checks that a given table name has a primary key
+ * @param tableDefn the table definition to check
+ * @returns a lint rule which, when executed and is not being ignored, will add
+ *          a lintIssue to a given LintIssuesSupplier
+ */
+export const tableLacksPrimaryKeyLintRule = <
+  Context extends tmpl.SqlEmitContext,
+>(
+  tableDefn: TableDefinition<Any, Context> & d.SqlDomainsSupplier<Context>,
+) => {
+  const rule: l.SqlLintRule<TableNamePrimaryKeyLintOptions> = {
+    lint: (lis, lOptions) => {
+      const { ignoreTableLacksPrimaryKey: iptn } = lOptions ?? {};
+      const ignoreRule = iptn
+        ? (typeof iptn === "boolean" ? iptn : iptn(tableDefn.tableName))
+        : false;
+      if (!ignoreRule) {
+        const pkColumn = tableDefn.domains.find((ap) =>
+          isTablePrimaryKeyColumnDefn<Any, Context>(ap)
+        ) as unknown as (
+          | (
+            & d.IdentifiableSqlDomain<string, Context>
+            & TablePrimaryKeyColumnDefn<Any, Context>
+          )
+          | undefined
+        );
+        if (!pkColumn) {
+          lis.registerLintIssue({
+            lintIssue:
+              `table '${tableDefn.tableName}' has no primary key column(s)`,
+            consequence: l.SqlLintIssueConsequence.WARNING_DDL,
+          });
+        }
+      }
+    },
+  };
+  return rule;
+};
+
 export type TableNameConsistencyLintOptions = {
   readonly ignorePluralTableName?: boolean | ((tableName: string) => boolean);
 };
@@ -1082,6 +1128,7 @@ export const tableNameConsistencyLintRule = (tableName: string) => {
         lis.registerLintIssue({
           lintIssue:
             `table name '${tableName}' ends with an 's' (should be singular, not plural)`,
+          consequence: l.SqlLintIssueConsequence.CONVENTION_DDL,
         });
       }
     },
@@ -1167,6 +1214,7 @@ export function tableFKeyColNameConsistencyLintRule<
               lis.registerLintIssue(
                 d.domainLintIssue(
                   `Foreign key column "${col.identity}" in "${tableDefn.tableName}" ${suggestion}`,
+                  { consequence: l.SqlLintIssueConsequence.CONVENTION_DDL },
                 ),
               );
             }
@@ -1183,6 +1231,7 @@ export function tableFKeyColNameConsistencyLintRule<
             lis.registerLintIssue(
               d.domainLintIssue(
                 `Column "${col.identity}" in "${tableDefn.tableName}" ends with '_id' but is neither a primary key nor a foreign key.`,
+                { consequence: l.SqlLintIssueConsequence.CONVENTION_DDL },
               ),
             );
           }
@@ -1198,14 +1247,17 @@ export function tableLintRules<Context extends tmpl.SqlEmitContext>() {
     tableNameConsistency: tableNameConsistencyLintRule,
     columnLintIssues: tableColumnsLintIssuesRule,
     fKeyColNameConsistency: tableFKeyColNameConsistencyLintRule,
+    noPrimaryKeyDefined: tableLacksPrimaryKeyLintRule,
     typical: (
       tableDefn: TableDefinition<Any, Context> & d.SqlDomainsSupplier<Context>,
     ) => {
       return l.aggregatedSqlLintRules<
         & TableNameConsistencyLintOptions
         & FKeyColNameConsistencyLintOptions<Context>
+        & TableNamePrimaryKeyLintOptions
       >(
         rules.tableNameConsistency(tableDefn.tableName),
+        rules.noPrimaryKeyDefined(tableDefn),
         rules.columnLintIssues(tableDefn),
         rules.fKeyColNameConsistency(tableDefn),
       );

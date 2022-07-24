@@ -40,7 +40,9 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
       column_unique: mod.unique(d.text()),
       column_linted: d.lintedSqlDomain(
         d.text(),
-        d.domainLintIssue("synthetic lint issue #1"),
+        d.domainLintIssue("synthetic lint issue #1", {
+          consequence: l.SqlLintIssueConsequence.INFORMATIONAL_DDL,
+        }),
       ),
       ...housekeeping(),
     },
@@ -135,7 +137,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
 
         ${syntheticTable1Defn}`.SQL(ctx),
       uws(`
-        -- synthetic lint issue #1
+        -- [Informational (DDL)] synthetic lint issue #1
 
         CREATE TABLE "synthetic_table1" (
             "synthetic_table1_id" INTEGER PRIMARY KEY AUTOINCREMENT,
