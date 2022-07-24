@@ -3,7 +3,7 @@ TODO: generate this from SQLa
 */
 
 -- Get all tables
-SELECT name, type FROM sqlite_schema WHERE type='table' ORDER BY name;
+SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;
 
 -- Get all fs hosts ("origins")
 select * from fs_origin;
@@ -12,16 +12,16 @@ select * from fs_origin;
 select * from fs_walk;
 
 -- Get all fs entries (paths or files)
-select * from fs_entry limit 5;
+select * from fs_entry limit 1;
 
 -- Get all fs path entries only
-select * from fs_entry_path limit 5;
+select * from fs_entry_path limit 1;
 
 -- Get all fs file extensions
-select * from fs_entry_file_extn limit 5;
+select * from fs_entry_file_extn limit 1;
 
 -- Get all fs file entries only
-select * from fs_entry_file limit 5;
+select * from fs_entry_file limit 1;
 
 -- Get tables and counts
 SELECT "fs_origin", count(*) FROM fs_origin UNION ALL
