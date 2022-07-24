@@ -1,3 +1,4 @@
+import * as safety from "../safety/mod.ts";
 import * as axsd from "./axiom-serde.ts";
 import * as hex from "https://deno.land/std@0.147.0/encoding/hex.ts";
 
@@ -19,6 +20,10 @@ export function uuidAxiomSD(
 ) {
   return axsd.defaultable(axiomSD, () => crypto.randomUUID(), isDefaultable);
 }
+
+export const isDigestAxiomSD = safety.typeGuard<{ isDigestAxiomSD: true }>(
+  "isDigestAxiomSD",
+);
 
 export async function sha1Digest(
   textSupplier: string | Promise<string> | (() => string | Promise<string>),
@@ -51,19 +56,22 @@ export function sha1DigestAxiomSD(
   axiomSD = axsd.text(),
   isDefaultable?: <Context>(value?: string, ctx?: Context) => boolean,
 ) {
-  return axsd.defaultable(
-    axiomSD,
-    async <Context extends axsd.AxiomSerDeValueSupplierContext>(
-      currentValue?: string | undefined,
-      ctx?: Context,
-    ) =>
-      currentValue == undefined || currentValue == sha1DigestUndefined
-        ? sha1DigestUndefined
-        : await sha1Digest(
-          digestValue ? await digestValue(currentValue, ctx) : currentValue,
-        ),
-    isDefaultable ??
-      ((value) =>
-        value == undefined || value == sha1DigestUndefined ? true : false),
-  );
+  return {
+    isDigestAxiomSD: true, // should match isDigestAxiomSD() requirements
+    ...axsd.defaultable(
+      axiomSD,
+      async <Context extends axsd.AxiomSerDeValueSupplierContext>(
+        currentValue?: string | undefined,
+        ctx?: Context,
+      ) =>
+        currentValue == undefined || currentValue == sha1DigestUndefined
+          ? sha1DigestUndefined
+          : await sha1Digest(
+            digestValue ? await digestValue(currentValue, ctx) : currentValue,
+          ),
+      isDefaultable ??
+        ((value) =>
+          value == undefined || value == sha1DigestUndefined ? true : false),
+    ),
+  };
 }
