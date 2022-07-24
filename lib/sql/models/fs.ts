@@ -27,6 +27,18 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
   const autoIncPrimaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
 
+  const denormalized = <TsValueType>(
+    domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
+  ) => {
+    return SQLa.label(domain, "denormalized");
+  };
+
+  const surrogateKey = <TsValueType>(
+    domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
+  ) => {
+    return SQLa.label(domain, "surrogate-key");
+  };
+
   type HousekeepingColumnsDefns<Context extends SQLa.SqlEmitContext> = {
     readonly created_at: SQLa.AxiomSqlDomain<Date | undefined, Context>;
   };
@@ -152,6 +164,8 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
   return {
     digestPrimaryKey,
     autoIncPrimaryKey,
+    denormalized,
+    surrogateKey,
     housekeeping,
     table,
     tableLintRules,
@@ -192,8 +206,8 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
 
   const fsOrigin = mg.table("fs_origin", {
     fs_origin_id: mg.digestPrimaryKey(),
-    host: SQLa.unique(SQLa.text()), // add label "surrogate key"
-    host_ipv4_address: SQLa.unique(SQLa.text()), // add label "surrogate key"
+    host: mg.surrogateKey(SQLa.unique(SQLa.text())),
+    host_ipv4_address: SQLa.unique(SQLa.text()),
     host_meta: SQLa.jsonTextNullable(),
     ...mg.housekeeping(),
   }, {
@@ -214,17 +228,19 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
   const fsePathPK = mg.autoIncPrimaryKey();
   const fsePath = mg.table("fs_entry_path", {
     fs_entry_path_id: fsePathPK,
-    fs_origin_id: fsOrigin.foreignKeyRef.fs_origin_id(SQLa.belongsTo()), // TODO: add label "denormalized"
+    fs_origin_id: mg.denormalized(
+      fsOrigin.foreignKeyRef.fs_origin_id(SQLa.belongsTo()),
+    ),
     fs_entry_id: fsEntry.foreignKeyRef.fs_entry_id(SQLa.belongsTo()), // TODO: belongsTo should be isA(), requires 1:1
     parent_id: SQLa.selfRefForeignKeyNullable(fsePathPK),
     abs_path: SQLa.text(),
-    parent_abs_path: SQLa.textNullable(), // TODO: add governance details such as "denormalized"
+    parent_abs_path: mg.denormalized(SQLa.textNullable()),
     ...mg.housekeeping(),
   }, { constraints: [SQLa.uniqueTableCols("fs_origin_id", "abs_path")] });
 
   const fseFileExtn = mg.table("fs_entry_file_extn", {
     fs_entry_file_extn_id: mg.autoIncPrimaryKey(),
-    fs_origin_id: fsOrigin.foreignKeyRef.fs_origin_id(), // TODO: should this be tied to origin or walk?
+    fs_origin_id: fsOrigin.foreignKeyRef.fs_origin_id(), // TODO: should this be tied to origin or fs_walk?
     file_extn_tail: SQLa.text(),
     modifier: SQLa.textNullable(),
     modifier_index: SQLa.integerNullable(),
@@ -247,11 +263,13 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
 
   const fseFile = mg.table("fs_entry_file", {
     fs_entry_file_id: mg.autoIncPrimaryKey(),
-    fs_origin_id: fsOrigin.foreignKeyRef.fs_origin_id(SQLa.belongsTo()), // TODO: add label "denormalized"
+    fs_origin_id: mg.denormalized(
+      fsOrigin.foreignKeyRef.fs_origin_id(SQLa.belongsTo()),
+    ),
     fs_entry_id: fsEntry.foreignKeyRef.fs_entry_id(SQLa.belongsTo()), // TODO: belongsTo should be isA(), requires 1:1
     fse_path_id: fsePath.foreignKeyRef.fs_entry_path_id(SQLa.belongsTo()),
     file_abs_path_and_file_name_extn: SQLa.text(),
-    file_grandparent_path: SQLa.text(), // TODO: add "denormalized" label
+    file_grandparent_path: mg.denormalized(SQLa.text()),
     file_root: SQLa.textNullable(), // TODO: add example/doc/remark that e.g. `C:\` on Windows, `/` on Linux/MacOS
     file_abs_path_only: SQLa.text(),
     file_name_without_extn: SQLa.text(),
@@ -323,6 +341,18 @@ export function fileSystemModels<Context extends SQLa.SqlEmitContext>(
     fsWalk,
     fsWalkEntry,
     seedDDL,
+    isValid: () => {
+      const stls = seedDDL.stsOptions.sqlTextLintState;
+      if (stls?.lintedSqlText.lintIssues.find((li) => stls.isFatalIssue(li))) {
+        return 100;
+      }
+      if (
+        stls?.lintedSqlTmplEngine.lintIssues.find((li) => stls.isFatalIssue(li))
+      ) {
+        return 101;
+      }
+      return true;
+    },
   };
 }
 
@@ -517,16 +547,10 @@ if (import.meta.main) {
   const ctx = SQLa.typicalSqlEmitContext();
   const fsc = fileSystemContent();
   console.log(fsc.fsModels.seedDDL.SQL(ctx));
-  const stls = fsc.fsModels.seedDDL.stsOptions.sqlTextLintState;
-  if (stls?.lintedSqlText.lintIssues.find((li) => stls.isFatalIssue(li))) {
-    console.error("FATAL errors in rendered SQL");
-    Deno.exit(100);
-  }
-  if (
-    stls?.lintedSqlTmplEngine.lintIssues.find((li) => stls.isFatalIssue(li))
-  ) {
-    console.error("FATAL errors in template engine");
-    Deno.exit(101);
+  const isValid = fsc.fsModels.isValid();
+  if (typeof isValid === "number") {
+    console.error("FATAL errors in SQL (see lint messages in emitted SQL)");
+    Deno.exit(isValid);
   }
 
   (await fsc.entriesDML(
