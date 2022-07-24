@@ -483,3 +483,5 @@ The system generates lint messages:
   - [ ] [Lesser Known PostgreSQL Features](https://hakibenita.com/postgresql-unknown-features)
   - [ ] [GitLab Migration Style Guide](https://docs.gitlab.com/ee/development/migration_style_guide.html)
   - [ ] [Common DB schema change mistakes](https://postgres.ai/blog/20220525-common-db-schema-change-mistakes#case-1-schema-mismatch)
+- [ ] See if it makes sense to integrate
+      [arquero](https://uwdata.github.io/arquero/) data frames.
