@@ -210,11 +210,19 @@ export function label<
 >(
   domain: AxiomSqlDomain<TsValueType, Context>,
   ...labels: Label[]
-): LabeledSqlDomain<TsValueType, Context, Label> {
-  return {
-    ...domain,
-    labels,
-  };
+) {
+  let result: LabeledSqlDomain<TsValueType, Context, Label>;
+  if (isLabeledSqlDomain<TsValueType, Context, Label>(domain)) {
+    result = domain;
+  } else {
+    const wDomain = domain as unknown as safety.Writeable<
+      lab.LabelsSupplier<Label>
+    >;
+    wDomain.labels = [];
+    result = domain as LabeledSqlDomain<TsValueType, Context, Label>;
+  }
+  result.labels.push(...labels);
+  return result;
 }
 
 export function untyped<
