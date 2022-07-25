@@ -1250,6 +1250,7 @@ export function tableLintRules<Context extends tmpl.SqlEmitContext>() {
     noPrimaryKeyDefined: tableLacksPrimaryKeyLintRule,
     typical: (
       tableDefn: TableDefinition<Any, Context> & d.SqlDomainsSupplier<Context>,
+      ...additionalRules: l.SqlLintRule<Any>[]
     ) => {
       return l.aggregatedSqlLintRules<
         & TableNameConsistencyLintOptions
@@ -1260,6 +1261,7 @@ export function tableLintRules<Context extends tmpl.SqlEmitContext>() {
         rules.noPrimaryKeyDefined(tableDefn),
         rules.columnLintIssues(tableDefn),
         rules.fKeyColNameConsistency(tableDefn),
+        ...additionalRules,
       );
     },
   };
