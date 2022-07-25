@@ -113,6 +113,26 @@ export function dataVaultHousekeeping<Context extends SQLa.SqlEmitContext>() {
   };
 }
 
+export type DataVaultHubTableDefn<
+  HubName extends string,
+  HubTableName extends string,
+  Context extends SQLa.SqlEmitContext,
+> = SQLa.TableDefinition<HubTableName, Context> & {
+  readonly primaryKeyColDefn: SQLa.TablePrimaryKeyColumnDefn<Any, Context>;
+  readonly hubName: HubName;
+};
+
+export type DataVaultSatelliteTableDefn<
+  SatelliteName extends string,
+  SatelliteTableName extends string,
+  HubName extends string,
+  HubTableName extends string,
+  Context extends SQLa.SqlEmitContext,
+> = SQLa.TableDefinition<SatelliteTableName, Context> & {
+  readonly hubTableDefn: DataVaultHubTableDefn<HubName, HubTableName, Context>;
+  readonly satelliteName: SatelliteName;
+};
+
 /**
  * dataVaultGovn is a "data vault governer" builders object for data vault models.
  * @param ddlOptions optional DDL string template literal options
@@ -190,7 +210,9 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       )
       | undefined
     );
-    const defaultIspOptions = housekeeping.typical.insertStmtPrepOptions<TableName>();
+    const defaultIspOptions = housekeeping.typical.insertStmtPrepOptions<
+      TableName
+    >();
     const tdrf = SQLa.tableDomainsRowFactory<TableName, TPropAxioms, Context>(
       tableName,
       props,
@@ -238,6 +260,121 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     return result;
   };
 
+  const hubTableName = <
+    HubName extends string,
+    TableName extends `hub_${HubName}` = `hub_${HubName}`,
+    Qualified extends string = TableName,
+  >(name: HubName) =>
+    tableName<TableName, Qualified>(`hub_${name}` as TableName);
+
+  const hubTable = <
+    HubName extends string,
+    TPropAxioms extends
+      & Record<string, ax.Axiom<Any>>
+      & Record<
+        `hub_${HubName}_id`,
+        SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+      >
+      & Record<`key`, ax.Axiom<Any>>,
+  >(hubName: HubName, props: TPropAxioms) => {
+    const tableName = hubTableName(hubName);
+    const tableDefn = table(tableName, {
+      ...props,
+      ...housekeeping.typical.columns,
+    });
+    const primaryKeyColDefn = tableDefn.domains.find((cd) =>
+      cd.identity == `hub_${hubName}_id`
+    ) as unknown as SQLa.TablePrimaryKeyColumnDefn<Any, Context>;
+    if (
+      !primaryKeyColDefn || !SQLa.isTablePrimaryKeyColumnDefn(primaryKeyColDefn)
+    ) {
+      throw Error(`no primary key column defined for hubTable ${hubName}`);
+    }
+    const signature: Pick<
+      DataVaultHubTableDefn<HubName, typeof tableName, Context>,
+      "hubName" | "primaryKeyColDefn"
+    > = { hubName, primaryKeyColDefn };
+    // TODO: add lint rule for checking if hub business key or group of keys is unique
+    const result = {
+      ...tableDefn,
+      ...signature,
+      satTable: <
+        SatelliteName extends string,
+        TPropSatAxioms extends
+          & Record<string, ax.Axiom<Any>>
+          & Record<
+            `sat_${HubName}_${SatelliteName}_id`,
+            SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+          >,
+      >(satelliteName: SatelliteName, satProps: TPropSatAxioms) =>
+        satelliteTable<
+          HubName,
+          typeof tableName,
+          SatelliteName,
+          TPropSatAxioms
+        >(result, satelliteName, satProps),
+    };
+    return result;
+  };
+
+  const satelliteTableName = <
+    HubName extends string,
+    SatelliteName extends string,
+    TableName extends `sat_${HubName}_${SatelliteName}` =
+      `sat_${HubName}_${SatelliteName}`,
+    Qualified extends string = TableName,
+  >(hubName: HubName, satelliteName: SatelliteName) =>
+    tableName<TableName, Qualified>(
+      `sat_${hubName}_${satelliteName}` as TableName,
+    );
+
+  const satelliteTable = <
+    HubName extends string,
+    HubTableName extends string,
+    SatelliteName extends string,
+    TPropAxioms extends
+      & Record<string, ax.Axiom<Any>>
+      & Record<
+        `sat_${HubName}_${SatelliteName}_id`,
+        SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+      >,
+  >(
+    hubTableDefn: DataVaultHubTableDefn<HubName, HubTableName, Context>,
+    satelliteName: SatelliteName,
+    props: TPropAxioms,
+  ) => {
+    const satTableName = satelliteTableName<HubName, SatelliteName>(
+      hubTableDefn.hubName,
+      satelliteName,
+    );
+    const signature: Pick<
+      DataVaultSatelliteTableDefn<
+        SatelliteName,
+        typeof satTableName,
+        HubName,
+        HubTableName,
+        Context
+      >,
+      "hubTableDefn" | "satelliteName"
+    > = { hubTableDefn, satelliteName };
+    // TODO: add lint rule for checking if key or group of keys is unique
+    return {
+      ...table(
+        satTableName,
+        {
+          [`hub_${hubTableDefn.hubName}_id`]: SQLa.foreignKey(
+            hubTableDefn.tableName,
+            hubTableDefn.primaryKeyColDefn,
+            SQLa.belongsTo(),
+          ),
+          ...props,
+          ...housekeeping.typical.columns,
+        },
+      ),
+      ...signature,
+    };
+  };
+
   const erdConfig = erd.typicalPlantUmlIeOptions();
   const lintState = SQLa.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
 
@@ -248,6 +385,10 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     housekeeping,
     tableName,
     table,
+    hubTableName,
+    hubTable,
+    satelliteTableName,
+    satelliteTable,
     tableLintRules,
     erdConfig,
     enumTable: SQLa.enumTable,
