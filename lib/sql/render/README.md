@@ -217,6 +217,8 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
         to of SQL, allow simple `filter` key on the criteria record similar to
         EdgeDB to introduce JOINs.
   - [ ] composable `order` and `page` helpers.
+- [ ] generate SQL from [PRQL](https://github.com/prql/prql) using CLI or WASM
+      bindigns.
 - [ ] Embed SQL statement identities into SQL comments so that slow query
       analyzers and other query planners can distinguish between statements.
 - [ ] Simplified type-safe NEFS Axiom-style _query builder_ (select generator)
