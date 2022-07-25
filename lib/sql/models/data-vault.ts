@@ -91,6 +91,8 @@ export type DataVaultTypicalHousekeepingColumns<
 export function dataVaultHousekeeping<Context extends SQLa.SqlEmitContext>() {
   const { createdAt } = dataVaultDomains();
 
+  // TODO: add loadedAt, loadedBy, provenance (lineage), etc. columns from PgDCP DV
+
   return {
     typical: {
       columns: {
@@ -118,19 +120,8 @@ export type DataVaultHubTableDefn<
   HubTableName extends string,
   Context extends SQLa.SqlEmitContext,
 > = SQLa.TableDefinition<HubTableName, Context> & {
-  readonly primaryKeyColDefn: SQLa.TablePrimaryKeyColumnDefn<Any, Context>;
+  readonly pkColumnDefn: SQLa.TablePrimaryKeyColumnDefn<Any, Context>;
   readonly hubName: HubName;
-};
-
-export type DataVaultSatelliteTableDefn<
-  SatelliteName extends string,
-  SatelliteTableName extends string,
-  HubName extends string,
-  HubTableName extends string,
-  Context extends SQLa.SqlEmitContext,
-> = SQLa.TableDefinition<SatelliteTableName, Context> & {
-  readonly hubTableDefn: DataVaultHubTableDefn<HubName, HubTableName, Context>;
-  readonly satelliteName: SatelliteName;
 };
 
 /**
@@ -200,7 +191,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     },
   ) => {
     const asdo = ax.axiomSerDeObject(props);
-    const pkColumn = asdo.axiomProps.find((ap) =>
+    const pkColumnDefn = asdo.axiomProps.find((ap) =>
       SQLa.isTablePrimaryKeyColumnDefn<Any, Context>(ap)
     ) as unknown as (
       | (
@@ -220,7 +211,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     );
     const result = {
       ...asdo,
-      pkColumn,
+      pkColumnDefn,
       ...SQLa.tableDefinition<TableName, TPropAxioms, Context>(
         tableName,
         props,
@@ -235,13 +226,15 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       // record
       insertDML: tdrf.insertCustomDML(async (ir) => {
         const pkDigestCols = options?.pkDigestColumns;
-        if (pkDigestCols && pkColumn) {
+        if (pkDigestCols && pkColumnDefn) {
           // TODO: figure out how to type this properly, don't leave it untyped
           // suggestion: create a writeable: (ir: InsertableRecord) => safety.Writeable<InsertableRecord>?
           const untypedIR = ir as Any;
           const dc = pkDigestCols.map((dc) => untypedIR[dc]).join("::");
           // pkColumn.defaultValue(dc) will be the SHA-1 or other digest function
-          untypedIR[pkColumn.identity] = await pkColumn.defaultValue(dc);
+          untypedIR[pkColumnDefn.identity] = await pkColumnDefn.defaultValue(
+            dc,
+          );
         }
       }),
       ...SQLa.tableSelectFactory<TableName, TPropAxioms, Context>(
@@ -253,7 +246,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
 
     const rules = tableLintRules.typical(
       result,
-      keys.digestPkLintRule(tableName, pkColumn, options),
+      keys.digestPkLintRule(tableName, pkColumnDefn, options),
     );
     rules.lint(result, options?.lint);
 
@@ -282,18 +275,13 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       ...props,
       ...housekeeping.typical.columns,
     });
-    const primaryKeyColDefn = tableDefn.domains.find((cd) =>
-      cd.identity == `hub_${hubName}_id`
-    ) as unknown as SQLa.TablePrimaryKeyColumnDefn<Any, Context>;
-    if (
-      !primaryKeyColDefn || !SQLa.isTablePrimaryKeyColumnDefn(primaryKeyColDefn)
-    ) {
+    if (!tableDefn.pkColumnDefn) {
       throw Error(`no primary key column defined for hubTable ${hubName}`);
     }
     const signature: Pick<
       DataVaultHubTableDefn<HubName, typeof tableName, Context>,
-      "hubName" | "primaryKeyColDefn"
-    > = { hubName, primaryKeyColDefn };
+      "hubName" | "pkColumnDefn"
+    > = { hubName, pkColumnDefn: tableDefn.pkColumnDefn };
     // TODO: add lint rule for checking if hub business key or group of keys is unique
     const result = {
       ...tableDefn,
@@ -305,14 +293,13 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
           & Record<
             `sat_${HubName}_${SatelliteName}_id`,
             SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+          >
+          & Record<
+            `hub_${HubName}_id`,
+            SQLa.TableForeignKeyColumnDefn<Any, typeof tableName, Context>
           >,
       >(satelliteName: SatelliteName, satProps: TPropSatAxioms) =>
-        satelliteTable<
-          HubName,
-          typeof tableName,
-          SatelliteName,
-          TPropSatAxioms
-        >(result, satelliteName, satProps),
+        satelliteTable(result, satelliteName, satProps),
     };
     return result;
   };
@@ -332,46 +319,94 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     HubName extends string,
     HubTableName extends string,
     SatelliteName extends string,
-    TPropAxioms extends
+    SatPropAxioms extends
       & Record<string, ax.Axiom<Any>>
       & Record<
         `sat_${HubName}_${SatelliteName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+      >
+      & Record<
+        `hub_${HubName}_id`,
+        SQLa.TableForeignKeyColumnDefn<Any, HubTableName, Context>
       >,
   >(
     hubTableDefn: DataVaultHubTableDefn<HubName, HubTableName, Context>,
     satelliteName: SatelliteName,
-    props: TPropAxioms,
+    props: SatPropAxioms,
   ) => {
     const satTableName = satelliteTableName<HubName, SatelliteName>(
       hubTableDefn.hubName,
       satelliteName,
     );
-    const signature: Pick<
-      DataVaultSatelliteTableDefn<
-        SatelliteName,
-        typeof satTableName,
-        HubName,
-        HubTableName,
-        Context
-      >,
-      "hubTableDefn" | "satelliteName"
-    > = { hubTableDefn, satelliteName };
     // TODO: add lint rule for checking if key or group of keys is unique
     return {
       ...table(
         satTableName,
         {
-          [`hub_${hubTableDefn.hubName}_id`]: SQLa.foreignKey(
-            hubTableDefn.tableName,
-            hubTableDefn.primaryKeyColDefn,
-            SQLa.belongsTo(),
-          ),
           ...props,
           ...housekeeping.typical.columns,
         },
       ),
-      ...signature,
+      hubTableDefn,
+      satelliteName,
+    };
+  };
+
+  const linkTableName = <
+    LinkName extends string,
+    TableName extends `link_${LinkName}` = `link_${LinkName}`,
+  >(linkName: LinkName) =>
+    tableName<TableName>(`link_${linkName}` as TableName);
+
+  const linkTable = <
+    LinkName extends string,
+    HubNames extends string,
+    HubTableDefns extends Record<
+      HubNames,
+      DataVaultHubTableDefn<
+        HubNames,
+        Any,
+        Context
+      >
+    >,
+  >(
+    linkName: LinkName,
+    hubTableDefns: HubTableDefns,
+  ) => {
+    const lTableName = linkTableName<LinkName>(linkName);
+    const props:
+      & Record<
+        `link_${LinkName}_id`,
+        SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+      >
+      & Record<
+        `hub_${HubNames}_id`,
+        SQLa.TableForeignKeyColumnDefn<Any, Any, Context>
+      > = {} as Any;
+    (props[`link_${linkName}_id`] as Any) = keys.digestPrimaryKey();
+    for (const htdEntry of Object.entries(hubTableDefns)) {
+      const hubName = htdEntry[0] as HubNames;
+      const hubTableDefn = htdEntry[1] as DataVaultHubTableDefn<
+        typeof hubName,
+        Any,
+        Context
+      >;
+      (props as Any)[`hub_${hubName}_id`] = SQLa.foreignKey(
+        hubTableDefn.tableName,
+        hubTableDefn.pkColumnDefn,
+      );
+    }
+    // TODO: add lint rule for checking if key or group of keys is unique
+    return {
+      ...table(
+        lTableName,
+        {
+          ...props,
+          ...housekeeping.typical.columns,
+        },
+      ),
+      linkName,
+      hubTableDefns,
     };
   };
 
@@ -389,6 +424,8 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     hubTable,
     satelliteTableName,
     satelliteTable,
+    linkTableName,
+    linkTable,
     tableLintRules,
     erdConfig,
     enumTable: SQLa.enumTable,
