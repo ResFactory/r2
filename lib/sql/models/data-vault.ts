@@ -17,11 +17,24 @@ export function dataVaultDomains() {
   return {
     text: SQLa.text,
     textNullable: SQLa.textNullable,
+
     integer: SQLa.integer,
+    integerNullable: SQLa.integerNullable,
+
+    boolean: SQLa.integer,
+    booleanNullable: SQLa.integerNullable,
+
     date: SQLa.date,
+    dateNullable: SQLa.dateNullable,
+
     dateTime: SQLa.dateTime,
+    dateTimeNullable: SQLa.dateTimeNullable,
+
     createdAt: SQLa.createdAt,
+
     shah1Digest: SQLa.sha1Digest,
+    ulid: SQLa.ulid,
+    uuidV4: SQLa.uuidv4,
 
     unique: SQLa.unique,
     uniqueMulti: SQLa.uniqueTableCols,
@@ -36,10 +49,13 @@ export function dataVaultKeys<Context extends SQLa.SqlEmitContext>() {
   // we create our aliases in a function and use the function instead of passing
   // in dvDomains as an argument because deep-generics type-safe objects will be
   // available.
-  const { shah1Digest } = dataVaultDomains();
+  const { shah1Digest, ulid } = dataVaultDomains();
 
   const digestPrimaryKey = () =>
     SQLa.uaDefaultablePrimaryKey<string, Context>(shah1Digest<Context>());
+
+  const ulidPrimaryKey = () =>
+    SQLa.uaDefaultablePrimaryKey<string, Context>(ulid<Context>());
 
   const autoIncPrimaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
@@ -74,6 +90,7 @@ export function dataVaultKeys<Context extends SQLa.SqlEmitContext>() {
       return rule;
     },
     autoIncPrimaryKey,
+    ulidPrimaryKey,
     surrogateKey,
   };
 }

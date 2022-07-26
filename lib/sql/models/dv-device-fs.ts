@@ -2,11 +2,47 @@ import { fs, path } from "../render/deps.ts";
 import * as SQLa from "../render/mod.ts";
 import * as dv from "./data-vault.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
+export type PathParts = path.ParsedPath & {
+  modifiersList: string[];
+  modifiersText: string;
+};
+
+/**
+ * pathParts splits a file system path into components; it's only novel job
+ * is to find multiple extensions like `name.ext1.ext2.tailext` and consider
+ * the `.tailext` as the primary extension and `.ext1.ext2` as "modifiers".
+ * @param parseablePath
+ * @returns path.ParsedPath plus modifiers
+ */
+export function pathParts(
+  parseablePath: string,
+) {
+  const pp: PathParts = {
+    modifiersList: [],
+    modifiersText: "" as string,
+    ...path.parse(parseablePath),
+  };
+  if (pp.name.indexOf(".") > 0) {
+    let ppn = pp.name;
+    let modifier = path.extname(ppn);
+    while (modifier && modifier.length > 0) {
+      pp.modifiersList.push(modifier);
+      pp.modifiersText += modifier;
+      ppn = ppn.substring(0, ppn.length - modifier.length);
+      modifier = path.extname(ppn);
+    }
+    pp.name = ppn;
+  }
+  return pp;
+}
+
 export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
-
-  const { text, unique } = dvg.domains;
+  const { text, textNullable, unique } = dvg.domains;
 
   const deviceHub = dvg.hubTable("device", {
     hub_device_id: dvg.digestPrimaryKey(),
@@ -14,15 +50,42 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     host_ipv4_address: unique(text()),
   }, { pkDigestColumns: ["host", "host_ipv4_address"] });
 
-  const deviceFileHub = dvg.hubTable("device_file", {
-    hub_device_file_id: dvg.digestPrimaryKey(),
+  const fileHub = dvg.hubTable("file", {
+    hub_file_id: dvg.digestPrimaryKey(),
     abs_path: unique(text()),
   }, { pkDigestColumns: ["abs_path"] });
+
+  const filePathPartsSat = fileHub.satTable("path_parts", {
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    sat_file_path_parts_id: dvg.ulidPrimaryKey(),
+    file_abs_path_and_file_name_extn: text(),
+    file_grandparent_path: text(),
+    file_root: textNullable(), // TODO: add example/doc/remark that e.g. `C:\` on Windows, `/` on Linux/MacOS
+    file_parent_path: text(),
+    file_name_without_extn: text(),
+    file_name_with_extn: text(),
+    file_extn_tail: textNullable(),
+    file_extn_modifiers: textNullable(),
+    file_extn_full: textNullable(),
+  }); // TODO: add unique constraints from fs.ts
+
+  const fsWalkHub = dvg.hubTable("fs_walk", {
+    hub_fs_walk_id: dvg.digestPrimaryKey(),
+    root_path: text(),
+    glob: text(),
+  }, { pkDigestColumns: ["root_path", "glob"] });
 
   const deviceFileLink = dvg.linkTable("device_file", {
     link_device_file_id: dvg.digestPrimaryKey(),
     hub_device_id: deviceHub.foreignKeyRef.hub_device_id(),
-    hub_device_file_id: deviceFileHub.foreignKeyRef.hub_device_file_id(),
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+  });
+
+  const deviceFsWalkFileLink = dvg.linkTable("device_fs_walk_file", {
+    link_device_fs_walk_file_id: dvg.digestPrimaryKey(),
+    hub_device_id: deviceHub.foreignKeyRef.hub_device_id(),
+    hub_fs_walk_id: fsWalkHub.foreignKeyRef.hub_fs_walk_id(),
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
   });
 
   // deno-fmt-ignore
@@ -33,9 +96,15 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
     ${deviceHub}
 
-    ${deviceFileHub}
+    ${fileHub}
+
+    ${filePathPartsSat}
+
+    ${fsWalkHub}
 
     ${deviceFileLink}
+
+    ${deviceFsWalkFileLink}
 
     ${dvg.sqlTmplEngineLintSummary}
     ${dvg.sqlTextLintSummary}`;
@@ -44,8 +113,11 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     stso,
     dvg,
     deviceHub,
-    deviceFileHub,
+    fileHub,
+    filePathPartsSat,
+    fsWalkHub,
     deviceFileLink,
+    deviceFsWalkFileLink,
     seedDDL,
     isValid: () => {
       const stls = seedDDL.stsOptions.sqlTextLintState;
@@ -72,7 +144,14 @@ export interface WalkGlob {
 
 export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
   const fsm = deviceFileSysModels<Context>();
-  const { deviceHub, deviceFileHub, deviceFileLink } = fsm;
+  const {
+    deviceHub,
+    fileHub,
+    filePathPartsSat,
+    fsWalkHub,
+    deviceFileLink,
+    deviceFsWalkFileLink,
+  } = fsm;
 
   return {
     models: fsm,
@@ -118,16 +197,51 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
             srcGlob.options?.(srcGlob.rootPath),
           )
         ) {
+          const activeWalker = memoizeSQL(
+            await fsWalkHub.insertDML({
+              root_path: srcGlob.rootPath,
+              glob: srcGlob.glob,
+            }),
+          );
+          const { hub_fs_walk_id } = activeWalker.returnable(
+            activeWalker.insertable,
+          );
+
           const dfDML = memoizeSQL(
-            await deviceFileHub.insertDML({ abs_path: we.path }),
+            await fileHub.insertDML({ abs_path: we.path }),
           );
-          const { hub_device_file_id } = dfDML.returnable(
-            dfDML.insertable,
+          const { hub_file_id } = dfDML.returnable(dfDML.insertable);
+          const pp = pathParts(we.path);
+          memoizeSQL(
+            await filePathPartsSat.insertDML({
+              hub_file_id,
+              file_abs_path_and_file_name_extn: we.path,
+              file_parent_path: pp.dir,
+              file_grandparent_path: path.dirname(pp.dir),
+              file_name_with_extn: pp.base,
+              file_name_without_extn: pp.name,
+              file_root: pp.root, // e.g. C:\ on Windows, / on Linux/MacOS
+              file_extn_tail: pp.ext.length > 0 ? pp.ext : undefined,
+              file_extn_modifiers: pp.modifiersList.length > 0
+                ? pp.modifiersText
+                : undefined,
+              file_extn_full: pp.ext.length > 0
+                ? pp.modifiersText + pp.ext
+                : undefined,
+            }),
           );
+
           memoizeSQL(
             await deviceFileLink.insertDML({
               hub_device_id,
-              hub_device_file_id,
+              hub_file_id,
+            }),
+          );
+          memoizeSQL(
+            await deviceFsWalkFileLink.insertDML({
+              hub_device_id,
+              hub_fs_walk_id,
+              hub_file_id,
             }),
           );
         }
@@ -160,19 +274,19 @@ export async function deviceFileSysDV(emitForSqlite3IMDB: boolean) {
     )),
   )).forEach((sql) => console.log(sql, ";"));
 
-  // this is so that sqlite3 ":memory:" is dumped to STDOUT for subsequent sqlite3 lib/sql/models/fs.db
+  // this is so that sqlite3 ":memory:" is dumped to STDOUT for subsequent sqlite3 lib/sql/models/dv-device-fs.db
   if (emitForSqlite3IMDB) console.log(`.dump`);
 }
 
 if (import.meta.main) {
   // - if we're being called as a CLI, just emit the DDL SQL:
-  //   $ deno run -A --unstable lib/sql/models/fs.ts | sqlite3 ":memory:" > synthetic.sql
-  //   $ deno run -A --unstable lib/sql/models/fs.ts | sqlite3 ":memory:" | sqlite3 test.db
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" > lib/sql/models/dv-device-fs.dump.sql
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
   // - sending into SQLite memory first and then dumping afterwards is much faster
   //   because we're using static SQL with lookups for foreign keys.
   // - A good way to "test" is to use this CLI from $RF_HOME:
   //   $ sudo apt-get -y -qq install sqlite3
-  //   $ rm -f lib/sql/models/fs.db && deno run -A --unstable lib/sql/models/fs.ts | sqlite3 ":memory:" | sqlite3 lib/sql/models/fs.db
-  //   then, open `fs.sql` with VS Code SQL notebook for exploring the content
+  //   $ rm -f lib/sql/models/dv-device-fs.db && deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
+  //   then, open `dv-device-fs.sql` with VS Code SQL notebook for exploring the content
   await deviceFileSysDV(true);
 }
