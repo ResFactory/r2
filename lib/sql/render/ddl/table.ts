@@ -186,6 +186,117 @@ export function uaDefaultablePrimaryKey<
   return result;
 }
 
+export const uaDefaultablesTextPkUndefined =
+  "uaDefaultablesTextPkUndefined" as const;
+
+/**
+ * Declare an async or sync "user agent defaultables" (`uaDefaultables`)
+ * primary key domain. uaDefaultables means that the primary key is required
+ * on the way into the database but can be defaulted on the user agent ("UA")
+ * side using one or more "default value generator" rules. This type of
+ * AxiomSqlDomain is useful when the primary key is assigned a value from the
+ * client app/service before going into the database but the actual value can
+ * be a hash, UUID, ULID, or other source.
+ * @param defaultables the default value computers
+ * @returns an AxiomSqlDomain which loops through defaults when necessary
+ */
+export function uaDefaultablesTextPK<Context extends tmpl.SqlEmitContext>(
+  ...defaultables: ax.DefaultableAxiomSerDe<string>[]
+) {
+  const axiom = d.text();
+  const result:
+    & d.AxiomSqlDomain<string, Context>
+    & ax.DefaultableAxiomSerDe<string>
+    & TablePrimaryKeyColumnDefn<string, Context>
+    & TableColumnInsertableOptionalSupplier<string, Context> = {
+      ...axiom,
+      isPrimaryKey: true,
+      isAutoIncrement: false,
+      isOptionalInInsertableRecord: true,
+      sqlPartial: (dest) => {
+        if (dest === "create table, column defn decorators") {
+          const ctcdd = axiom?.sqlPartial?.(
+            "create table, column defn decorators",
+          );
+          const decorators: tmpl.SqlTextSupplier<Context> = {
+            SQL: () => `PRIMARY KEY`,
+          };
+          return ctcdd ? [decorators, ...ctcdd] : [decorators];
+        }
+        return axiom.sqlPartial?.(dest);
+      },
+      isDefaultable: (value?: string | undefined) => {
+        return value === undefined ? true : false;
+      },
+      defaultValue: async (currentValue?) => {
+        if (currentValue) return currentValue;
+
+        for (const rule of defaultables) {
+          const dv = await rule.defaultValue(currentValue);
+          // !rule.isDefaultable(dv) means that dv was set to a proper value;
+          // usually 'undefined' means improper but sometimes, like for a digest
+          // value it might mean a 'placeholder' so we let the rule decide
+          // whether the value was properly set
+          if (!rule.isDefaultable(dv)) return dv;
+        }
+        return uaDefaultablesTextPkUndefined;
+      },
+    };
+  return result;
+}
+
+/**
+ * Declare a synchronous "user agent defaultables" (`uaDefaultables`) primary
+ * key domain. Same as uaDefaultablesTextPK except only supports default value
+ * rules that are not async.
+ * @param defaultables the sync-only default value computers
+ * @returns an AxiomSqlDomain which loops through defaults when necessary
+ */
+export function uaDefaultablesTextPkSync<Context extends tmpl.SqlEmitContext>(
+  ...defaultables: ax.DefaultableAxiomSerDeSync<string>[]
+) {
+  const axiom = d.text();
+  const result:
+    & d.AxiomSqlDomain<string, Context>
+    & ax.DefaultableAxiomSerDeSync<string>
+    & TablePrimaryKeyColumnDefn<string, Context>
+    & TableColumnInsertableOptionalSupplier<string, Context> = {
+      ...axiom,
+      isPrimaryKey: true,
+      isAutoIncrement: false,
+      isOptionalInInsertableRecord: true,
+      sqlPartial: (dest) => {
+        if (dest === "create table, column defn decorators") {
+          const ctcdd = axiom?.sqlPartial?.(
+            "create table, column defn decorators",
+          );
+          const decorators: tmpl.SqlTextSupplier<Context> = {
+            SQL: () => `PRIMARY KEY`,
+          };
+          return ctcdd ? [decorators, ...ctcdd] : [decorators];
+        }
+        return axiom.sqlPartial?.(dest);
+      },
+      isDefaultable: (value?: string | undefined) => {
+        return value === undefined ? true : false;
+      },
+      defaultValue: (currentValue?) => {
+        if (currentValue) return currentValue;
+
+        for (const rule of defaultables) {
+          const dv = rule.defaultValue(currentValue);
+          // !rule.isDefaultable(dv) means that dv was set to a proper value;
+          // usually 'undefined' means improper but sometimes, like for a digest
+          // value it might mean a 'placeholder' so we let the rule decide
+          // whether the value was properly set
+          if (!rule.isDefaultable(dv)) return dv;
+        }
+        return uaDefaultablesTextPkUndefined;
+      },
+    };
+  return result;
+}
+
 export type TableBelongsToForeignKeyRelNature<
   Context extends tmpl.SqlEmitContext,
 > = {

@@ -24,6 +24,138 @@ function housekeeping<
   };
 }
 
+Deno.test("SQL Aide (SQLa) table keys", async (tc) => {
+  const keysAxioms = {
+    auto_inc_pk_id: mod.autoIncPrimaryKey(d.integer()),
+    digest_manual_pk: d.sha1Digest(),
+    digest_auto_pk: mod.uaDefaultablePrimaryKey(d.sha1Digest()),
+    uuidv4_pk: d.uuidv4(),
+    ulid_pk: d.ulid(),
+    digest_first_then_ulid_pk: mod.uaDefaultablesTextPK(
+      d.sha1Digest(),
+      d.ulid(),
+    ),
+    digest_first_then_uuidv4_pk: mod.uaDefaultablesTextPK(
+      d.sha1Digest(),
+      d.uuidv4(),
+    ),
+  };
+  const tableKeysOwner = mod.tableDefinition(
+    "synthetic_table_keys",
+    keysAxioms,
+  );
+  const ctx = tmpl.typicalSqlEmitContext();
+  const ddlOptions = tmpl.typicalSqlTextSupplierOptions();
+  const lintState = tmpl.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
+
+  await tc.step("keys' table definition", () => {
+    ta.assertEquals(
+      tmpl.SQL(ddlOptions)`
+        ${lintState.sqlTextLintSummary}
+
+        ${tableKeysOwner}`.SQL(ctx),
+      uws(`
+        -- no SQL lint issues (typicalSqlTextLintManager)
+
+        CREATE TABLE "synthetic_table_keys" (
+            "auto_inc_pk_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+            "digest_manual_pk" TEXT NOT NULL,
+            "digest_auto_pk" TEXT PRIMARY KEY,
+            "uuidv4_pk" TEXT NOT NULL,
+            "ulid_pk" TEXT NOT NULL,
+            "digest_first_then_ulid_pk" TEXT PRIMARY KEY,
+            "digest_first_then_uuidv4_pk" TEXT PRIMARY KEY
+        );`),
+    );
+  });
+
+  await tc.step(
+    "auto-inc keys default values from database engine",
+    async () => {
+      // `defaultable.auto_inc_pk_id` is not valid in the user agent since it
+      // requires the database engine to compute it
+    },
+  );
+
+  await tc.step("digest keys default values (async)", async () => {
+    // defaultable is an object whose keys are the column names that are
+    // of "Default-able" type and the values are a function which, when executed
+    // returns the default value based on a given current value state
+    const defaultable = ax.axiomSerDeObjectDefaultables<
+      typeof tableKeysOwner.axiomObjectDecl
+    >(...tableKeysOwner.domains);
+
+    // digest values must be `awaited` because of web crypto API
+    const dmMPKU = await defaultable.digest_manual_pk(undefined);
+    const dmAPKU = await defaultable.digest_auto_pk(undefined);
+    const dmMPKV = await defaultable.digest_manual_pk("given_a_value");
+    const dmAPKV = await defaultable.digest_auto_pk("given_a_value");
+    ta.assertEquals({ dmMPKU, dmAPKU, dmMPKV, dmAPKV }, {
+      dmMPKU: "sha1DigestPlacholder", // sha1 requires a value to digest
+      dmAPKU: "sha1DigestPlacholder", // sha1 requires a value to digest
+      dmMPKV: "9da05851a96aa8a528731b4123f8bbb8a2ba2b38", // sha1 digest hash of "given_a_value"
+      dmAPKV: "9da05851a96aa8a528731b4123f8bbb8a2ba2b38", // sha1 digest hash of "given_a_value"
+    });
+  });
+
+  await tc.step("ULID and UUID keys default values (sync)", () => {
+    const defaultable = ax.axiomSerDeObjectDefaultables<
+      typeof tableKeysOwner.axiomObjectDecl
+    >(...tableKeysOwner.domains);
+
+    const ulidU = defaultable.ulid_pk();
+    const ulidV = defaultable.ulid_pk("01G8XP8HG82WS3F3X3E0NB5RVV");
+    const uuidV4U = defaultable.uuidv4_pk();
+    const uuidV4V = defaultable.uuidv4_pk(
+      "0d421f0e-bd6f-4e3b-a015-92fe80243ab4",
+    );
+    ta.assert(ulidU); // if it's undefined we should get a random-generated ULID
+    ta.assert(uuidV4U); // if it's undefined we should get a random-generated UUIDv4
+    ta.assertEquals({ ulidV, uuidV4V }, {
+      ulidV: "01G8XP8HG82WS3F3X3E0NB5RVV", // should return what we gave it
+      uuidV4V: "0d421f0e-bd6f-4e3b-a015-92fe80243ab4", // should return what we gave it
+    });
+  });
+
+  await tc.step(
+    "digest-first keys with ULID or UUID backup default values (async)",
+    async () => {
+      const defaultable = ax.axiomSerDeObjectDefaultables<
+        typeof tableKeysOwner.axiomObjectDecl
+      >(...tableKeysOwner.domains);
+
+      // digest values must be `awaited` because of web crypto API
+      const dfOnly_U = await defaultable.digest_auto_pk(undefined);
+      const dfULID_U = await defaultable.digest_first_then_ulid_pk(undefined);
+      const dfUUID_U = await defaultable.digest_first_then_uuidv4_pk(undefined);
+      ta.assertEquals({ dfOnly_U }, {
+        dfOnly_U: "sha1DigestPlacholder", // sha1 requires a value to digest
+      });
+      ta.assert(dfULID_U != "sha1DigestPlacholder"); // we should have a ULID value but it's random so we can't check it
+      ta.assert(dfUUID_U != "sha1DigestPlacholder"); // we should have a UUID value but it's random so we can't check it
+
+      const dfULID_V = await defaultable.digest_first_then_ulid_pk(
+        "01G8XQ07S9Y7XXBM125CF4XJV3",
+      );
+      const dfUUID_V = await defaultable.digest_first_then_uuidv4_pk(
+        "edf0f569-526c-4fa4-9554-89d49756a941",
+      );
+      ta.assertEquals({ dfULID_V, dfUUID_V }, {
+        dfULID_V: "01G8XQ07S9Y7XXBM125CF4XJV3", // we supplied a value, so digest and ULID should skip - return what we gave
+        dfUUID_V: "edf0f569-526c-4fa4-9554-89d49756a941", // we supplied a value, so digest and ULID should skip - return what we gave
+      });
+    },
+  );
+
+  // deno-lint-ignore require-await
+  await tc.step("TODO: keys' insertDML", async () => {
+    const _tableKeysOwnerRF = mod.tableDomainsRowFactory(
+      tableKeysOwner.tableName,
+      tableKeysOwner.axiomObjectDecl,
+    );
+  });
+});
+
 Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
   const syntheticTable1Defn = mod.typicalKeysTableDefinition(
     "synthetic_table1",
