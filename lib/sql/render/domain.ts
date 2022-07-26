@@ -471,6 +471,20 @@ export function ulid<Context extends tmpl.SqlEmitContext>(
   };
 }
 
+export function uuidv4<Context extends tmpl.SqlEmitContext>(
+  axiom = axsdc.uuidAxiomSD(),
+  asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
+): AxiomSqlDomain<string, Context> & ax.DefaultableAxiomSerDe<string> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `TEXT` }),
+    isOptional: false,
+    referenceASD: () => text(),
+    referenceNullableASD: () => textNullable(),
+    ...asdOptions,
+  };
+}
+
 export function sha1Digest<Context extends tmpl.SqlEmitContext>(
   axiom = axsdc.sha1DigestAxiomSD(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,

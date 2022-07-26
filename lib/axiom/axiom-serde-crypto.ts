@@ -18,7 +18,11 @@ export function uuidAxiomSD(
     value,
   ) => value == undefined ? true : false,
 ) {
-  return axsd.defaultable(axiomSD, () => crypto.randomUUID(), isDefaultable);
+  return axsd.defaultable(
+    axiomSD,
+    (currentValue) => currentValue ?? crypto.randomUUID(),
+    isDefaultable,
+  );
 }
 
 export const isDigestAxiomSD = safety.typeGuard<{ isDigestAxiomSD: true }>(

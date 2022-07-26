@@ -17,7 +17,7 @@ export function ulidAxiomSD(
 ) {
   return axsd.defaultable(
     axiomSD,
-    () => ulid(),
+    (currentValue) => currentValue ?? ulid(),
     isDefaultable ?? ((value) => value == undefined ? true : false),
   );
 }
@@ -35,7 +35,7 @@ export function monotonicUlidAxiomSD(
 ) {
   return axsd.defaultable(
     axiomSD,
-    () => monotonicUlid(),
+    (currentValue) => currentValue ?? monotonicUlid(),
     isDefaultable ?? ((value) => value == undefined ? true : false),
   );
 }

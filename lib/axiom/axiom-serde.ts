@@ -123,6 +123,12 @@ export type DefaultableAxiomSerDe<TsValueType> = {
     | AxiomSerDeValueSupplier<TsValueType>;
 };
 
+export type DefaultableAxiomSerDeSync<TsValueType> =
+  & Pick<DefaultableAxiomSerDe<TsValueType>, "isDefaultable">
+  & {
+    readonly defaultValue: AxiomSerDeValueSupplierSync<TsValueType>;
+  };
+
 export function isDefaultableAxiomSerDe<TsValueType>(
   o: unknown,
 ): o is DefaultableAxiomSerDe<TsValueType> {
