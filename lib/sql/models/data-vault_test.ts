@@ -37,10 +37,24 @@ Deno.test("Data Vault models", async (tc) => {
   const ctx = SQLa.typicalSqlEmitContext();
   const dvg = mod.dataVaultGovn(stso);
 
+  const syntheticHub0 = dvg.hubTable("synthethic0", {
+    hub_synthethic0_id: dvg.digestPrimaryKey(),
+    key: dvg.domains.text(),
+    key2: dvg.domains.text(),
+  }, { pkDigestColumns: ["key", "key2"] });
+  ta.assertEquals(syntheticHub0.lintIssues, []);
+
+  // use our custom hub insertDML which computes primary key digest value
+  const syntheticHub0Dml1 = await syntheticHub0.insertDML({
+    key: "businessKey00",
+    key2: "businessKey01",
+  });
+
   const syntheticHub1 = dvg.hubTable("synthethic1", {
     hub_synthethic1_id: dvg.digestPrimaryKey(),
     key: dvg.domains.text(),
-  });
+  }, { pkDigestColumns: ["key"] });
+  ta.assertEquals(syntheticHub1.lintIssues, []);
 
   expectType(syntheticHub1.columns.hub_synthethic1_id);
   expectType(syntheticHub1.foreignKeyRef.hub_synthethic1_id);
@@ -50,12 +64,22 @@ Deno.test("Data Vault models", async (tc) => {
   // expectType(syntheticHub1.columns.badColumName);
   // expectType(syntheticHub1.foreignKeyRef.badColumName);
 
+  // use our custom hub insertDML which computes primary key digest value
+  const syntheticHub1Dml1 = await syntheticHub1.insertDML({
+    key: "businessKey1",
+  });
+
   const syntheticHub2 = dvg.hubTable("synthethic2", {
     hub_synthethic2_id: dvg.digestPrimaryKey(),
     key: dvg.domains.text(),
-  });
+  }, { pkDigestColumns: ["key"] });
 
   await tc.step("hubs", () => {
+    ta.assertEquals(
+      syntheticHub0Dml1.SQL(ctx),
+      `INSERT INTO "hub_synthethic0" ("hub_synthethic0_id", "key", "key2") VALUES ('a286e66d6f834133f0d111404b089c94aa28851e', 'businessKey00', 'businessKey01')`,
+    );
+
     ta.assertEquals(
       syntheticHub1.SQL(ctx),
       uws(`
@@ -64,6 +88,11 @@ Deno.test("Data Vault models", async (tc) => {
             "key" TEXT NOT NULL,
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP
         )`),
+    );
+
+    ta.assertEquals(
+      syntheticHub1Dml1.SQL(ctx),
+      `INSERT INTO "hub_synthethic1" ("hub_synthethic1_id", "key") VALUES ('aedf50f9757de38252b39a55097bfb9c6f177de1', 'businessKey1')`,
     );
 
     ta.assertEquals(
@@ -79,31 +108,31 @@ Deno.test("Data Vault models", async (tc) => {
 
   // satellites should be created through the hub instance;
   // sats will automatically be linked via an auto-generated type-safe FK to hub
-  const satellite2 = syntheticHub1.satTable("attrs2", {
+  const hub1Sat1 = syntheticHub1.satTable("attrs2", {
     hub_synthethic1_id: syntheticHub1.foreignKeyRef.hub_synthethic1_id(),
     sat_synthethic1_attrs2_id: dvg.digestPrimaryKey(),
   });
 
-  expectType(satellite2.columns.sat_synthethic1_attrs2_id);
-  expectType(satellite2.foreignKeyRef.sat_synthethic1_attrs2_id());
-  expectType(satellite2.columns.created_at);
+  expectType(hub1Sat1.columns.sat_synthethic1_attrs2_id);
+  expectType(hub1Sat1.foreignKeyRef.sat_synthethic1_attrs2_id());
+  expectType(hub1Sat1.columns.created_at);
   // uncomment the following line to see badColumName fail as reference
   // expectType(satellite2.columns.badColumName);
   // expectType(satellite2.foreignKeyRef.badColumnName);
 
   // satellites can be created "manually" through dataVaultGovn too (if necessary)
-  const satellite1 = dvg.satelliteTable(syntheticHub1, "attrs1", {
+  const hub1Sat2 = dvg.satelliteTable(syntheticHub1, "attrs1", {
     hub_synthethic1_id: syntheticHub1.foreignKeyRef.hub_synthethic1_id(),
     sat_synthethic1_attrs1_id: dvg.digestPrimaryKey(),
   });
 
-  expectType(satellite1.columns.sat_synthethic1_attrs1_id);
-  expectType(satellite1.columns.created_at);
+  expectType(hub1Sat2.columns.sat_synthethic1_attrs1_id);
+  expectType(hub1Sat2.columns.created_at);
   //expectType(satellite1.columns.badColumName);
 
   await tc.step("satellites", () => {
     ta.assertEquals(
-      satellite1.SQL(ctx),
+      hub1Sat2.SQL(ctx),
       uws(`
         CREATE TABLE IF NOT EXISTS "sat_synthethic1_attrs1" (
             "hub_synthethic1_id" TEXT NOT NULL,
@@ -113,7 +142,7 @@ Deno.test("Data Vault models", async (tc) => {
         )`),
     );
     ta.assertEquals(
-      satellite2.SQL(ctx),
+      hub1Sat1.SQL(ctx),
       uws(`
         CREATE TABLE IF NOT EXISTS "sat_synthethic1_attrs2" (
             "hub_synthethic1_id" TEXT NOT NULL,
@@ -125,15 +154,17 @@ Deno.test("Data Vault models", async (tc) => {
   });
 
   const synHub12Link = dvg.linkTable("synHub12", {
-    synth1: syntheticHub1,
-    synth2: syntheticHub2,
+    link_synHub12_id: dvg.digestPrimaryKey(),
+    hub_synth1_id: syntheticHub1.foreignKeyRef.hub_synthethic1_id(),
+    hub_synth2_id: syntheticHub2.foreignKeyRef.hub_synthethic2_id(),
   });
   expectType(synHub12Link.columns.link_synHub12_id);
+  expectType(synHub12Link.columns.hub_synth1_id);
+  expectType(synHub12Link.columns.hub_synth2_id);
   expectType(synHub12Link.columns.created_at);
-  expectType(synHub12Link.hubTableDefns.synth1);
-  expectType(synHub12Link.hubTableDefns.synth2);
+  expectType(synHub12Link.hubIdColNames);
   // uncomment the following line to see badColumName fail as reference
-  // expectType(synHub12Link.hubTableDefns.badTableName);
+  // expectType(synHub12Link.columns.badColumnName);
 
   await tc.step("links", () => {
     ta.assertEquals(
@@ -145,7 +176,8 @@ Deno.test("Data Vault models", async (tc) => {
             "hub_synth2_id" TEXT NOT NULL,
             "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY("hub_synth1_id") REFERENCES "hub_synthethic1"("hub_synthethic1_id"),
-            FOREIGN KEY("hub_synth2_id") REFERENCES "hub_synthethic2"("hub_synthethic2_id")
+            FOREIGN KEY("hub_synth2_id") REFERENCES "hub_synthethic2"("hub_synthethic2_id"),
+            UNIQUE("hub_synth1_id", "hub_synth2_id")
         )`),
     );
   });

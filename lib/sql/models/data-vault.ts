@@ -22,6 +22,9 @@ export function dataVaultDomains() {
     dateTime: SQLa.dateTime,
     createdAt: SQLa.createdAt,
     shah1Digest: SQLa.sha1Digest,
+
+    unique: SQLa.unique,
+    uniqueMulti: SQLa.uniqueTableCols,
   };
 }
 
@@ -36,9 +39,7 @@ export function dataVaultKeys<Context extends SQLa.SqlEmitContext>() {
   const { shah1Digest } = dataVaultDomains();
 
   const digestPrimaryKey = () =>
-    SQLa.uaDefaultablePrimaryKey<string, Context>(
-      shah1Digest<Context>(() => axsdc.sha1DigestUndefined),
-    );
+    SQLa.uaDefaultablePrimaryKey<string, Context>(shah1Digest<Context>());
 
   const autoIncPrimaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
@@ -267,14 +268,16 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       & Record<
         `hub_${HubName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
-      >
-      & Record<`key`, ax.Axiom<Any>>,
-  >(hubName: HubName, props: TPropAxioms) => {
+      >,
+    ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
+  >(hubName: HubName, props: TPropAxioms, options: {
+    readonly pkDigestColumns: ColumnName[];
+  }) => {
     const tableName = hubTableName(hubName);
     const tableDefn = table(tableName, {
       ...props,
       ...housekeeping.typical.columns,
-    });
+    }, options);
     if (!tableDefn.pkColumnDefn) {
       throw Error(`no primary key column defined for hubTable ${hubName}`);
     }
@@ -360,43 +363,27 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
 
   const linkTable = <
     LinkName extends string,
-    HubNames extends string,
-    HubTableDefns extends Record<
-      HubNames,
-      DataVaultHubTableDefn<
-        HubNames,
-        Any,
-        Context
-      >
-    >,
-  >(
-    linkName: LinkName,
-    hubTableDefns: HubTableDefns,
-  ) => {
-    const lTableName = linkTableName<LinkName>(linkName);
-    const props:
+    TPropAxioms extends
+      & Record<string, ax.Axiom<Any>>
       & Record<
         `link_${LinkName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
-      >
-      & Record<
-        `hub_${HubNames}_id`,
-        SQLa.TableForeignKeyColumnDefn<Any, Any, Context>
-      > = {} as Any;
-    (props[`link_${linkName}_id`] as Any) = keys.digestPrimaryKey();
-    for (const htdEntry of Object.entries(hubTableDefns)) {
-      const hubName = htdEntry[0] as HubNames;
-      const hubTableDefn = htdEntry[1] as DataVaultHubTableDefn<
-        typeof hubName,
-        Any,
-        Context
-      >;
-      (props as Any)[`hub_${hubName}_id`] = SQLa.foreignKey(
-        hubTableDefn.tableName,
-        hubTableDefn.pkColumnDefn,
-      );
+      >,
+    ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
+  >(
+    linkName: LinkName,
+    props: TPropAxioms,
+  ) => {
+    const lTableName = linkTableName<LinkName>(linkName);
+    const hubIdColNames: ColumnName[] = [];
+    for (const entry of Object.entries(props)) {
+      const [key, domain] = entry;
+      if (SQLa.isTableForeignKeyColumnDefn(domain)) {
+        if (domain.foreignTableName.startsWith("hub_")) {
+          hubIdColNames.push(key as ColumnName);
+        }
+      }
     }
-    // TODO: add lint rule for checking if key or group of keys is unique
     return {
       ...table(
         lTableName,
@@ -404,9 +391,13 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
           ...props,
           ...housekeeping.typical.columns,
         },
+        {
+          pkDigestColumns: hubIdColNames,
+          constraints: [domains.uniqueMulti(...hubIdColNames)],
+        },
       ),
       linkName,
-      hubTableDefns,
+      hubIdColNames,
     };
   };
 
