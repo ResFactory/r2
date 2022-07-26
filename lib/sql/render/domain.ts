@@ -472,18 +472,7 @@ export function ulid<Context extends tmpl.SqlEmitContext>(
 }
 
 export function sha1Digest<Context extends tmpl.SqlEmitContext>(
-  digestValue?: <ASDVSC extends ax.AxiomSerDeValueSupplierContext & Context>(
-    currentValue?: string | undefined,
-    ctx?: ASDVSC,
-  ) => string | Promise<string>,
-  axiom = axsdc.sha1DigestAxiomSD(
-    digestValue as
-      | (<ASDVSC extends ax.AxiomSerDeValueSupplierContext>(
-        currentValue?: string | undefined,
-        ctx?: ASDVSC,
-      ) => string | Promise<string>)
-      | undefined,
-  ),
+  axiom = axsdc.sha1DigestAxiomSD(),
   asdOptions?: Partial<AxiomSqlDomain<string, Context>>,
 ): AxiomSqlDomain<string, Context> & ax.DefaultableAxiomSerDe<string> {
   return {

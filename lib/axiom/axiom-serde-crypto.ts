@@ -39,6 +39,8 @@ export async function sha1Digest(
 }
 
 export const sha1DigestUndefined = `sha1DigestPlacholder` as const;
+export const sha1DigestUndefinedHash = // the hash for `sha1DigestPlacholder`
+  `00db1424f22e29b5251d349f5689655b8432363d`;
 
 /**
  * An AxiomSerDe supplier which sets the default value of the Axiom to a SHA-1
@@ -49,10 +51,6 @@ export const sha1DigestUndefined = `sha1DigestPlacholder` as const;
  * @returns an AxiomSerDe definition can be assigned to an axioms record collection
  */
 export function sha1DigestAxiomSD(
-  digestValue?: <Context extends axsd.AxiomSerDeValueSupplierContext>(
-    currentValue?: string | undefined,
-    ctx?: Context,
-  ) => string | Promise<string>,
   axiomSD = axsd.text(),
   isDefaultable?: <Context>(value?: string, ctx?: Context) => boolean,
 ) {
@@ -60,15 +58,10 @@ export function sha1DigestAxiomSD(
     isDigestAxiomSD: true, // should match isDigestAxiomSD() requirements
     ...axsd.defaultable(
       axiomSD,
-      async <Context extends axsd.AxiomSerDeValueSupplierContext>(
-        currentValue?: string | undefined,
-        ctx?: Context,
-      ) =>
+      async (currentValue?: string | undefined) =>
         currentValue == undefined || currentValue == sha1DigestUndefined
           ? sha1DigestUndefined
-          : await sha1Digest(
-            digestValue ? await digestValue(currentValue, ctx) : currentValue,
-          ),
+          : await sha1Digest(currentValue),
       isDefaultable ??
         ((value) =>
           value == undefined || value == sha1DigestUndefined ? true : false),

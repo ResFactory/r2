@@ -21,9 +21,7 @@ export function fsModelsGovn<Context extends SQLa.SqlEmitContext>(
   },
 ) {
   const digestPrimaryKey = () =>
-    SQLa.uaDefaultablePrimaryKey(
-      SQLa.sha1Digest(() => axsdc.sha1DigestUndefined),
-    );
+    SQLa.uaDefaultablePrimaryKey(SQLa.sha1Digest());
   const autoIncPrimaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
 
