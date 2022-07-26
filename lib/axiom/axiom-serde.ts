@@ -33,10 +33,6 @@ export const isAxiomSerDeLintIssuesSupplier = safety.typeGuard<
   AxiomSerDeLintIssuesSupplier
 >("lintIssues");
 
-export type AxiomSerDeLabelsSupplier<Label extends string> = {
-  readonly labels: Label[];
-};
-
 export function axiomSerDeLintIssue<TsValueType>(
   axiomSD: AxiomSerDe<TsValueType>,
   issue: string,
@@ -53,13 +49,6 @@ export function axiomSerDeLintIssue<TsValueType>(
     lintable.lintIssues = [lintIssue];
     return lintable;
   }
-}
-
-export function isAxiomSerDeLabelsSupplier<Label extends string>(
-  o: unknown,
-): o is AxiomSerDeLabelsSupplier<Label> {
-  const isLSD = safety.typeGuard<AxiomSerDeLabelsSupplier<Label>>("labels");
-  return isLSD(o);
 }
 
 export type AxiomSerDeValueSupplierContext = {
@@ -113,6 +102,28 @@ export function isIdentifiableAxiomSerDe<
   return isAxiomSerDe(o) && isIASD(o);
 }
 
+export type GovernableAxiomSerDe<TsValueType, Governance> =
+  & AxiomSerDe<TsValueType>
+  & { readonly governance: Governance };
+
+export function isGovernableAxiomSerDe<TsValueType, Governance>(
+  o: unknown,
+  govnGuard?: (o: unknown) => o is Governance,
+): o is GovernableAxiomSerDe<TsValueType, Governance> {
+  const isGASD = safety.typeGuard<
+    GovernableAxiomSerDe<TsValueType, Governance>
+  >("governance");
+  return isAxiomSerDe(o) &&
+    (govnGuard ? (isGASD(o) && govnGuard(o.governance)) : isGASD(o));
+}
+
+export function governed<TsValueType, Governance>(
+  axiom: AxiomSerDe<TsValueType>,
+  governance: Governance,
+) {
+  return { ...axiom, governance };
+}
+
 export type DefaultableAxiomSerDe<TsValueType> = {
   readonly isDefaultable: <Context extends AxiomSerDeValueSupplierContext>(
     value?: TsValueType,
@@ -149,29 +160,6 @@ export function isDefaultableAxiomSerDeSync<TsValueType>(
   o: DefaultableAxiomSerDe<TsValueType>,
 ) {
   return o.defaultValue.constructor.name === "Function";
-}
-
-export type LabeledAxiomSerDe<TsValueType, Label extends string> =
-  & AxiomSerDe<TsValueType>
-  & AxiomSerDeLabelsSupplier<Label>;
-
-export function isLabeledAxiomSerDe<TsValueType, Label extends string>(
-  o: unknown,
-): o is LabeledAxiomSerDe<TsValueType, Label> {
-  const isLASD = safety.typeGuard<LabeledAxiomSerDe<TsValueType, Label>>(
-    "labels",
-  );
-  return isAxiomSerDe(o) && isLASD(o);
-}
-
-export function label<TsValueType, Label extends string>(
-  axiom: AxiomSerDe<TsValueType>,
-  ...labels: Label[]
-): LabeledAxiomSerDe<TsValueType, Label> {
-  return {
-    ...axiom,
-    labels,
-  };
 }
 
 export function defaultable<TsValueType>(
@@ -616,15 +604,18 @@ export function axiomSerDeObject<
       }
       return textRecord as unknown as SerDeRecord;
     },
-    labeled: function* <Label extends string, TsValueType = Any>(
-      include: (
-        ap:
+    governed: function* <Governance, TsValueType = Any>(
+      include?: (
+        govnAP:
           & IdentifiableAxiomSerDe<TsValueType, string>
-          & LabeledAxiomSerDe<TsValueType, Label>,
+          & GovernableAxiomSerDe<TsValueType, Governance>,
       ) => boolean,
     ) {
       for (const ap of axiomProps) {
-        if (isLabeledAxiomSerDe<TsValueType, Label>(ap) && include(ap)) {
+        if (
+          isGovernableAxiomSerDe<TsValueType, Governance>(ap) &&
+          (!include || include(ap))
+        ) {
           yield ap;
         }
       }

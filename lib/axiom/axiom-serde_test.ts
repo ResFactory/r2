@@ -1,4 +1,5 @@
 import { testingAsserts as ta } from "./deps-test.ts";
+import * as safety from "../safety/mod.ts";
 import * as mod from "./axiom-serde.ts";
 import * as ax from "./axiom.ts";
 import * as axsde from "./axiom-serde-env.ts";
@@ -6,13 +7,87 @@ import { $ } from "./axiom.ts";
 
 const intEnvDefaultable = -1;
 
+type SyntheticGroup = "Group1" | "Group2" | "Group3";
+type SyntheticLabel = "synthetic_label1" | "Label2";
+
+type SyntheticGovernance = {
+  readonly remarks: string;
+  readonly groups: SyntheticGroup[];
+  readonly labels: SyntheticLabel[];
+};
+
+const hasRemarks = <TsValueType>(
+  o: mod.AxiomSerDe<TsValueType>,
+): o is mod.AxiomSerDe<TsValueType> & {
+  readonly governance: Pick<SyntheticGovernance, "remarks">;
+} => {
+  return mod.isGovernableAxiomSerDe(
+    o,
+    safety.typeGuard<Pick<SyntheticGovernance, "remarks">>("remarks"),
+  );
+};
+
+export function isInGroup<TsValueType>(
+  o: mod.AxiomSerDe<TsValueType>,
+  group: SyntheticGroup,
+): o is mod.AxiomSerDe<TsValueType> & {
+  readonly governance: Pick<SyntheticGovernance, "groups">;
+} {
+  if (
+    mod.isGovernableAxiomSerDe(
+      o,
+      safety.typeGuard<Pick<SyntheticGovernance, "groups">>(
+        "groups",
+      ),
+    )
+  ) {
+    return o.governance.groups.find((g) => g == group) ? true : false;
+  }
+  return false;
+}
+
+export function synthGovn<TsValueType>(
+  axiom: mod.AxiomSerDe<TsValueType>,
+  governance: Partial<SyntheticGovernance>,
+) {
+  return mod.governed(axiom, governance);
+}
+
+export function label<TsValueType>(
+  axiom: mod.AxiomSerDe<TsValueType>,
+  label: SyntheticLabel,
+) {
+  const governance: Pick<SyntheticGovernance, "labels"> = { labels: [label] };
+  return mod.governed(axiom, governance);
+}
+
+export function isLabeled<TsValueType>(
+  o: mod.AxiomSerDe<TsValueType>,
+  label: SyntheticLabel,
+): o is mod.AxiomSerDe<TsValueType> & {
+  readonly governance: Pick<SyntheticGovernance, "labels">;
+} {
+  if (
+    mod.isGovernableAxiomSerDe(
+      o,
+      safety.typeGuard<Pick<SyntheticGovernance, "labels">>("labels"),
+    )
+  ) {
+    return o.governance.labels.find((l) => l == label) ? true : false;
+  }
+  return false;
+}
+
 Deno.test("serializable/deserializable axioms", async (tc) => {
   // use these for type-testing in IDE
   const syntheticDecl = {
     text: mod.text(),
     textOptional: mod.textOptional(),
-    textCustom: mod.text($.string),
-    textLabeledOptional: mod.label(mod.textOptional(), "synthetic_label1"),
+    textCustom: synthGovn(mod.text($.string), {
+      groups: ["Group1"],
+      remarks: "cool feature",
+    }),
+    textLabeledOptional: label(mod.textOptional(), "synthetic_label1"),
     int: mod.integer(),
     intEnv: axsde.envVarAxiomSD(
       mod.integer(),
@@ -94,23 +169,27 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     await tc.step("labeled", () => {
       const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
       const labeled = Array.from(
-        syntheticASDO.labeled((test) => {
-          return test.labels.includes("synthetic_label1") ? true : false;
+        syntheticASDO.governed((test) => {
+          return isLabeled(test, "synthetic_label1") ? true : false;
         }),
       );
       ta.assertEquals(1, labeled.length);
       ta.assertEquals("textLabeledOptional", labeled[0].identity);
     });
 
-    await tc.step("default value from Environment", () => {
+    await tc.step("governed", () => {
       const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
-      const labeled = Array.from(
-        syntheticASDO.labeled((test) => {
-          return test.labels.includes("synthetic_label1") ? true : false;
-        }),
-      );
-      ta.assertEquals(1, labeled.length);
-      ta.assertEquals("textLabeledOptional", labeled[0].identity);
+      const governed = Array.from(syntheticASDO.governed());
+      ta.assertEquals(2, governed.length);
+
+      const firstGovnd = governed[0];
+      ta.assertEquals("textCustom", firstGovnd.identity);
+
+      ta.assert(hasRemarks(firstGovnd));
+      ta.assertEquals(firstGovnd.governance.remarks, "cool feature");
+
+      ta.assert(isInGroup(firstGovnd, "Group1"));
+      ta.assert(firstGovnd.governance.groups.find((g) => g == "Group1"));
     });
 
     // hover over 'SyntheticDomains' to see fully typed object
