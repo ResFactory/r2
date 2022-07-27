@@ -7,13 +7,20 @@ import * as erd from "../diagram/mod.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+export interface DataVaultDomainGovn {
+  readonly isDigestPrimaryKeyMember?: boolean;
+  readonly isSurrogateKey?: boolean;
+  readonly isDenormalized?: boolean;
+  readonly isUniqueConstraintMember?: string[];
+}
+
 /**
  * dataVaultDomains is a convenience object which defines aliases of all the
  * domains that we'll be using. We create "aliases" for easier maintenance and
  * extensibility (so if SQLa base domains change, we can diverge easily).
  * @returns the typical domains used by Data Vault models
  */
-export function dataVaultDomains() {
+export function dataVaultDomains<Context extends SQLa.SqlEmitContext>() {
   return {
     text: SQLa.text,
     textNullable: SQLa.textNullable,
@@ -38,6 +45,31 @@ export function dataVaultDomains() {
 
     unique: SQLa.unique,
     uniqueMulti: SQLa.uniqueTableCols,
+
+    uniqueMultiMember: <TsValueType>(
+      domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
+      ...groupNames: string[]
+    ) => {
+      return SQLa.mutateGovernedASD<TsValueType, DataVaultDomainGovn, Context>(
+        domain,
+        (existing) => ({
+          ...existing,
+          isUniqueConstraintMember: existing?.isUniqueConstraintMember
+            ? [...existing?.isUniqueConstraintMember, ...groupNames]
+            : groupNames,
+        }),
+      );
+    },
+
+    mutateGoverned: <
+      TsValueType,
+      Governance extends DataVaultDomainGovn = DataVaultDomainGovn,
+    >(
+      domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
+      governance: (existing?: Governance) => Governance,
+    ) => {
+      return SQLa.mutateGovernedASD(domain, governance);
+    },
   };
 }
 
@@ -49,7 +81,7 @@ export function dataVaultKeys<Context extends SQLa.SqlEmitContext>() {
   // we create our aliases in a function and use the function instead of passing
   // in dvDomains as an argument because deep-generics type-safe objects will be
   // available.
-  const { shah1Digest, ulid } = dataVaultDomains();
+  const { shah1Digest, ulid, mutateGoverned } = dataVaultDomains<Context>();
 
   const digestPrimaryKey = () =>
     SQLa.uaDefaultablePrimaryKey<string, Context>(shah1Digest<Context>());
@@ -60,24 +92,37 @@ export function dataVaultKeys<Context extends SQLa.SqlEmitContext>() {
   const autoIncPrimaryKey = () =>
     SQLa.autoIncPrimaryKey<number, Context>(SQLa.integer());
 
+  const digestPkMember = <TsValueType>(
+    domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
+  ) => {
+    return mutateGoverned<TsValueType>(
+      domain,
+      (existing) => ({ ...existing, isDigestPrimaryKeyMember: true }),
+    );
+  };
+
   const surrogateKey = <TsValueType>(
     domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
   ) => {
-    return SQLa.label(domain, "surrogate-key");
+    return mutateGoverned<TsValueType>(
+      domain,
+      (existing) => ({ ...existing, isSurrogateKey: true }),
+    );
   };
 
   return {
     digestPrimaryKey,
+    digestPkMember,
     digestPkLintRule: <TableName, ColumnName>(
       tableName: TableName,
       pkColumn?: SQLa.IdentifiableSqlDomain<Any, Context>,
-      options?: { readonly pkDigestColumns?: ColumnName[] },
+      pkDigestColumns?: ColumnName[],
     ) => {
       const rule: SQLa.SqlLintRule = {
         lint: (lis) => {
           if (
             pkColumn && axsdc.isDigestAxiomSD(pkColumn) &&
-            !options?.pkDigestColumns
+            (!pkDigestColumns || pkDigestColumns.length == 0)
           ) {
             lis.registerLintIssue({
               lintIssue:
@@ -152,7 +197,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     readonly sqlNS?: SQLa.SqlNamespaceSupplier;
   },
 ) {
-  const domains = dataVaultDomains();
+  const domains = dataVaultDomains<Context>();
   const keys = dataVaultKeys<Context>();
   const housekeeping = dataVaultHousekeeping<Context>();
   const tableLintRules = SQLa.tableLintRules<Context>();
@@ -160,7 +205,10 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
   const denormalized = <TsValueType>(
     domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
   ) => {
-    return SQLa.label(domain, "denormalized");
+    return domains.mutateGoverned<TsValueType>(
+      domain,
+      (existing) => ({ ...existing, isDenormalized: true }),
+    );
   };
 
   /**
@@ -198,7 +246,6 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     tableName: TableName,
     props: TPropAxioms,
     options?: {
-      readonly pkDigestColumns?: ColumnName[];
       readonly constraints?: SQLa.TableColumnsConstraint<
         TPropAxioms,
         Context
@@ -219,6 +266,28 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       )
       | undefined
     );
+    const tableDefn = SQLa.tableDefinition<TableName, TPropAxioms, Context>(
+      tableName,
+      props,
+      {
+        isIdempotent: true,
+        sqlNS: ddlOptions?.sqlNS,
+        constraints: options?.constraints,
+      },
+    );
+    const pkDigestColumns: ColumnName[] = [];
+    for (
+      const axiom of asdo.governed<DataVaultDomainGovn>(
+        (ap) =>
+          SQLa.isIdentifiableSqlDomain(ap) &&
+            ap.governance.isDigestPrimaryKeyMember
+            ? true
+            : false,
+      )
+    ) {
+      // TODO: why is "as ColumnName" required?
+      pkDigestColumns.push(axiom.identity as ColumnName);
+    }
     const defaultIspOptions = housekeeping.typical.insertStmtPrepOptions<
       TableName
     >();
@@ -230,25 +299,16 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     const result = {
       ...asdo,
       pkColumnDefn,
-      ...SQLa.tableDefinition<TableName, TPropAxioms, Context>(
-        tableName,
-        props,
-        {
-          isIdempotent: true,
-          sqlNS: ddlOptions?.sqlNS,
-          constraints: options?.constraints,
-        },
-      ),
+      ...tableDefn,
       // we want a custom, async, insertDML since some of our primary keys are
       //  "digest" type and we need to generate the digest from content in the
       // record
       insertDML: tdrf.insertCustomDML(async (ir) => {
-        const pkDigestCols = options?.pkDigestColumns;
-        if (pkDigestCols && pkColumnDefn) {
+        if (pkDigestColumns.length > 0 && pkColumnDefn) {
           // TODO: figure out how to type this properly, don't leave it untyped
           // suggestion: create a writeable: (ir: InsertableRecord) => safety.Writeable<InsertableRecord>?
           const untypedIR = ir as Any;
-          const dc = pkDigestCols.map((dc) => untypedIR[dc]).join("::");
+          const dc = pkDigestColumns.map((dc) => untypedIR[dc]).join("::");
           // pkColumn.defaultValue(dc) will be the SHA-1 or other digest function
           untypedIR[pkColumnDefn.identity] = await pkColumnDefn.defaultValue(
             dc,
@@ -264,7 +324,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
 
     const rules = tableLintRules.typical(
       result,
-      keys.digestPkLintRule(tableName, pkColumnDefn, options),
+      keys.digestPkLintRule(tableName, pkColumnDefn, pkDigestColumns),
     );
     rules.lint(result, options?.lint);
 
@@ -286,15 +346,12 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
         `hub_${HubName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
       >,
-    ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
-  >(hubName: HubName, props: TPropAxioms, options: {
-    readonly pkDigestColumns: ColumnName[];
-  }) => {
+  >(hubName: HubName, props: TPropAxioms) => {
     const tableName = hubTableName(hubName);
     const tableDefn = table(tableName, {
       ...props,
       ...housekeeping.typical.columns,
-    }, options);
+    });
     if (!tableDefn.pkColumnDefn) {
       throw Error(`no primary key column defined for hubTable ${hubName}`);
     }
@@ -409,7 +466,6 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
           ...housekeeping.typical.columns,
         },
         {
-          pkDigestColumns: hubIdColNames,
           constraints: [domains.uniqueMulti(...hubIdColNames)],
         },
       ),

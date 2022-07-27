@@ -1,4 +1,5 @@
 import { testingAsserts as ta } from "./deps-test.ts";
+import * as safety from "../../safety/mod.ts";
 import * as mod from "./domain.ts";
 import * as ax from "../../axiom/mod.ts";
 import { $ } from "../../axiom/mod.ts";
@@ -6,13 +7,46 @@ import { $ } from "../../axiom/mod.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+type SyntheticLabel = "synthetic_label1";
+
+export interface SyntheticGovernance {
+  readonly labels: SyntheticLabel[];
+}
+
+export function label<TsValueType>(
+  axiomSD: mod.AxiomSqlDomain<TsValueType, Any>,
+  ...labels: SyntheticLabel[]
+) {
+  return mod.mutateGovernedASD<TsValueType, SyntheticGovernance, Any>(
+    axiomSD,
+    (existing) => ({ ...existing, labels }),
+  );
+}
+
+export function isLabeled<TsValueType>(
+  o: mod.AxiomSqlDomain<TsValueType, Any>,
+  label: SyntheticLabel,
+): o is mod.AxiomSqlDomain<TsValueType, Any> & {
+  readonly governance: Pick<SyntheticGovernance, "labels">;
+} {
+  if (
+    mod.isGovernedSqlDomain(
+      o,
+      safety.typeGuard<Pick<SyntheticGovernance, "labels">>("labels"),
+    )
+  ) {
+    return o.governance.labels.find((l) => l == label) ? true : false;
+  }
+  return false;
+}
+
 Deno.test("type-safe data domains", async (tc) => {
   // use these for type-testing in IDE
   const syntheticDecl = {
     text: mod.text(),
     text_nullable: mod.textNullable(),
     text_custom: mod.text(ax.text($.string)),
-    text_labeled_optional: mod.label(mod.textNullable(), "synthetic_label1"),
+    text_labeled_optional: label(mod.textNullable(), "synthetic_label1"),
     text_linted_optional: mod.lintedSqlDomain(
       mod.textNullable(),
       mod.domainLintIssue("synthetic lint issue"),
@@ -111,11 +145,11 @@ Deno.test("type-safe data domains", async (tc) => {
       );
     });
 
-    await tc.step("labeled", () => {
+    await tc.step("governed (labeled)", () => {
       const syntheticDomains = mod.sqlDomains(syntheticDecl);
       const labeled = Array.from(
-        mod.labeledSqlDomains(syntheticDomains.domains, (test) => {
-          return test.labels.includes("synthetic_label1") ? true : false;
+        mod.governedSqlDomains(syntheticDomains.domains, (test) => {
+          return isLabeled(test, "synthetic_label1");
         }),
       );
       ta.assertEquals(1, labeled.length);

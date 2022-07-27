@@ -43,17 +43,18 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
   const { text, textNullable, unique } = dvg.domains;
+  const { digestPkMember: pkDigest } = dvg;
 
   const deviceHub = dvg.hubTable("device", {
     hub_device_id: dvg.digestPrimaryKey(),
-    host: unique(text()),
-    host_ipv4_address: unique(text()),
-  }, { pkDigestColumns: ["host", "host_ipv4_address"] });
+    host: unique(pkDigest(text())),
+    host_ipv4_address: unique(pkDigest(text())),
+  });
 
   const fileHub = dvg.hubTable("file", {
     hub_file_id: dvg.digestPrimaryKey(),
-    abs_path: unique(text()),
-  }, { pkDigestColumns: ["abs_path"] });
+    abs_path: unique(pkDigest(text())),
+  });
 
   const filePathPartsSat = fileHub.satTable("path_parts", {
     hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
@@ -71,9 +72,9 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
   const fsWalkHub = dvg.hubTable("fs_walk", {
     hub_fs_walk_id: dvg.digestPrimaryKey(),
-    root_path: text(),
-    glob: text(),
-  }, { pkDigestColumns: ["root_path", "glob"] });
+    root_path: pkDigest(text()),
+    glob: pkDigest(text()),
+  });
 
   const deviceFileLink = dvg.linkTable("device_file", {
     link_device_file_id: dvg.digestPrimaryKey(),

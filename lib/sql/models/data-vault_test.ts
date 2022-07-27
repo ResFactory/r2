@@ -37,11 +37,14 @@ Deno.test("Data Vault models", async (tc) => {
   const ctx = SQLa.typicalSqlEmitContext();
   const dvg = mod.dataVaultGovn(stso);
 
+  const { text, uniqueMultiMember: umm } = dvg.domains;
+  const { digestPkMember: pkDigest } = dvg;
+
   const syntheticHub0 = dvg.hubTable("synthethic0", {
     hub_synthethic0_id: dvg.digestPrimaryKey(),
-    key: dvg.domains.text(),
-    key2: dvg.domains.text(),
-  }, { pkDigestColumns: ["key", "key2"] });
+    key: pkDigest(umm(text(), "hub_business_key")),
+    key2: pkDigest(umm(text(), "hub_business_key")),
+  });
   ta.assertEquals(syntheticHub0.lintIssues, []);
 
   // use our custom hub insertDML which computes primary key digest value
@@ -52,8 +55,8 @@ Deno.test("Data Vault models", async (tc) => {
 
   const syntheticHub1 = dvg.hubTable("synthethic1", {
     hub_synthethic1_id: dvg.digestPrimaryKey(),
-    key: dvg.domains.text(),
-  }, { pkDigestColumns: ["key"] });
+    key: pkDigest(dvg.domains.text()),
+  });
   ta.assertEquals(syntheticHub1.lintIssues, []);
 
   expectType(syntheticHub1.columns.hub_synthethic1_id);
@@ -71,8 +74,8 @@ Deno.test("Data Vault models", async (tc) => {
 
   const syntheticHub2 = dvg.hubTable("synthethic2", {
     hub_synthethic2_id: dvg.digestPrimaryKey(),
-    key: dvg.domains.text(),
-  }, { pkDigestColumns: ["key"] });
+    key: pkDigest(dvg.domains.text()),
+  });
 
   await tc.step("hubs", () => {
     ta.assertEquals(

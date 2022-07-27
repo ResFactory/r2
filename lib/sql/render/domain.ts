@@ -3,7 +3,6 @@ import * as ax from "../../axiom/mod.ts";
 import * as axsdu from "../../axiom/axiom-serde-ulid.ts";
 import * as axsdc from "../../axiom/axiom-serde-crypto.ts";
 import * as tmpl from "./template/mod.ts";
-import * as lab from "./label.ts";
 import * as l from "./lint.ts";
 
 /**
@@ -178,51 +177,39 @@ export function domainLintIssue<
   };
 }
 
-export type LabeledSqlDomain<
+export type GovernedSqlDomain<
   TsValueType,
+  Governance,
   Context extends tmpl.SqlEmitContext,
-  Label extends string,
 > =
   & AxiomSqlDomain<TsValueType, Context>
-  & lab.LabelsSupplier<Label>;
+  & ax.GovernableAxiomSerDe<TsValueType, Governance>;
 
-export function isLabeledSqlDomain<
+export function isGovernedSqlDomain<
   TsValueType,
+  Governance,
   Context extends tmpl.SqlEmitContext,
-  Label extends string,
 >(
   o: unknown,
-): o is LabeledSqlDomain<
-  TsValueType,
-  Context,
-  Label
-> {
-  const isTSD = safety.typeGuard<
-    LabeledSqlDomain<TsValueType, Context, Label>
-  >("labels");
-  return isAxiomSqlDomain(o) && isTSD(o);
+  govnGuard?: (o: unknown) => o is Governance,
+): o is GovernedSqlDomain<TsValueType, Governance, Context> {
+  return isAxiomSqlDomain<TsValueType, Context>(o) &&
+    ax.isGovernableAxiomSerDe<TsValueType, Governance>(o, govnGuard);
 }
 
-export function label<
+export function mutateGovernedASD<
   TsValueType,
-  Label extends string,
+  Governance,
   Context extends tmpl.SqlEmitContext,
 >(
   domain: AxiomSqlDomain<TsValueType, Context>,
-  ...labels: Label[]
+  governance: (existing?: Governance) => Governance,
 ) {
-  let result: LabeledSqlDomain<TsValueType, Context, Label>;
-  if (isLabeledSqlDomain<TsValueType, Context, Label>(domain)) {
-    result = domain;
-  } else {
-    const wDomain = domain as unknown as safety.Writeable<
-      lab.LabelsSupplier<Label>
-    >;
-    wDomain.labels = [];
-    result = domain as LabeledSqlDomain<TsValueType, Context, Label>;
-  }
-  result.labels.push(...labels);
-  return result;
+  const wDomain = domain as unknown as safety.Writeable<
+    GovernedSqlDomain<TsValueType, Governance, Context>
+  >;
+  wDomain.governance = governance(wDomain.governance);
+  return domain as GovernedSqlDomain<TsValueType, Governance, Context>;
 }
 
 export function untyped<
@@ -600,24 +587,24 @@ export function* lintedSqlDomains<
   }
 }
 
-export function* labeledSqlDomains<
-  Label extends string,
+export function* governedSqlDomains<
+  Governance,
   Context extends tmpl.SqlEmitContext,
   TsValueType = Any,
 >(
   domains: Iterable<IdentifiableSqlDomain<TsValueType, Context>>,
   include?: (
-    d:
+    govnASD:
       & IdentifiableSqlDomain<TsValueType, Context, string>
-      & LabeledSqlDomain<TsValueType, Context, Label>,
+      & GovernedSqlDomain<TsValueType, Governance, Context>,
   ) => boolean,
 ): Generator<
   & IdentifiableSqlDomain<TsValueType, Context, string>
-  & LabeledSqlDomain<TsValueType, Context, Label>,
+  & GovernedSqlDomain<TsValueType, Governance, Context>,
   void
 > {
   for (const d of domains) {
-    if (isLabeledSqlDomain<TsValueType, Context, Label>(d)) {
+    if (isGovernedSqlDomain<TsValueType, Governance, Context>(d)) {
       if (!include || include(d)) yield d;
     }
   }
