@@ -78,15 +78,15 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
   const deviceFileLink = dvg.linkTable("device_file", {
     link_device_file_id: dvg.digestPrimaryKey(),
-    hub_device_id: deviceHub.foreignKeyRef.hub_device_id(),
-    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    hub_device_id: pkDigest(deviceHub.foreignKeyRef.hub_device_id()),
+    hub_file_id: pkDigest(fileHub.foreignKeyRef.hub_file_id()),
   });
 
   const deviceFsWalkFileLink = dvg.linkTable("device_fs_walk_file", {
     link_device_fs_walk_file_id: dvg.digestPrimaryKey(),
-    hub_device_id: deviceHub.foreignKeyRef.hub_device_id(),
-    hub_fs_walk_id: fsWalkHub.foreignKeyRef.hub_fs_walk_id(),
-    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    hub_device_id: pkDigest(deviceHub.foreignKeyRef.hub_device_id()),
+    hub_fs_walk_id: pkDigest(fsWalkHub.foreignKeyRef.hub_fs_walk_id()),
+    hub_file_id: pkDigest(fileHub.foreignKeyRef.hub_file_id()),
   });
 
   // deno-fmt-ignore
