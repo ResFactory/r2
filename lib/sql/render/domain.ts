@@ -209,7 +209,7 @@ export function mutateGovernedASD<
     GovernedSqlDomain<TsValueType, Governance, Context>
   >;
   wDomain.governance = governance(wDomain.governance);
-  return domain as GovernedSqlDomain<TsValueType, Governance, Context>;
+  return domain;
 }
 
 export function untyped<
