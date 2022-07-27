@@ -22,6 +22,12 @@ export interface DataVaultDomainGovn {
  */
 export function dataVaultDomains<Context extends SQLa.SqlEmitContext>() {
   return {
+    textGovn: <Governance extends DataVaultDomainGovn>(
+      governance: Governance,
+    ) => ({
+      ...SQLa.text(),
+      governance,
+    }),
     text: SQLa.text,
     textNullable: SQLa.textNullable,
 
