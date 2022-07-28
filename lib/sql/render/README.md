@@ -195,7 +195,9 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
 - [ ] Support idempotent _evolution_ (_migration_) DDL generation
 - [x] CREATE: This command is used to create the database or its objects (like
       table, index, function, views, store procedure, and triggers).
-  - [ ] Optionally show lint issues as comments
+  - [x] Optionally show lint issues as comments
+  - [ ] `create table` index rules similar to TableConstraint object - see
+        https://use-the-index-luke.com/ for some good ideas
 - [x] DROP: This command is used to delete objects from the database.
 - [ ] ALTER: This is used to alter the structure of the database.
 - [ ] TRUNCATE: This is used to remove all records from a table, including all
@@ -380,7 +382,8 @@ References:
 
 The system generates lint messages:
 
-- [ ] Missing indexes for primary keys, foreign keys
+- [ ] Missing indexes for primary keys, foreign keys (see
+      https://use-the-index-luke.com/)
 - [x] Plural vs. singular naming checks
 - [x] Foreign key column name should be `X_id` where `X` is the referenced Fkey
       column name
