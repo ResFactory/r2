@@ -143,6 +143,26 @@ export interface WalkGlob {
   readonly options?: (path: string) => fs.ExpandGlobOptions;
 }
 
+export function walkFilesExcludeGitGlob(
+  rootPath: string,
+  glob = "**/*",
+  inherit?: Partial<Omit<WalkGlob, "rootPath" | "glob">>,
+): WalkGlob {
+  return {
+    rootPath,
+    glob,
+    label: inherit?.label ?? rootPath,
+    include: inherit?.include ?? ((we) => we.isFile),
+    options: inherit?.options ?? ((path) => ({
+      root: path,
+      includeDirs: false,
+      globstar: true,
+      extended: true,
+      exclude: [".git"],
+    })),
+  };
+}
+
 export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
   const fsm = deviceFileSysModels<Context>();
   const {
@@ -156,24 +176,6 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
 
   return {
     models: fsm,
-    walkFilesGlob: (
-      rootPath: string,
-      inherit?: Partial<Omit<WalkGlob, "rootPath">>,
-    ): WalkGlob => {
-      return {
-        rootPath,
-        label: inherit?.label ?? rootPath,
-        glob: inherit?.glob ?? "**/*",
-        include: inherit?.include ?? ((we) => we.isFile),
-        options: inherit?.options ?? ((path) => ({
-          root: path,
-          includeDirs: false,
-          globstar: true,
-          extended: true,
-          exclude: [".git"],
-        })),
-      };
-    },
     entriesDML: async (ctx: Context, ...globs: WalkGlob[]) => {
       const uniqueDML = new Set<string>();
       const memoizeSQL = <STS extends SQLa.SqlTextSupplier<Context>>(
@@ -252,21 +254,26 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
   };
 }
 
-export async function deviceFileSysDV(emitForSqlite3IMDB: boolean) {
+export function deviceFileSysPlantUmlDiagram() {
   const ctx = SQLa.typicalSqlEmitContext();
   type Context = typeof ctx;
 
   const fsc = deviceFileSysContent<Context>();
-  await Deno.writeTextFile(
-    "dv-device-fs.puml",
-    fsc.models.dvg.plantUmlIE(
-      ctx,
-      "main",
-      Object.values(fsc.models).filter((m) =>
-        SQLa.isTableDefinition(m) && SQLa.isSqlDomainsSupplier(m)
-      ) as Any,
-    ),
-  );
+  console.log(fsc.models.dvg.plantUmlIE(
+    ctx,
+    "main",
+    Object.values(fsc.models).filter((m) =>
+      SQLa.isTableDefinition(m) && SQLa.isSqlDomainsSupplier(m)
+    ) as Any,
+  ));
+}
+
+export async function deviceFileSysSQL(rootPath: string, ...globs: string[]) {
+  const ctx = SQLa.typicalSqlEmitContext();
+  type Context = typeof ctx;
+  if (globs.length == 0) globs = ["**/*"];
+
+  const fsc = deviceFileSysContent<Context>();
   console.log(fsc.models.seedDDL.SQL(ctx));
 
   const validity = fsc.models.isValid();
@@ -275,29 +282,45 @@ export async function deviceFileSysDV(emitForSqlite3IMDB: boolean) {
     Deno.exit(validity);
   }
 
-  (await fsc.entriesDML(
+  const entries = await fsc.entriesDML(
     ctx,
-    fsc.walkFilesGlob(path.resolve(
-      path.dirname(path.fromFileUrl(import.meta.url)),
-      "..",
-      "..",
-      "..",
-    )),
-  )).forEach((sql) => console.log(sql, ";"));
-
-  // this is so that sqlite3 ":memory:" is dumped to STDOUT for subsequent sqlite3 lib/sql/models/dv-device-fs.db
-  if (emitForSqlite3IMDB) console.log(`.dump`);
+    ...globs.map((glob) => walkFilesExcludeGitGlob(rootPath, glob)),
+  );
+  entries.forEach((sql) => console.log(sql, ";"));
 }
 
 if (import.meta.main) {
-  // - if we're being called as a CLI, just emit the DDL SQL:
-  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" > lib/sql/models/dv-device-fs.dump.sql
-  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
+  // - If we're being called as a CLI, we emit text to STDOUT.
+  // - `deno run -A --unstable ./dv-device-fs.ts (walk|er-diagram-puml) rootPath ...globs`
+  //
+  // - Examples assuming we're running from resFactory/factory root:
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts walk
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts walk /tmp/X
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts walk /tmp/X "**/*.ts"
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts er-diagram-puml
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts er-diagram-puml > diagram.puml
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts er-diagram-puml | java -jar plantuml.jar -pipe -ttxt > diagram.txt
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts er-diagram-puml | java -jar plantuml.jar -pipe -tsvg > diagram.svg
+  //   $ deno run -A --unstable lib/sql/models/dv-device-fs.ts er-diagram-puml | java -jar plantuml.jar -pipe > diagram.png
+  //
+  // - You can also create a SQLite database using the output:
+  //   $ (deno run -A --unstable lib/sql/models/dv-device-fs.ts ; echo "\n.dump\n") | sqlite3 ":memory:" > lib/sql/models/dv-device-fs.dump.sql
+  //   $ (deno run -A --unstable lib/sql/models/dv-device-fs.ts ; echo "\n.dump\n") | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
   // - sending into SQLite memory first and then dumping afterwards is much faster
   //   because we're using static SQL with lookups for foreign keys.
   // - A good way to "test" is to use this CLI from $RF_HOME:
   //   $ sudo apt-get -y -qq install sqlite3
-  //   $ rm -f lib/sql/models/dv-device-fs.db && deno run -A --unstable lib/sql/models/dv-device-fs.ts | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
+  //   $ rm -f lib/sql/models/dv-device-fs.db && $ (deno run -A --unstable lib/sql/models/dv-device-fs.ts ; echo "\n.dump\n") | sqlite3 ":memory:" | sqlite3 lib/sql/models/dv-device-fs.db
   //   then, open `dv-device-fs.sql` with VS Code SQL notebook for exploring the content
-  await deviceFileSysDV(true);
+  //
+  // - The same functionality is available through a single TS task in `lib/task/fs-walk-dv.ts`.
+  //
+  const cmd = Deno.args.length > 0 ? Deno.args[0] : "walk";
+  if (cmd === "er-diagram-puml") {
+    deviceFileSysPlantUmlDiagram();
+  } else {
+    const rootPath = Deno.args.length > 1 ? Deno.args[1] : Deno.cwd();
+    deviceFileSysSQL(rootPath, ...Deno.args.slice(2));
+  }
 }

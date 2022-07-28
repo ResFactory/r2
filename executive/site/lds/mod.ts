@@ -15,6 +15,7 @@ export * as rflNotif from "../../../lib/notification/mod.ts";
 export * as rflShell from "../../../lib/shell/mod.ts";
 export * as rflTask from "../../../lib/task/core.ts";
 export * as rflTaskFetch from "../../../lib/task/fetch.ts";
+export * as rflTaskWalkFsDV from "../../../lib/task/fs-walk-dv.ts";
 export * as rflTaskUDD from "../../../lib/task/udd.ts";
 export * as rflWorkspace from "../../../lib/workspace/mod.ts";
 export * as rflKnowledge from "../../../lib/knowledge/mod.ts";
