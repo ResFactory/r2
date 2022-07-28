@@ -42,18 +42,18 @@ export function pathParts(
 export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
-  const { text, textNullable, unique } = dvg.domains;
+  const { text, textNullable } = dvg.domains;
   const { digestPkMember: pkDigest } = dvg;
 
   const deviceHub = dvg.hubTable("device", {
     hub_device_id: dvg.digestPrimaryKey(),
-    host: unique(pkDigest(text())),
-    host_ipv4_address: unique(pkDigest(text())),
+    host: { ...pkDigest(text()), isUnique: true },
+    host_ipv4_address: { ...pkDigest(text()), isUnique: true },
   });
 
   const fileHub = dvg.hubTable("file", {
     hub_file_id: dvg.digestPrimaryKey(),
-    abs_path: unique(pkDigest(text())),
+    abs_path: { ...pkDigest(text()), isUnique: true },
   });
 
   const filePathPartsSat = fileHub.satTable("path_parts", {
@@ -257,12 +257,22 @@ export async function deviceFileSysDV(emitForSqlite3IMDB: boolean) {
   type Context = typeof ctx;
 
   const fsc = deviceFileSysContent<Context>();
+  await Deno.writeTextFile(
+    "dv-device-fs.puml",
+    fsc.models.dvg.plantUmlIE(
+      ctx,
+      "main",
+      Object.values(fsc.models).filter((m) =>
+        SQLa.isTableDefinition(m) && SQLa.isSqlDomainsSupplier(m)
+      ) as Any,
+    ),
+  );
   console.log(fsc.models.seedDDL.SQL(ctx));
 
-  const isValid = fsc.models.isValid();
-  if (typeof isValid === "number") {
+  const validity = fsc.models.isValid();
+  if (typeof validity === "number") {
     console.error("FATAL errors in SQL (see lint messages in emitted SQL)");
-    Deno.exit(isValid);
+    Deno.exit(validity);
   }
 
   (await fsc.entriesDML(
