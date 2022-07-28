@@ -348,7 +348,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
   const hubTable = <
     HubName extends string,
     TPropAxioms extends
-      & Record<string, ax.Axiom<Any>>
+      & Record<string, (ax.Axiom<Any> & Partial<SQLa.UniqueTableColumn>)>
       & Record<
         `hub_${HubName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
@@ -404,7 +404,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     HubTableName extends string,
     SatelliteName extends string,
     SatPropAxioms extends
-      & Record<string, ax.Axiom<Any>>
+      & Record<string, (ax.Axiom<Any> & Partial<SQLa.UniqueTableColumn>)>
       & Record<
         `sat_${HubName}_${SatelliteName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
@@ -445,7 +445,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
   const linkTable = <
     LinkName extends string,
     TPropAxioms extends
-      & Record<string, ax.Axiom<Any>>
+      & Record<string, (ax.Axiom<Any> & Partial<SQLa.UniqueTableColumn>)>
       & Record<
         `link_${LinkName}_id`,
         SQLa.TablePrimaryKeyColumnDefn<Any, Context>
@@ -481,7 +481,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     };
   };
 
-  const erdConfig = erd.typicalPlantUmlIeOptions();
+  const erdConfig = erd.typicalPlantUmlIeOptions<Context>();
   const lintState = SQLa.typicalSqlLintSummaries(ddlOptions.sqlTextLintState);
 
   return {
@@ -503,5 +503,33 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     enumTextTable: SQLa.enumTextTable,
     sqlTextLintSummary: lintState.sqlTextLintSummary,
     sqlTmplEngineLintSummary: lintState.sqlTmplEngineLintSummary,
+    plantUmlIE: (
+      ctx: Context,
+      diagramName: string,
+      tables: Iterable<
+        SQLa.TableDefinition<Any, Context> & SQLa.SqlDomainsSupplier<Context>
+      >,
+    ) =>
+      erd.plantUmlIE<Context>(
+        ctx,
+        function* () {
+          for (const t of tables) {
+            yield t;
+          }
+        },
+        erd.typicalPlantUmlIeOptions<Context>({
+          ...erdConfig,
+          diagramName,
+          // because showing enum relationships can get "noisy", don't add enum
+          // entities or edge connections for enums
+          includeEntity: (entity) =>
+            SQLa.isEnumTableDefn(entity) ? false : true,
+          relationshipIndicator: (edge) => {
+            const refIsEnum = SQLa.isEnumTableDefn(edge.ref.entity);
+            // Relationship types ref: https://plantuml.com/es/ie-diagram
+            return refIsEnum ? false : "|o..o{";
+          },
+        }),
+      ),
   };
 }
