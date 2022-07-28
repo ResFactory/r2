@@ -5,6 +5,13 @@ import * as ax from "./axiom.ts";
 import * as axsde from "./axiom-serde-env.ts";
 import { $ } from "./axiom.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
+const expectType = <T>(_value: T) => {
+  // Do nothing, the TypeScript compiler handles this for us
+};
+
 const intEnvDefaultable = -1;
 
 type SyntheticGroup = "Group1" | "Group2" | "Group3";
@@ -46,14 +53,14 @@ export function isInGroup<TsValueType>(
   return false;
 }
 
-export function synthGovn<TsValueType>(
+export function typedGovn<TsValueType>(
   axiom: mod.AxiomSerDe<TsValueType>,
   governance: Partial<SyntheticGovernance>,
 ) {
   return mod.governed(axiom, governance);
 }
 
-export function label<TsValueType>(
+export function typedLabel<TsValueType>(
   axiom: mod.AxiomSerDe<TsValueType>,
   label: SyntheticLabel,
 ) {
@@ -79,16 +86,19 @@ export function isLabeled<TsValueType>(
 }
 
 Deno.test("serializable/deserializable axioms", async (tc) => {
+  // extensions can be "typed" using `typeGovn` and `typedLabel` examples
+  // or "quasi-typed" like `isSpecialNumber` example.
+
   // use these for type-testing in IDE
   const syntheticDecl = {
     text: mod.text(),
     textOptional: mod.textOptional(),
-    textCustom: synthGovn(mod.text($.string), {
+    textCustom: typedGovn(mod.text($.string), {
       groups: ["Group1"],
       remarks: "cool feature",
     }),
-    textLabeledOptional: label(mod.textOptional(), "synthetic_label1"),
-    int: mod.integer(),
+    textLabeledOptional: typedLabel(mod.textOptional(), "synthetic_label1"),
+    int: { ...mod.integer(), isSpecialNumber: true },
     intEnv: axsde.envVarAxiomSD(
       mod.integer(),
       "SYNTHETIC_INT",
@@ -98,7 +108,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
     intOptional: mod.integerOptional(),
     intCustom: mod.integer($.number),
     bigint: mod.bigint(),
-    bigintOptional: mod.bigintOptional(),
+    bigintOptional: { ...mod.bigintOptional(), isSpecialNumber: true },
     bigintCustom: mod.bigint($.bigint),
     json: mod.jsonText(),
     jsonCustom: mod.jsonText($.string),
@@ -166,7 +176,44 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       );
     });
 
-    await tc.step("labeled", () => {
+    await tc.step("quasi-typed extension", () => {
+      const isSpecialNum = safety.typeGuard<{ isSpecialNumber: boolean }>(
+        "isSpecialNumber",
+      );
+
+      const asdExtension = <TPropAxioms extends Record<string, ax.Axiom<Any>>>(
+        props: TPropAxioms,
+      ) => {
+        type SpecialNums = {
+          [
+            Property in keyof TPropAxioms as Extract<
+              Property,
+              TPropAxioms[Property] extends { isSpecialNumber: boolean }
+                ? Property
+                : never
+            >
+          ]: TPropAxioms[Property];
+        };
+        const propsASDO = mod.axiomSerDeObject(props);
+        const specialNums: SpecialNums = {} as Any;
+        for (const ap of propsASDO.axiomProps) {
+          if (isSpecialNum(ap)) {
+            specialNums[ap.identity as (keyof SpecialNums)] = ap as Any;
+          }
+        }
+
+        return {
+          ...propsASDO,
+          specialNums,
+        };
+      };
+
+      const ed = asdExtension(syntheticDecl);
+      expectType(ed.specialNums.int);
+      expectType(ed.specialNums.bigintOptional);
+    });
+
+    await tc.step("typed labels", () => {
       const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
       const labeled = Array.from(
         syntheticASDO.governed((test) => {
@@ -177,7 +224,7 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       ta.assertEquals("textLabeledOptional", labeled[0].identity);
     });
 
-    await tc.step("governed", () => {
+    await tc.step("typed governance", () => {
       const syntheticASDO = mod.axiomSerDeObject(syntheticDecl);
       const governed = Array.from(syntheticASDO.governed());
       ta.assertEquals(2, governed.length);
@@ -210,10 +257,6 @@ Deno.test("serializable/deserializable axioms", async (tc) => {
       dateTime: new Date(),
       dateTimeCustom: new Date(),
       // bad: "hello"
-    };
-
-    const expectType = <T>(_value: T) => {
-      // Do nothing, the TypeScript compiler handles this for us
     };
 
     // should see compile errors if any of these fail
