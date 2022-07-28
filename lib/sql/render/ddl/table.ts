@@ -714,15 +714,17 @@ export interface TableDefnOptions<
   ) => TableColumnsConstraint<TPropAxioms, Context>[];
 }
 
-export const isUniqueTableColumn = safety.typeGuard<
-  { readonly isUnique: boolean }
->("isUnique");
+export type UniqueTableColumn = { readonly isUnique: boolean };
+
+export const isUniqueTableColumn = safety.typeGuard<UniqueTableColumn>(
+  "isUnique",
+);
 
 export function tableDefinition<
   TableName extends string,
   TPropAxioms extends Record<
     string,
-    (ax.Axiom<Any> & Partial<{ isUnique: boolean }>)
+    (ax.Axiom<Any> & Partial<UniqueTableColumn>)
   >,
   Context extends tmpl.SqlEmitContext,
 >(
