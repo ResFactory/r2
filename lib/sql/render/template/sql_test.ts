@@ -83,7 +83,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
     synthetic_table1_id: ddl.autoIncPrimaryKey(d.integer()),
     column_one_text: d.text(),
     column_two_text_nullable: d.textNullable(),
-    column_unique: ddl.unique(d.text()),
+    column_unique: { ...d.text(), isUnique: true },
     column_linted_optional: d.lintedSqlDomain(
       d.textNullable(),
       d.domainLintIssue("synthetic lint issue #1"),
@@ -100,7 +100,7 @@ Deno.test("SQL Aide (SQLa) template", () => {
     synthetic_table2_id: ddl.autoIncPrimaryKey(d.integer()),
     column_three_text: d.text(),
     column_four_int_nullable: d.integerNullable(),
-    column_unique: ddl.unique(d.text()),
+    column_unique: { ...d.text(), isUnique: true },
     ...housekeeping(),
   }, ddl.sqlSchemaDefn("synthetic_schema"));
 

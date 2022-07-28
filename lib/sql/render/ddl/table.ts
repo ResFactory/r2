@@ -532,48 +532,6 @@ export function selfRefForeignKeyNullable<
   );
 }
 
-export type TableUniqueColumnDefn<
-  ColumnTsType,
-  Context extends tmpl.SqlEmitContext,
-> = d.AxiomSqlDomain<ColumnTsType, Context> & {
-  readonly isUnique: true;
-};
-
-export function unique<
-  ColumnTsType,
-  Context extends tmpl.SqlEmitContext,
->(
-  axiom: d.AxiomSqlDomain<ColumnTsType, Context>,
-): TableUniqueColumnDefn<ColumnTsType, Context> {
-  const result: TableUniqueColumnDefn<ColumnTsType, Context> = {
-    ...axiom,
-    sqlPartial: (dest) => {
-      if (dest === "create table, after all column definitions") {
-        const aacd = axiom?.sqlPartial?.(
-          "create table, after all column definitions",
-        );
-        const uniqueClause: tmpl.SqlTextSupplier<Context> = {
-          SQL: d.isIdentifiableSqlDomain(result)
-            ? ((ctx) => {
-              const ns = ctx.sqlNamingStrategy(ctx, {
-                quoteIdentifiers: true,
-              });
-              return `UNIQUE(${ns.domainName(result.identity)})`;
-            })
-            : (() => {
-              console.dir(result);
-              return `/* UNIQUE sqlPartial in "create table, after all column definitions" is not IdentifiableSqlDomain */`;
-            }),
-        };
-        return aacd ? [...aacd, uniqueClause] : [uniqueClause];
-      }
-      return axiom.sqlPartial?.(dest);
-    },
-    isUnique: true,
-  };
-  return result;
-}
-
 export function typicalTableColumnDefnSQL<
   TableName extends string,
   ColumnName extends string,
@@ -662,21 +620,76 @@ export type TableColumnsConstraint<
     readonly constrainedColumnNames: ColumnName[];
   };
 
-export function uniqueTableCols<
+export function uniqueContraint<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
   Context extends tmpl.SqlEmitContext,
   ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
->(...columnNames: ColumnName[]) {
-  const result: TableColumnsConstraint<TPropAxioms, Context> = {
-    constrainedColumnNames: columnNames,
+>(...constrainedColumnNames: ColumnName[]) {
+  const constraint: TableColumnsConstraint<TPropAxioms, Context> = {
+    constrainedColumnNames,
     SQL: (ctx) => {
       const ns = ctx.sqlNamingStrategy(ctx, { quoteIdentifiers: true });
-      const ucQuoted = columnNames.map((c) => ns.domainName(String(c)));
+      const ucQuoted = constrainedColumnNames.map((c) =>
+        ns.domainName(String(c))
+      );
       return `UNIQUE(${ucQuoted.join(", ")})`;
     },
   };
-  return result;
+  return constraint;
 }
+
+export function tableConstraints<
+  TableName extends string,
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+  ColumnName extends keyof TPropAxioms = keyof TPropAxioms,
+>(tableName: TableName, columnsAxioms: TPropAxioms) {
+  let uniqConstrIndex = 0;
+  const constraints: (
+    & IdentifiableTableConstraint<string, Context>
+    & TableColumnsConstraint<TPropAxioms, Context>
+  )[] = [];
+  const builder = {
+    uniqueNamed: (
+      constraintIdentity = `unique${uniqConstrIndex}`,
+      ...constrainedColumnNames: ColumnName[]
+    ) => {
+      uniqConstrIndex++;
+      const constraint:
+        & IdentifiableTableConstraint<string, Context>
+        & TableColumnsConstraint<TPropAxioms, Context> = {
+          constraintIdentity,
+          ...uniqueContraint(...constrainedColumnNames),
+        };
+      constraints.push(constraint);
+      return constraint;
+    },
+    unique: (...constrainedColumnNames: ColumnName[]) =>
+      builder.uniqueNamed(undefined, ...constrainedColumnNames),
+  };
+  return {
+    tableName,
+    columnsAxioms,
+    constraints,
+    ...builder,
+  };
+}
+
+export type UniqueColumnDefns<
+  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  Context extends tmpl.SqlEmitContext,
+> = {
+  [
+    Property in keyof TPropAxioms as Extract<
+      Property,
+      TPropAxioms[Property] extends { isUnique: true } ? Property
+        : never
+    >
+  ]: d.IdentifiableSqlDomain<
+    TPropAxioms[Property] extends ax.Axiom<infer T> ? T : never,
+    Context
+  >;
+};
 
 export interface TableDefnOptions<
   TPropAxioms extends Record<string, ax.Axiom<Any>>,
@@ -693,12 +706,24 @@ export interface TableDefnOptions<
     domains: d.IdentifiableSqlDomain<Any, Context>[],
   ) => void;
   readonly sqlNS?: ns.SqlNamespaceSupplier;
-  readonly constraints?: TableColumnsConstraint<TPropAxioms, Context>[];
+  readonly constraints?: <
+    TableName extends string,
+  >(
+    columnsAxioms: TPropAxioms,
+    tableName: TableName,
+  ) => TableColumnsConstraint<TPropAxioms, Context>[];
 }
+
+export const isUniqueTableColumn = safety.typeGuard<
+  { readonly isUnique: boolean }
+>("isUnique");
 
 export function tableDefinition<
   TableName extends string,
-  TPropAxioms extends Record<string, ax.Axiom<Any>>,
+  TPropAxioms extends Record<
+    string,
+    (ax.Axiom<Any> & Partial<{ isUnique: boolean }>)
+  >,
   Context extends tmpl.SqlEmitContext,
 >(
   tableName: TableName,
@@ -707,6 +732,7 @@ export function tableDefinition<
 ) {
   const columnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
   const afterColumnDefnsSS: tmpl.SqlTextSupplier<Context>[] = [];
+  const constraints: TableColumnsConstraint<TPropAxioms, Context>[] = [];
   const sd = d.sqlDomains(props, tdOptions);
   for (const columnDefn of sd.domains) {
     if (
@@ -759,10 +785,18 @@ export function tableDefinition<
       Context
     >;
   };
+
   const primaryKey: PrimaryKeys = {} as Any;
+  const unique: UniqueColumnDefns<TPropAxioms, Context> = {} as Any;
   for (const column of sd.domains) {
     if (isTablePrimaryKeyColumnDefn(column)) {
       primaryKey[column.identity as (keyof PrimaryKeys)] = column as Any;
+    }
+    if (isUniqueTableColumn(column)) {
+      unique[
+        column.identity as (keyof UniqueColumnDefns<TPropAxioms, Context>)
+      ] = column as Any;
+      constraints.push(uniqueContraint(column.identity));
     }
   }
 
@@ -819,8 +853,10 @@ export function tableDefinition<
     };
   }
 
+  afterColumnDefnsSS.push(...constraints);
   if (tdOptions?.constraints) {
-    afterColumnDefnsSS.push(...tdOptions?.constraints);
+    const custom = tdOptions?.constraints(props, tableName);
+    afterColumnDefnsSS.push(...custom);
   }
 
   const tableDefnResult:
@@ -828,6 +864,7 @@ export function tableDefinition<
     & {
       readonly columns: ColumnDefns;
       readonly primaryKey: PrimaryKeys;
+      readonly unique: UniqueColumnDefns<TPropAxioms, Context>;
       readonly foreignKeyRef: ForeignKeyRefs;
       readonly fkNullableRef: ForeignKeyNullableRefs;
       readonly sqlNS?: ns.SqlNamespaceSupplier;
@@ -876,6 +913,7 @@ export function tableDefinition<
       },
       columns,
       primaryKey,
+      unique,
       foreignKeyRef: fkRef,
       fkNullableRef: fkNullableRef,
       sqlNS: tdOptions?.sqlNS,

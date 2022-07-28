@@ -49,8 +49,7 @@ export function dataVaultDomains<Context extends SQLa.SqlEmitContext>() {
     ulid: SQLa.ulid,
     uuidV4: SQLa.uuidv4,
 
-    unique: SQLa.unique,
-    uniqueMulti: SQLa.uniqueTableCols,
+    unique: SQLa.uniqueContraint,
 
     uniqueMultiMember: <TsValueType>(
       domain: SQLa.AxiomSqlDomain<TsValueType, Context>,
@@ -252,10 +251,12 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     tableName: TableName,
     props: TPropAxioms,
     options?: {
-      readonly constraints?: SQLa.TableColumnsConstraint<
-        TPropAxioms,
-        Context
-      >[];
+      readonly constraints?: <
+        TableName extends string,
+      >(
+        columnsAxioms: TPropAxioms,
+        tableName: TableName,
+      ) => SQLa.TableColumnsConstraint<TPropAxioms, Context>[];
       readonly lint?:
         & SQLa.TableNameConsistencyLintOptions
         & SQLa.FKeyColNameConsistencyLintOptions<Context>;
@@ -472,7 +473,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
           ...housekeeping.typical.columns,
         },
         {
-          constraints: [domains.uniqueMulti(...hubIdColNames)],
+          constraints: () => [domains.unique(...hubIdColNames)],
         },
       ),
       linkName,

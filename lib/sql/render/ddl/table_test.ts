@@ -169,7 +169,7 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         () => `synthetic-defaulted`,
       ),
       column_three_text_digest: d.sha1Digest(),
-      column_unique: mod.unique(d.text()),
+      column_unique: { ...d.text(), isUnique: true },
       column_linted: d.lintedSqlDomain(
         d.text(),
         d.domainLintIssue("synthetic lint issue #1", {
@@ -190,7 +190,10 @@ Deno.test("SQL Aide (SQLa) custom table", async (tc) => {
         }
       },
       // test "automatic" creation of unique constraints
-      constraints: [mod.uniqueTableCols("column_unique", "created_at")],
+      constraints: (props, tableName) => {
+        const c = mod.tableConstraints(tableName, props);
+        return [c.unique("column_unique", "created_at")];
+      },
     },
   );
   const syntheticTable1DefnDefaultable = ax.axiomSerDeObjectDefaultables<

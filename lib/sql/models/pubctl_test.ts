@@ -146,8 +146,8 @@ const fixturePrime = ws.unindentWhitespace(`
       "mutation_count" INTEGER NOT NULL,
       "numeric_enum" INTEGER NOT NULL,
       "created_at" DATETIME DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE("host"),
-      FOREIGN KEY("numeric_enum") REFERENCES "synthetic_enum_numeric"("code")
+      FOREIGN KEY("numeric_enum") REFERENCES "synthetic_enum_numeric"("code"),
+      UNIQUE("host")
   );
   -- encountered persistence request for 1_publ-host.sql
 

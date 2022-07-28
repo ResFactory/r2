@@ -18,7 +18,7 @@ Deno.test("AlaSQL reflection", async (tc) => {
       synthetic_table1_id: SQLa.autoIncPrimaryKey(SQLa.integer()),
       column_one_text: SQLa.text(),
       column_two_text_nullable: SQLa.textNullable(),
-      column_unique: SQLa.unique(SQLa.text()),
+      column_unique: { ...SQLa.text(), isUnique: true },
       column_linted: SQLa.lintedSqlDomain(
         SQLa.text(),
         SQLa.domainLintIssue("synthetic lint issue #1"),

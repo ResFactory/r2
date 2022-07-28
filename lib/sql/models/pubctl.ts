@@ -155,7 +155,7 @@ export function pubCtlDatabaseDefn<Context extends SQLa.SqlEmitContext>(
 
   const publHost = mg.table("publ_host", {
     publ_host_id: mg.primaryKey(),
-    host: SQLa.unique(SQLa.text()),
+    host: { ...SQLa.text(), isUnique: true },
     host_identity: SQLa.jsonTextNullable(),
     mutation_count: SQLa.integer(),
     numeric_enum: numericEnumModel.foreignKeyRef.code(),
