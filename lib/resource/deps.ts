@@ -3,3 +3,4 @@ export * as events from "https://raw.githubusercontent.com/ihack2712/eventemitte
 export * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
 export * as io from "https://deno.land/std@0.147.0/io/mod.ts";
 export * as path from "https://deno.land/std@0.147.0/path/mod.ts";
+export * as log from "https://deno.land/std@0.147.0/log/mod.ts";

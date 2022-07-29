@@ -1,9 +1,10 @@
 import * as safety from "../../../lib/safety/mod.ts";
-import { default as markdownIt } from "https://jspm.dev/markdown-it@12.2.0";
+import { default as markdownIt } from "https://jspm.dev/markdown-it@13.0.1";
 import { default as markdownItReplaceLink } from "https://jspm.dev/markdown-it-replace-link@1.1.0";
 import { default as markdownItFootnote } from "https://jspm.dev/markdown-it-footnote@3.0.3";
 import { default as markdownItAnchor } from "https://jspm.dev/markdown-it-anchor@8.6.4";
 import { default as markdownItTitle } from "https://jspm.dev/markdown-it-title@4.0.0";
+import { default as markdownItEmoji } from "https://jspm.dev/markdown-it-emoji@2.0.2";
 import { default as markdownItDirective } from "https://jspm.dev/markdown-it-directive@1.0.1";
 import { default as markdownItDirectiveWC } from "https://jspm.dev/markdown-it-directive-webcomponents@1.2.0";
 import { default as markdownItHashtag } from "https://jspm.dev/markdown-it-hashtag@0.4.0";
@@ -14,6 +15,7 @@ import * as fm from "../frontmatter/mod.ts";
 import * as r from "../render/mod.ts";
 import * as md from "./resource.ts";
 import * as extn from "../../../lib/module/mod.ts";
+import { Any } from "../../axiom/axiom-serde.ts";
 
 /**
  * markdownRenderEnv is available after Markdown rendering and includes
@@ -177,6 +179,7 @@ export class TypicalMarkdownLayout implements MarkdownLayoutStrategy {
     result.use(markdownItTitle, { level: 0 }); // TODO: grab excerpts too?
     result.use(markdownItHashtag);
     result.use(markdownItTaskCheckbox);
+    result.use(markdownItEmoji);
     if (mpl?.directiveExpectations) {
       this.registerMarkdownItDirectives(result, mpl?.directiveExpectations);
     }
@@ -277,10 +280,17 @@ export class TypicalMarkdownLayout implements MarkdownLayoutStrategy {
   ): c.HtmlSupplier {
     // we want resource to be available during rendering for directives
     const markdownRenderEnv = { resource };
-    const html = this.mdiRenderer.render(
-      sourceText || defaultText,
-      markdownRenderEnv,
-    );
+    let html = "(unable to render using this.mdiRenderer)";
+    try {
+      html = this.mdiRenderer.render(
+        sourceText || defaultText,
+        markdownRenderEnv,
+      );
+    } catch (err) {
+      html =
+        `<pre>Fatal MarkdownIt content parse error: ${err}</pre>\nSometimes emojis or custom directives (anything ':' can confuse the directives parser) cause problems. See resource.markdownItRenderError for stack trace.`;
+      (resource as Any).markdownItRenderError = err;
+    }
     // deno-lint-ignore no-explicit-any
     delete (markdownRenderEnv as any).resource; // should not go into model
     // take each property in markdownRenderEnv and put it into resource.model

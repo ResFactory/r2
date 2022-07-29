@@ -56,7 +56,7 @@ export const constructResourceSync: (
           );
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
-          options.log.error(diagnostics, { origination, parsed });
+          options.log?.error(diagnostics, { origination, parsed });
         }
         return parsed.frontmatter;
       },

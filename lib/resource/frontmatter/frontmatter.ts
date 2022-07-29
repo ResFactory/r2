@@ -286,13 +286,10 @@ export type FrontmatterResource =
   & govn.FrontmatterConsumer<govn.UntypedFrontmatter>
   & (c.FlexibleContent | c.HtmlSupplier);
 
-export function prepareFrontmatter(
+export function prepareFrontmatter<Resource>(
   frontmatterRE: RegExp,
-): (resource: FrontmatterResource) => Promise<
-  & FrontmatterResource
-  & Partial<govn.FrontmatterSupplier<govn.UntypedFrontmatter>>
-> {
-  return async (resource) => {
+) {
+  return async (resource: Resource) => {
     if (isFrontmatterConsumer(resource)) {
       if (c.isFlexibleContentSupplier(resource)) {
         const fmResult = parseYamlTomlFrontmatter(

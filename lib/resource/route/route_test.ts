@@ -4,13 +4,13 @@ import { CachedExtensions } from "../../../lib/module/mod.ts";
 import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as fm from "../frontmatter/mod.ts";
 import * as govn from "./governance.ts";
-import * as mod from "./route.ts";
+import * as mod from "./mod.ts";
 
 type ComparableRoute = Omit<govn.RouteNode, "resolve" | "location" | "inRoute">;
 
 const testPath = path.relative(
   Deno.cwd(),
-  path.dirname(import.meta.url).substr("file://".length),
+  path.dirname(import.meta.url).substring("file://".length),
 );
 
 const routeFactory = new mod.TypicalRouteFactory(

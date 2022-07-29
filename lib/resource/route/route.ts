@@ -474,7 +474,7 @@ export interface FileSysRouteOptions {
   readonly fsRouteFactory: FileSysRouteFactory;
   readonly routeParser: fsr.FileSysRouteParser;
   readonly extensionsManager: e.ExtensionsManager;
-  readonly log: log.Logger;
+  readonly log?: log.Logger;
 }
 
 export interface FileSysRouteNode extends govn.RouteNode {

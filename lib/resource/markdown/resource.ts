@@ -27,6 +27,13 @@ export interface MarkdownResource<Model extends MarkdownModel = MarkdownModel>
     Partial<c.DiagnosticsSupplier> {
 }
 
+export interface MutatableMarkdownResource<
+  Model extends MarkdownModel = MarkdownModel,
+> extends
+  MarkdownResource<Model>,
+  Partial<fm.FrontmatterConsumer<fm.UntypedFrontmatter>> {
+}
+
 export const markdownMediaTypeNature: c.MediaTypeNature<MarkdownResource> = {
   mediaType: "text/markdown",
   guard: (o: unknown): o is MarkdownResource => {
@@ -82,13 +89,13 @@ export const markdownContentNature:
     },
   };
 
-export const constructStaticMarkdownResourceSync: (
-  origin: r.RouteSupplier & {
+export const constructStaticMarkdownResourceSync = (
+  origination: r.RouteSupplier & {
     path: string;
     diagnostics: (error: Error, message?: string) => string;
   },
-  options: r.FileSysRouteOptions,
-) => MarkdownResource = (origination, options) => {
+  options?: r.FileSysRouteOptions,
+) => {
   const nature = markdownContentNature;
   const result:
     & MarkdownResource
@@ -130,7 +137,7 @@ export const constructStaticMarkdownResourceSync: (
           );
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
-          options.log.error(diagnostics, { origination, parsed });
+          options?.log?.error(diagnostics, { origination, parsed });
         }
         return parsed.frontmatter;
       },
@@ -149,22 +156,27 @@ export const constructStaticMarkdownResourceSync: (
   return result;
 };
 
-// TODO: disposition
-// export function staticMarkdownFileSysResourceFactory(
-//   refine?: coll.ResourceRefinery<MarkdownResource>,
-// ): fsrf.FileSysGlobWalkEntryFactory<MarkdownResource> {
-//   return {
-//     // deno-lint-ignore require-await
-//     construct: async (we, log) => constructStaticMarkdownResourceSync(we, log),
-//     refine,
-//   };
-// }
+export function staticMarkdownFileSysResourceFactory(
+  refine?: coll.ResourceRefinery<MarkdownResource>,
+) {
+  return {
+    // deno-lint-ignore require-await
+    construct: async (
+      origin: r.RouteSupplier & {
+        path: string;
+        diagnostics: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => constructStaticMarkdownResourceSync(origin, options),
+    refine,
+  };
+}
 
 export const constructMarkdownModuleResourceSync: (
   origin: r.RouteSupplier,
   content: string,
   frontmatter: extn.UntypedExports,
-  options: r.FileSysRouteOptions,
+  options?: r.FileSysRouteOptions,
 ) => MarkdownResource = (origination, content, frontmatter) => {
   const nature = markdownContentNature;
   const result:
@@ -213,7 +225,7 @@ export function markdownModuleFileSysResourceFactory(
       };
       const imported = await options.extensionsManager.importModule(we.path);
       const issue = (diagnostics: string, ...args: unknown[]) => {
-        options.log.error(diagnostics, ...args);
+        options.log?.error(diagnostics, ...args);
         const result:
           & c.ModuleResource
           & MarkdownResource
