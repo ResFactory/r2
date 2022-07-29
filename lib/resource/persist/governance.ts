@@ -74,31 +74,3 @@ export interface FileSysPersistenceSupplier<Resource> {
     ...functionArgs: unknown[]
   ) => Promise<void>;
 }
-
-export interface PersistableTextResource
-  extends
-    c.TextSupplier,
-    c.TextSyncSupplier,
-    c.NatureSupplier<
-      & c.MediaTypeNature<c.TextSupplier & c.TextSyncSupplier>
-      & FileSysPersistenceSupplier<c.TextResource>
-    > {
-}
-
-export interface PersistableHtmlResource
-  extends
-    c.HtmlSupplier,
-    c.NatureSupplier<
-      & c.MediaTypeNature<c.HtmlSupplier>
-      & FileSysPersistenceSupplier<c.HtmlResource>
-    > {
-}
-
-export interface PersistableStructuredDataResource extends
-  c.NatureSupplier<
-    & c.MediaTypeNature<c.SerializedDataSupplier>
-    & FileSysPersistenceSupplier<c.StructuredDataResource>
-  >,
-  c.StructuredDataInstanceSupplier,
-  c.SerializedDataSupplier {
-}

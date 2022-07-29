@@ -4,6 +4,16 @@ import * as contrib from "../../../lib/text/contributions.ts";
 import * as r from "../render/mod.ts";
 import * as e from "../../../lib/text/escape.ts";
 import * as extn from "../../../lib/module/mod.ts";
+import * as p from "../persist/mod.ts";
+
+export interface PersistableHtmlResource
+  extends
+    c.HtmlSupplier,
+    c.NatureSupplier<
+      & c.MediaTypeNature<c.HtmlSupplier>
+      & p.FileSysPersistenceSupplier<c.HtmlResource>
+    > {
+}
 
 // hide properties that could have circular references which will break JSON.stringify()
 export const jsonStringifyRouteReplacer = (key: string, value: unknown) =>

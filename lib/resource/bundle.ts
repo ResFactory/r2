@@ -1,13 +1,13 @@
-import { fs } from "../deps.ts";
-import { denoEmit as de } from "./deps.ts";
-import * as safety from "../../../lib/safety/mod.ts";
-import * as c from "../content/mod.ts";
-import * as coll from "../collection/mod.ts";
-import * as fm from "../frontmatter/mod.ts";
-import * as r from "../route/mod.ts";
-import * as ren from "../render/mod.ts";
-import * as p from "../persist/mod.ts";
-import * as extn from "../../../lib/module/mod.ts";
+import { fs } from "./deps.ts";
+import * as de from "https://deno.land/x/emit@0.3.0/mod.ts"; // not in deps because only this module needs it
+import * as safety from "../../lib/safety/mod.ts";
+import * as extn from "../../lib/module/mod.ts";
+import * as c from "./content/mod.ts";
+import * as coll from "./collection/mod.ts";
+import * as fm from "./frontmatter/mod.ts";
+import * as r from "./route/mod.ts";
+import * as ren from "./render/mod.ts";
+import * as p from "./persist/mod.ts";
 
 export interface FileSysResourceBundleConstructor<State> {
   (
@@ -152,5 +152,38 @@ export function bundleFileSysResourceFactory(
       return result;
     },
     refine,
+  };
+}
+
+export function bundleProducer<State>(
+  destRootPath: string,
+  state: State,
+  options?: {
+    readonly namingStrategy?: p.LocalFileSystemNamingStrategy<
+      r.RouteSupplier<r.RouteNode>
+    >;
+    readonly eventsEmitter?: p.FileSysPersistenceEventsEmitter;
+  },
+  // deno-lint-ignore no-explicit-any
+): coll.ResourceRefinery<any> {
+  const namingStrategy = options?.namingStrategy ||
+    p.routePersistForceExtnNamingStrategy(".js");
+  return async (resource) => {
+    if (isBundleResource(resource)) {
+      await p.persistResourceFile(
+        resource,
+        resource,
+        namingStrategy(
+          resource as unknown as r.RouteSupplier<r.RouteNode>,
+          destRootPath,
+        ),
+        {
+          ensureDirSync: fs.ensureDirSync,
+          functionArgs: [state],
+          eventsEmitter: options?.eventsEmitter,
+        },
+      );
+    }
+    return resource;
   };
 }

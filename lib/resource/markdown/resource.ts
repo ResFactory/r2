@@ -7,6 +7,7 @@ import * as r from "../route/mod.ts";
 import * as ren from "../render/mod.ts";
 import * as extn from "../../../lib/module/mod.ts";
 import * as i from "../instantiate.ts";
+import * as hn from "../html/nature.ts";
 
 export interface MarkdownModel extends c.ContentModel {
   readonly isMarkdownModel: true;
@@ -50,7 +51,7 @@ export const markdownContentNature:
     guard: markdownMediaTypeNature.guard,
     prepareText: c.prepareText,
     prepareHTML: c.prepareHTML,
-    renderTargets: [p.htmlContentNature],
+    renderTargets: [hn.htmlContentNature],
     persistFileSysRefinery: (rootPath, namingStrategy, eventsEmitter) => {
       return async (resource) => {
         if (c.isHtmlSupplier(resource)) {

@@ -1,18 +1,19 @@
 import * as safety from "../../../lib/safety/mod.ts";
+import * as k from "../../../lib/knowledge/mod.ts";
+import * as extn from "../../../lib/module/mod.ts";
 import * as git from "../../../lib/git/mod.ts";
 import * as ws from "../../../lib/workspace/mod.ts";
+import * as contrib from "../../../lib/text/contributions.ts";
+import * as notif from "../../../lib/notification/mod.ts";
 import * as c from "../content/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
 import * as l from "./layout.ts";
-import * as html from "./render.ts";
-import * as contrib from "../../../lib/text/contributions.ts";
+import * as n from "./nature.ts";
+import * as htmlRen from "./render.ts";
 import * as coll from "../collection/mod.ts";
 import * as r from "../route/mod.ts";
 import * as ren from "../render/mod.ts";
 import * as p from "../persist/mod.ts";
-import * as notif from "../../../lib/notification/mod.ts";
-import * as k from "../../../lib/knowledge/mod.ts";
-import * as extn from "../../../lib/module/mod.ts";
 
 export const indexUnitName = "index";
 
@@ -93,7 +94,7 @@ export function designSystemTemplate(
   identity: string,
   location: extn.LocationSupplier,
 ) {
-  return html.htmlLayoutTemplate<
+  return htmlRen.htmlLayoutTemplate<
     l.HelperFunctionOrString<l.HtmlLayout>,
     l.HtmlLayout
   >(identity, location);
@@ -658,7 +659,7 @@ export abstract class DesignSystem<Layout extends l.HtmlLayout>
   ): coll.ResourceRefinery<c.HtmlSupplier> {
     const producer = coll.pipelineUnitsRefineryUntyped(
       this.pageRenderer(contentStrategy),
-      p.htmlContentNature.persistFileSysRefinery(
+      n.htmlContentNature.persistFileSysRefinery(
         destRootPath,
         p.routePersistPrettyUrlHtmlNamingStrategy((ru) =>
           ru.unit === this.prettyUrlIndexUnitName

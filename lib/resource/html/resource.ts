@@ -4,6 +4,7 @@ import * as p from "../persist/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
 import * as r from "../route/mod.ts";
 import * as i from "../instantiate.ts";
+import * as n from "./nature.ts";
 
 export interface StaticHtmlResource extends
   c.HtmlSupplier,
@@ -29,9 +30,9 @@ export const constructResourceSync: (
     & r.RouteSupplier
     & r.ParsedRouteConsumer
     & i.InstantiatorSupplier = {
-      nature: p.htmlContentNature,
+      nature: n.htmlContentNature,
       frontmatter: {},
-      route: { ...origination.route, nature: p.htmlContentNature },
+      route: { ...origination.route, nature: n.htmlContentNature },
       consumeParsedFrontmatter: (parsed) => {
         if (!parsed.error) {
           // we're going to mutate this object directly and not make a copy
