@@ -18,7 +18,7 @@ export function lightningTemplate(
 export const pageHeadingPartial: ldsGovn.LightningPartial = (layout) => `<!-- pageHeadingPartial -->
 ${layout.activeTreeNode ? `<div class="schema-header">
   <h1 class="slds-text-heading_large">
-    <strong>${layout.layoutText.title(layout)}</strong>
+    <strong>${layout.layoutText?.title(layout) ?? "no layout.layoutText supplier in typical.ts::pageHeadingPartial"}</strong>
   </h1>
 </div>`: ''}`
 

@@ -273,14 +273,14 @@ export interface DesignSystemContentStrategy<
   readonly wsEditorRouteResolver?: r.RouteWorkspaceEditorResolver<
     ws.WorkspaceEditorTarget
   >;
-  readonly layoutText: LayoutText;
+  readonly layoutText?: LayoutText;
   readonly assets: AssetLocations;
-  readonly navigation: Navigation;
+  readonly navigation?: Navigation;
   readonly termsManager?: k.TermsManager;
-  readonly renderedAt: Date;
+  readonly renderedAt?: Date;
   readonly lintReporter?: DesignSystemLintReporter<Layout>;
   readonly initContributions?: DesignSystemLayoutContribsInitializer<Layout>;
-  readonly operationalCtxClientCargo: OperationalCtxClientCargo;
+  readonly operationalCtxClientCargo?: OperationalCtxClientCargo;
 }
 
 export type UntypedDesignSystemContentStrategy = DesignSystemContentStrategy<

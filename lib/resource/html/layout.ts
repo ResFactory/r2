@@ -3,6 +3,9 @@ import * as ds from "./design-system.ts";
 import * as contrib from "../../../lib/text/contributions.ts";
 import * as git from "../../../lib/git/mod.ts";
 
+// deno-lint-ignore no-explicit-any
+type Any = any;
+
 export interface GitRemoteAnchor extends git.GitAsset {
   readonly href: string;
   readonly textContent: string;
@@ -114,19 +117,17 @@ export interface HtmlLayout<
   OperationalCtxClientCargo = unknown,
 > extends
   Partial<govn.FrontmatterSupplier<govn.UntypedFrontmatter>>,
-  HtmlLayoutClientCargoSupplier,
+  Partial<HtmlLayoutClientCargoSupplier>,
   HtmlLayoutArguments,
   HtmlLayoutNavigationContext {
   readonly bodySource: HtmlLayoutBody;
-  readonly contentStrategy: ds.UntypedDesignSystemContentStrategy;
-  // deno-lint-ignore no-explicit-any
-  readonly designSystem: ds.DesignSystem<any>;
-  // deno-lint-ignore no-explicit-any
-  readonly layoutSS: HtmlLayoutStrategySupplier<any>;
+  readonly designSystem: ds.DesignSystem<Any>;
+  readonly contentStrategy?: ds.UntypedDesignSystemContentStrategy;
+  readonly layoutSS: HtmlLayoutStrategySupplier<Any>;
   readonly contributions: HtmlLayoutContributions;
-  readonly layoutText: LayoutText;
+  readonly layoutText?: LayoutText;
   readonly origin: HtmlOriginResolvers;
-  readonly operationalCtxClientCargo: OperationalCtxClientCargo;
+  readonly operationalCtxClientCargo?: OperationalCtxClientCargo;
 }
 
 /**

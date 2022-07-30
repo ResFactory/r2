@@ -74,31 +74,24 @@ export const htmlDesignSystemOriginDataAttrs:
     symbol: string,
   ): string => {
     const ls = layout.layoutSS.layoutStrategy;
-    return `${
-      layout.activeRoute
-        ? `data-rf-origin-design-system='${
-          e.escapeHtmlCustom(
-            JSON.stringify({
-              identity: layout.designSystem.identity,
-              location: layout.designSystem.location,
-              layout: {
-                symbol,
-                name: r.isIdentifiableLayoutStrategy(ls)
-                  ? ls.identity
-                  : undefined,
-                src: srcModuleImportMetaURL,
-                diagnostics: layout.diagnostics,
-              },
-              isPrettyURL: true, // TODO: if RF ever makes it optional, update this and account for it
-              moduleAssetsBaseAbsURL: "", // TODO fill in base URL
-              dsAssetsBaseAbsURL: layout.designSystem.dsAssetsBaseURL,
-              universalAssetsBaseAbsURL:
-                layout.designSystem.universalAssetsBaseURL,
-            }),
-            e.matchHtmlRegExpForAttrSingleQuote,
-          )
-        }'`
-        : ""
+    return `data-rf-origin-design-system='${
+      e.escapeHtmlCustom(
+        JSON.stringify({
+          identity: layout.designSystem.identity,
+          location: layout.designSystem.location,
+          layout: {
+            symbol,
+            name: r.isIdentifiableLayoutStrategy(ls) ? ls.identity : undefined,
+            src: srcModuleImportMetaURL,
+            diagnostics: layout.diagnostics,
+          },
+          isPrettyURL: true, // TODO: if RF ever makes it optional, update this and account for it
+          moduleAssetsBaseAbsURL: "", // TODO fill in base URL
+          dsAssetsBaseAbsURL: layout.designSystem.dsAssetsBaseURL,
+          universalAssetsBaseAbsURL: layout.designSystem.universalAssetsBaseURL,
+        }),
+        e.matchHtmlRegExpForAttrSingleQuote,
+      )
     }`;
   };
 
@@ -204,11 +197,11 @@ export function htmlLayoutTemplate<T, Layout extends l.HtmlLayout>(
           : (c.isFlexibleContentSupplier(resource)
             ? await c.flexibleTextCustom(bodyAsync(resource), ftcOptions)
             : undefined);
-        if (layout.contentStrategy.lintReporter) {
+        if (layout.contentStrategy?.lintReporter) {
           const lintReporter: c.LintReporter = {
             ...layout.contentStrategy.lintReporter,
             report: (ld) => {
-              layout.contentStrategy.lintReporter!.report({
+              layout.contentStrategy!.lintReporter!.report({
                 ...ld,
                 layout,
               });
@@ -231,11 +224,11 @@ export function htmlLayoutTemplate<T, Layout extends l.HtmlLayout>(
           : (c.isFlexibleContentSyncSupplier(resource)
             ? c.flexibleTextSyncCustom(bodySync(resource), ftcOptions)
             : undefined);
-        if (layout.contentStrategy.lintReporter) {
+        if (layout.contentStrategy?.lintReporter) {
           const lintReporter: c.LintReporter = {
             ...layout.contentStrategy.lintReporter,
             report: (ld) => {
-              layout.contentStrategy.lintReporter!.report({
+              layout.contentStrategy!.lintReporter!.report({
                 ...ld,
                 layout,
               });

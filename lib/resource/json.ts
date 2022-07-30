@@ -12,6 +12,15 @@ import * as p from "./persist/mod.ts";
 // * like for iCal, RSS, XML, etc.? or, should it remain focused on JSON only? *
 // *****************************************************************************
 
+export interface PersistableStructuredDataResource extends
+  c.NatureSupplier<
+    & c.MediaTypeNature<c.SerializedDataSupplier>
+    & p.FileSysPersistenceSupplier<c.StructuredDataResource>
+  >,
+  c.StructuredDataInstanceSupplier,
+  c.SerializedDataSupplier {
+}
+
 export function structuredDataContentNature(
   mtNature: c.MediaTypeNature<c.StructuredDataResource>,
   prepareStructuredData: c.StructuredDataSerializer,
@@ -206,11 +215,11 @@ export function jsonFileSysResourceFactory(
     ) => {
       const imported = await options.extensionsManager.importModule(we.path);
       const issue = (diagnostics: string, ...args: unknown[]) => {
-        options.log.error(diagnostics, ...args);
+        options.log?.error(diagnostics, ...args);
         const structuredDataInstance = diagnostics;
         const result:
           & c.ModuleResource
-          & p.PersistableStructuredDataResource
+          & PersistableStructuredDataResource
           & r.RouteSupplier = {
             imported,
             nature: jsonContentNature,

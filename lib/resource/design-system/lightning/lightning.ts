@@ -131,7 +131,7 @@ export class LightingDesignSystem<Layout extends ldsGovn.LightningLayout>
       ? bodySource.route
       : undefined;
     const activeTreeNode = activeRoute?.terminal
-      ? contentStrategy.navigation.routeTree.node(
+      ? contentStrategy.navigation?.routeTree.node(
         activeRoute?.terminal.qualifiedPath,
       )
       : undefined;
@@ -145,7 +145,7 @@ export class LightingDesignSystem<Layout extends ldsGovn.LightningLayout>
       contentStrategy,
       bodySource,
       model,
-      layoutText: contentStrategy.layoutText,
+      layoutText: contentStrategy?.layoutText,
       designSystem: this,
       layoutSS,
       frontmatter,

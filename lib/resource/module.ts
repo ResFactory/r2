@@ -3,8 +3,8 @@ import * as extn from "../../lib/module/mod.ts";
 import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
+import * as h from "./html/mod.ts";
 import * as r from "./route/mod.ts";
-import * as p from "./persist/mod.ts";
 
 export interface IssueHtmlResource
   extends
@@ -49,8 +49,8 @@ export function moduleFileSysResourceFactory<State>(
       );
       const issue = (diagnostics: string) => {
         const result: c.ModuleResource & IssueHtmlResource = {
-          route: { ...origin.route, nature: p.htmlContentNature },
-          nature: p.htmlContentNature,
+          route: { ...origin.route, nature: h.htmlContentNature },
+          nature: h.htmlContentNature,
           frontmatter: {},
           diagnostics,
           imported,
@@ -60,7 +60,7 @@ export function moduleFileSysResourceFactory<State>(
             textSync: () => Deno.readTextFileSync(origin.path),
           },
         };
-        options.log.error(diagnostics, imported.importError);
+        options.log?.error(diagnostics, imported.importError);
         return result;
       };
 

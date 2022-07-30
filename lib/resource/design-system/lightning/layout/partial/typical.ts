@@ -43,7 +43,7 @@ ${ext.clientExtensionsContributionsPartial(layout)}
   const ${layout.clientCargoPropertyName} = lightningDSLayout({ diagnose: true });
 </script>
 <link rel="shortcut icon" href="${layout.contentStrategy.assets.favIcon("/asset/image/favicon.ico")}"/>
-<title>${layout.layoutText.title(layout)}</title>
+<title>${layout.layoutText?.title(layout) ?? "no layout.layoutText supplier in typical.ts::typicalHeadPartial"}</title>
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],

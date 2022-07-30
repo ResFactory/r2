@@ -22,7 +22,7 @@ export const constructResourceSync: (
     path: string;
     diagnostics: (error: Error, message?: string) => string;
   },
-  options: r.FileSysRouteOptions,
+  options?: r.FileSysRouteOptions,
 ) => StaticHtmlResource = (origination, options) => {
   const result:
     & StaticHtmlResource
@@ -56,7 +56,7 @@ export const constructResourceSync: (
           );
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
-          options.log?.error(diagnostics, { origination, parsed });
+          options?.log?.error(diagnostics, { origination, parsed });
         }
         return parsed.frontmatter;
       },
@@ -87,7 +87,7 @@ export function staticHtmlFileSysResourceFactory(
         path: string;
         diagnostics: (error: Error, message?: string) => string;
       },
-      options: r.FileSysRouteOptions,
+      options?: r.FileSysRouteOptions,
     ) => constructResourceSync(we, options),
     refine,
   };

@@ -1,4 +1,4 @@
-import { fs } from "../deps.ts";
+import { fs, log } from "../deps.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
@@ -88,6 +88,78 @@ export const markdownContentNature:
       }
     },
   };
+
+export const constructStaticMarkdownTextResource = (
+  origination: r.RouteSupplier & {
+    markdownText: string;
+    frontmatterEffector?: (
+      resource: fm.FrontmatterResource,
+    ) =>
+      & fm.FrontmatterResource
+      & Partial<fm.FrontmatterSupplier<fm.UntypedFrontmatter>>;
+    diagnostics: (error: Error, message?: string) => string;
+  },
+  options?: { readonly log?: log.Logger },
+) => {
+  const nature = markdownContentNature;
+  const result:
+    & MarkdownResource
+    & fm.FrontmatterConsumer<fm.UntypedFrontmatter>
+    & r.RouteSupplier
+    & r.ParsedRouteConsumer
+    & i.InstantiatorSupplier = {
+      nature,
+      frontmatter: {},
+      route: {
+        ...origination.route,
+        nature,
+      },
+      model: {
+        isContentModel: true,
+        isContentAvailable: true,
+        isMarkdownModel: true,
+      },
+      consumeParsedFrontmatter: (parsed) => {
+        if (!parsed.error) {
+          // Assume frontmatter is the content's header, which has been parsed
+          // so the text after the frontmatter needs to become our new content.
+          // We're going to mutate this object directly and not make a copy.
+          c.mutateFlexibleContent(result, parsed.content);
+
+          // if the originator wants to override anything, give them a chance
+          const frontmatter = fm.isFrontmatterConsumer(origination)
+            ? origination.consumeParsedFrontmatter(parsed)
+            : parsed.frontmatter;
+          if (frontmatter) {
+            // deno-lint-ignore no-explicit-any
+            (result as any).frontmatter = frontmatter;
+            result.consumeParsedRoute(frontmatter);
+          }
+        } else {
+          const diagnostics = origination.diagnostics(
+            parsed.error,
+            `Frontmatter parse error`,
+          );
+          // deno-lint-ignore no-explicit-any
+          (result as any).diagnostics = diagnostics;
+          options?.log?.error(diagnostics, { origination, parsed });
+        }
+        return parsed.frontmatter;
+      },
+      consumeParsedRoute: (pr) => {
+        return result.route.consumeParsedRoute(pr);
+      },
+      text: origination.markdownText,
+      textSync: origination.markdownText,
+      ...i.typicalInstantiatorProps(
+        constructStaticMarkdownTextResource,
+        import.meta.url,
+        "constructStaticMarkdownTextResource",
+      ),
+    };
+  origination.frontmatterEffector?.(result);
+  return result;
+};
 
 export const constructStaticMarkdownResourceSync = (
   origination: r.RouteSupplier & {
@@ -251,7 +323,12 @@ export function markdownModuleFileSysResourceFactory(
         // deno-lint-ignore no-explicit-any
         const defaultValue = (imported.module as any).default;
         if (defaultValue) {
-          const frontmatter = imported.exports();
+          // every exported variable will be assumed to be "frontmatter" but
+          // the `default` export will be the content so we don't want that in
+          // frontmatter.
+          const frontmatter = imported.exports((key) =>
+            key == "default" ? false : true
+          );
           const result:
             & c.ModuleResource
             & MarkdownResource

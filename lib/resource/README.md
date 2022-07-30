@@ -1,5 +1,6 @@
 # TODOs
 
+- support Axiom frontmatter, content models
 - [ ] create `factory.ts` (`originate`) which can acquire resources from
       multiple resources with full unit tests for each type of resource
 - [ ] make each resource nature independent
