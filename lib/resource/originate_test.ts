@@ -5,7 +5,7 @@ import * as fsr from "../../lib/fs/fs-route.ts";
 import * as c from "./content/mod.ts";
 import * as r from "./route/mod.ts";
 import * as md from "./markdown/mod.ts";
-import * as mod from "./factory.ts";
+import * as mod from "./originate.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
