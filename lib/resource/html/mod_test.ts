@@ -1,19 +1,18 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { path } from "../deps.ts";
-import { CachedExtensions } from "../../../lib/module/mod.ts";
+import * as extn from "../../../lib/module/mod.ts";
 import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as c from "../content/mod.ts";
-import * as coll from "../collection/mod.ts";
-import * as fm from "../frontmatter/mod.ts";
 import * as r from "../route/mod.ts";
-import * as direc from "../markdown/directive/mod.ts";
 import * as mod from "./mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
-Deno.test(`acquire HTML from local file and render`, async (tc) => {
-  const em = new CachedExtensions();
+// TODO: need to add test cases for Design System
+
+Deno.test(`acquire HTML with frontmatter from local file`, async (tc) => {
+  const em = new extn.CachedExtensions();
 
   const fsRouteFactory = new r.FileSysRouteFactory(
     r.defaultRouteLocationResolver(),
@@ -25,6 +24,7 @@ Deno.test(`acquire HTML from local file and render`, async (tc) => {
     routeParser: fsr.humanFriendlyFileSysRouteParser,
     extensionsManager: em,
   };
+
   const testFsRoute = async (absPath: string) =>
     await fsRouteFactory.fsRoute(
       absPath,
@@ -32,58 +32,60 @@ Deno.test(`acquire HTML from local file and render`, async (tc) => {
       fsRouteOptions,
     );
 
-  // await tc.step(
-  //   "content from single .md file directly rendered without pipeline",
-  //   async () => {
-  //     const renderer =
-  //       mdRS.layoutStrategies.defaultLayoutStrategySupplier.layoutStrategy;
-  //     const srcMdFile = path.fromFileUrl(
-  //       import.meta.resolve("./test/fixtures/markdownit.md"),
-  //     );
-  //     // TODO: figure how to infer resource type from constructor
-  //     const instance = mod.constructResourceSync({
-  //       path: srcMdFile,
-  //       route: await testFsRoute(srcMdFile),
-  //       diagnostics: (error, msg) => `${msg}: ${error}`,
-  //     });
-  //     const rendered = await renderer.rendered(instance);
-  //     ta.assertEquals(
-  //       await c.flexibleText(rendered.html, "?"),
-  //       Deno.readTextFileSync(
-  //         path.fromFileUrl(
-  //           import.meta.resolve("./test/golden/markdownit.md.html"),
-  //         ),
-  //       ),
-  //     );
-  //   },
-  // );
+  const fsehrOriginator = mod.fsExtnHtmlResourceOriginator(em);
 
-  // await tc.step("pipelined content from single .md.ts module", async () => {
-  //   const moduleMFSRF = mod.markdownModuleFileSysResourceFactory(
-  //     // deno-lint-ignore no-explicit-any
-  //     coll.pipelineUnitsRefinery<any>(
-  //       fm.prepareFrontmatter(fm.yamlTomlMarkdownFrontmatterRE),
-  //       mdRS.renderer(),
-  //     ),
-  //   );
-  //   const srcMdFile = path.fromFileUrl(
-  //     import.meta.resolve("./test/fixtures/dynamic.md.ts"),
-  //   );
-  //   const instance = await moduleMFSRF.construct({
-  //     path: srcMdFile,
-  //     route: await testFsRoute(srcMdFile),
-  //     diagnostics: (error, msg) => `${msg}: ${error}`,
-  //   }, fsRouteOptions);
-  //   ta.assertEquals(instance.frontmatter, { title: "Dynamic Markdown" });
-  //   const produced = await moduleMFSRF.refine!(instance);
-  //   ta.assert(c.isHtmlSupplier(produced));
-  //   ta.assertEquals(
-  //     await c.flexibleText(produced.html, "?"),
-  //     Deno.readTextFileSync(
-  //       path.fromFileUrl(
-  //         import.meta.resolve("./test/golden/dynamic.md.ts.html"),
-  //       ),
-  //     ),
-  //   );
-  // });
+  await tc.step("fs extension-based originator", async (tc) => {
+    await tc.step("invalid extension", () => {
+      const invalidHDO = fsehrOriginator("content.md");
+      ta.assert(invalidHDO == undefined);
+    });
+
+    await tc.step("static HTML resource originator", async () => {
+      const srcHtmlFile = path.fromFileUrl(
+        import.meta.resolve("./test/fixtures/client-side-markdown.html"),
+      );
+      const staticHDO = fsehrOriginator(srcHtmlFile);
+      ta.assert(staticHDO);
+      ta.assert(staticHDO.construct);
+      ta.assert(staticHDO.refine); // by default we parse and mutate frontmatter
+      const resource = await staticHDO?.construct({
+        fsPath: srcHtmlFile,
+        route: await testFsRoute(srcHtmlFile),
+        diagnostics: (error, msg) => `${msg}: ${error}`,
+      });
+      ta.assertEquals(resource.nature.mediaType, "text/html");
+    });
+  });
+
+  await tc.step(
+    "pipelined content from file extension originator",
+    async () => {
+      const srcHtmlFile = path.fromFileUrl(
+        import.meta.resolve("./test/fixtures/client-side-markdown.html"),
+      );
+      const factory = fsehrOriginator(srcHtmlFile);
+      ta.assert(factory);
+
+      const produced = await factory.instance({
+        fsPath: srcHtmlFile,
+        route: await testFsRoute(srcHtmlFile),
+        diagnostics: (error, msg) => `${msg}: ${error}`,
+      }, fsRouteOptions);
+
+      ta.assertEquals(produced.frontmatter, {
+        route: { unit: "client-side-markdown", label: "Client Side Markdown" },
+      });
+
+      // the "produced" HTML is basically the same as the original minus frontmatter
+      ta.assert(c.isHtmlSupplier(produced));
+      ta.assertEquals(
+        await c.flexibleText(produced.html, "?"),
+        Deno.readTextFileSync(
+          path.fromFileUrl(
+            import.meta.resolve("./test/golden/client-side-markdown.html"),
+          ),
+        ),
+      );
+    },
+  );
 });

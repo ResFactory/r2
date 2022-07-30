@@ -1,3 +1,5 @@
+import { path } from "../deps.ts";
+import * as extn from "../../../lib/module/mod.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
@@ -19,8 +21,8 @@ export interface StaticHtmlResource extends
 
 export const constructResourceSync: (
   we: r.RouteSupplier & {
-    path: string;
-    diagnostics: (error: Error, message?: string) => string;
+    fsPath: string;
+    diagnostics?: (error: Error, message?: string) => string;
   },
   options?: r.FileSysRouteOptions,
 ) => StaticHtmlResource = (origination, options) => {
@@ -50,10 +52,10 @@ export const constructResourceSync: (
             result.consumeParsedRoute(frontmatter);
           }
         } else {
-          const diagnostics = origination.diagnostics(
+          const diagnostics = origination.diagnostics?.(
             parsed.error,
             `Frontmatter parse error`,
-          );
+          ) ?? `Frontmatter parse error: ${parsed.error}`;
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
           options?.log?.error(diagnostics, { origination, parsed });
@@ -65,8 +67,8 @@ export const constructResourceSync: (
       },
       html: {
         // deno-lint-ignore require-await
-        text: async () => Deno.readTextFile(origination.path),
-        textSync: () => Deno.readTextFileSync(origination.path),
+        text: async () => Deno.readTextFile(origination.fsPath),
+        textSync: () => Deno.readTextFileSync(origination.fsPath),
       },
       ...i.typicalInstantiatorProps(
         constructResourceSync,
@@ -80,15 +82,54 @@ export const constructResourceSync: (
 export function staticHtmlFileSysResourceFactory(
   refine?: coll.ResourceRefinery<StaticHtmlResource>,
 ) {
-  return {
+  const factory = {
     // deno-lint-ignore require-await
     construct: async (
       we: r.RouteSupplier & {
-        path: string;
-        diagnostics: (error: Error, message?: string) => string;
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
       },
       options?: r.FileSysRouteOptions,
     ) => constructResourceSync(we, options),
     refine,
+    instance: async (
+      we: r.RouteSupplier & {
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => {
+      const instance = await factory.construct(we, options);
+      return (refine ? await refine(instance) : instance);
+    },
+  };
+  return factory;
+}
+
+/**
+ * Create an originator function that will return a factory object which will
+ * construct and refine markdown resources either from static *.html files with
+ * optional "HTML frontmatter" with <!-- YAML --> strategy.
+ * @param _defaultEM the a module import manager (for caching imports)
+ * @param refine a default refinery to supply with the created factory object
+ * @returns
+ */
+export function fsExtnHtmlResourceOriginator(
+  _defaultEM: extn.ExtensionsManager,
+  refine = fm.prepareFrontmatter<StaticHtmlResource>(fm.yamlHtmlFrontmatterRE),
+) {
+  const typicalStaticFactory = staticHtmlFileSysResourceFactory(refine);
+  const allExtns = (fsPath: string) => {
+    const fileName = path.basename(fsPath);
+    return fileName.slice(fileName.indexOf("."));
+  };
+
+  return (fsPath: string, matchExtns = allExtns(fsPath)) => {
+    switch (matchExtns) {
+      case ".html":
+        return typicalStaticFactory;
+    }
+
+    return undefined;
   };
 }

@@ -1,5 +1,5 @@
-import { base64 } from "../../deps.ts";
-import { CSS } from "../../design-system/universal/client-cargo/style/markdown.css.ts";
+import { base64 } from "./deps.ts";
+import { CSS } from "../design-system/universal/client-cargo/style/markdown.css.ts";
 
 export const dataURI = (css: string) => {
   return `data:text/css;base64,${base64.encode(css)}`;

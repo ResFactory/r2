@@ -1,6 +1,6 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { path } from "../deps.ts";
-import { CachedExtensions } from "../../../lib/module/mod.ts";
+import * as extn from "../../../lib/module/mod.ts";
 import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
@@ -8,6 +8,10 @@ import * as fm from "../frontmatter/mod.ts";
 import * as r from "../route/mod.ts";
 import * as direc from "./directive/mod.ts";
 import * as mod from "./mod.ts";
+
+import "./markdown.css.ts"; // TODO: test this and build Taskfile.ts for it
+
+// TODO: need to test all the variations in test/fixtures/*
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -132,7 +136,7 @@ Deno.test(`markdownHTML with typed frontmatter`, async () => {
 });
 
 Deno.test(`acquire Markdown from local file and render`, async (tc) => {
-  const em = new CachedExtensions();
+  const em = new extn.CachedExtensions();
   const errorsEncountered = [];
 
   const directives: c.DirectiveExpectation<Any, Any>[] = [
@@ -189,12 +193,54 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
     routeParser: fsr.humanFriendlyFileSysRouteParser,
     extensionsManager: em,
   };
+
   const testFsRoute = async (absPath: string) =>
     await fsRouteFactory.fsRoute(
       absPath,
       path.fromFileUrl(import.meta.resolve("./test")),
       fsRouteOptions,
     );
+
+  await tc.step("fs extension-based originator", async (tc) => {
+    const fsemrOriginator = mod.fsExtnMarkdownResourceOriginator(em);
+
+    await tc.step("invalid extension", () => {
+      const invalidMDO = fsemrOriginator("markdown.html");
+      ta.assert(invalidMDO == undefined);
+    });
+
+    await tc.step("static Markdown resource originator", async () => {
+      const srcMdFile = path.fromFileUrl(
+        import.meta.resolve("./test/fixtures/markdownit.md"),
+      );
+      const staticMDO = fsemrOriginator(srcMdFile);
+      ta.assert(staticMDO);
+      ta.assert(staticMDO.construct);
+      ta.assert(!staticMDO?.refine);
+      const resource = await staticMDO?.construct({
+        fsPath: srcMdFile,
+        route: await testFsRoute(srcMdFile),
+        diagnostics: (error, msg) => `${msg}: ${error}`,
+      });
+      ta.assertEquals(resource.nature.mediaType, "text/markdown");
+    });
+
+    await tc.step("Markdown module resource originator", async () => {
+      const srcMdFile = path.fromFileUrl(
+        import.meta.resolve("./test/fixtures/dynamic.md.ts"),
+      );
+      const moduleMDO = fsemrOriginator(srcMdFile);
+      ta.assert(moduleMDO);
+      ta.assert(moduleMDO.construct);
+      ta.assert(!moduleMDO?.refine);
+      const resource = await moduleMDO?.construct({
+        fsPath: srcMdFile,
+        route: await testFsRoute(srcMdFile),
+        diagnostics: (error, msg) => `${msg}: ${error}`,
+      });
+      ta.assertEquals(resource.nature.mediaType, "text/markdown");
+    });
+  });
 
   await tc.step(
     "content from single .md file directly rendered without pipeline",
@@ -206,7 +252,7 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
       );
       // TODO: figure how to infer resource type from constructor
       const instance = mod.constructStaticMarkdownResourceSync({
-        path: srcMdFile,
+        fsPath: srcMdFile,
         route: await testFsRoute(srcMdFile),
         diagnostics: (error, msg) => `${msg}: ${error}`,
       });
@@ -224,6 +270,7 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
 
   await tc.step("pipelined content from single .md.ts module", async () => {
     const moduleMFSRF = mod.markdownModuleFileSysResourceFactory(
+      em,
       // deno-lint-ignore no-explicit-any
       coll.pipelineUnitsRefinery<any>(
         fm.prepareFrontmatter(fm.yamlTomlMarkdownFrontmatterRE),
@@ -234,7 +281,7 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
       import.meta.resolve("./test/fixtures/dynamic.md.ts"),
     );
     const instance = await moduleMFSRF.construct({
-      path: srcMdFile,
+      fsPath: srcMdFile,
       route: await testFsRoute(srcMdFile),
       diagnostics: (error, msg) => `${msg}: ${error}`,
     }, fsRouteOptions);
@@ -250,4 +297,33 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
       ),
     );
   });
+
+  await tc.step(
+    "pipelined content from file extension originator",
+    async () => {
+      const originator = mod.fsExtnRenderedMarkdownResourceOriginator(em, mdRS);
+      const srcMdFile = path.fromFileUrl(
+        import.meta.resolve("./test/fixtures/dynamic.md.ts"),
+      );
+      const factory = originator(srcMdFile);
+      ta.assert(factory);
+
+      const produced = await factory.instance({
+        fsPath: srcMdFile,
+        route: await testFsRoute(srcMdFile),
+        diagnostics: (error, msg) => `${msg}: ${error}`,
+      }, fsRouteOptions);
+
+      ta.assertEquals(produced.frontmatter, { title: "Dynamic Markdown" });
+      ta.assert(c.isHtmlSupplier(produced));
+      ta.assertEquals(
+        await c.flexibleText(produced.html, "?"),
+        Deno.readTextFileSync(
+          path.fromFileUrl(
+            import.meta.resolve("./test/golden/dynamic.md.ts.html"),
+          ),
+        ),
+      );
+    },
+  );
 });

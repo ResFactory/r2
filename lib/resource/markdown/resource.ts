@@ -1,13 +1,16 @@
-import { fs, log } from "../deps.ts";
+import { fs, log, path } from "../deps.ts";
+import * as extn from "../../../lib/module/mod.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
 import * as r from "../route/mod.ts";
 import * as ren from "../render/mod.ts";
-import * as extn from "../../../lib/module/mod.ts";
 import * as i from "../instantiate.ts";
 import * as hn from "../html/nature.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 export interface MarkdownModel extends c.ContentModel {
   readonly isMarkdownModel: true;
@@ -97,7 +100,7 @@ export const constructStaticMarkdownTextResource = (
     ) =>
       & fm.FrontmatterResource
       & Partial<fm.FrontmatterSupplier<fm.UntypedFrontmatter>>;
-    diagnostics: (error: Error, message?: string) => string;
+    diagnostics?: (error: Error, message?: string) => string;
   },
   options?: { readonly log?: log.Logger },
 ) => {
@@ -136,10 +139,10 @@ export const constructStaticMarkdownTextResource = (
             result.consumeParsedRoute(frontmatter);
           }
         } else {
-          const diagnostics = origination.diagnostics(
+          const diagnostics = origination.diagnostics?.(
             parsed.error,
             `Frontmatter parse error`,
-          );
+          ) ?? `Frontmatter parse error: ${parsed.error}`;
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
           options?.log?.error(diagnostics, { origination, parsed });
@@ -163,8 +166,8 @@ export const constructStaticMarkdownTextResource = (
 
 export const constructStaticMarkdownResourceSync = (
   origination: r.RouteSupplier & {
-    path: string;
-    diagnostics: (error: Error, message?: string) => string;
+    fsPath: string;
+    diagnostics?: (error: Error, message?: string) => string;
   },
   options?: r.FileSysRouteOptions,
 ) => {
@@ -203,10 +206,10 @@ export const constructStaticMarkdownResourceSync = (
             result.consumeParsedRoute(frontmatter);
           }
         } else {
-          const diagnostics = origination.diagnostics(
+          const diagnostics = origination.diagnostics?.(
             parsed.error,
             `Frontmatter parse error`,
-          );
+          ) ?? `Frontmatter parse error: ${parsed.error}`;
           // deno-lint-ignore no-explicit-any
           (result as any).diagnostics = diagnostics;
           options?.log?.error(diagnostics, { origination, parsed });
@@ -217,8 +220,8 @@ export const constructStaticMarkdownResourceSync = (
         return result.route.consumeParsedRoute(pr);
       },
       // deno-lint-ignore require-await
-      text: async () => Deno.readTextFile(origination.path),
-      textSync: () => Deno.readTextFileSync(origination.path),
+      text: async () => Deno.readTextFile(origination.fsPath),
+      textSync: () => Deno.readTextFileSync(origination.fsPath),
       ...i.typicalInstantiatorProps(
         constructStaticMarkdownResourceSync,
         import.meta.url,
@@ -231,17 +234,28 @@ export const constructStaticMarkdownResourceSync = (
 export function staticMarkdownFileSysResourceFactory(
   refine?: coll.ResourceRefinery<MarkdownResource>,
 ) {
-  return {
+  const factory = {
     // deno-lint-ignore require-await
     construct: async (
       origin: r.RouteSupplier & {
-        path: string;
-        diagnostics: (error: Error, message?: string) => string;
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
       },
       options?: r.FileSysRouteOptions,
     ) => constructStaticMarkdownResourceSync(origin, options),
     refine,
+    instance: async (
+      we: r.RouteSupplier & {
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => {
+      const instance = await factory.construct(we, options);
+      return refine ? await refine(instance) : instance;
+    },
   };
+  return factory;
 }
 
 export const constructMarkdownModuleResourceSync: (
@@ -279,25 +293,27 @@ export const constructMarkdownModuleResourceSync: (
 };
 
 export function markdownModuleFileSysResourceFactory(
+  defaultEM: extn.ExtensionsManager,
   refine?: coll.ResourceRefinery<MarkdownResource>,
 ) {
-  return {
+  const factory = {
     construct: async (
       we: r.RouteSupplier & {
-        path: string;
-        diagnostics: (error: Error, message?: string) => string;
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
       },
-      options: r.FileSysRouteOptions,
+      options?: r.FileSysRouteOptions,
     ) => {
+      const em = options?.extensionsManager ?? defaultEM;
       const nature = markdownContentNature;
       const model: MarkdownModel = {
         isContentModel: true,
         isContentAvailable: true,
         isMarkdownModel: true,
       };
-      const imported = await options.extensionsManager.importModule(we.path);
+      const imported = await em.importModule(we.fsPath);
       const issue = (diagnostics: string, ...args: unknown[]) => {
-        options.log?.error(diagnostics, ...args);
+        options?.log?.error(diagnostics, ...args);
         const result:
           & c.ModuleResource
           & MarkdownResource
@@ -367,5 +383,51 @@ export function markdownModuleFileSysResourceFactory(
       }
     },
     refine,
+    instance: async (
+      we: r.RouteSupplier & {
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => {
+      const instance = await factory.construct(we, options);
+      return (refine ? await refine(instance) : instance);
+    },
+  };
+  return factory;
+}
+
+/**
+ * Create an originator function that will return a factory object which will
+ * construct and refine markdown resources either from static *.md files or
+ * Typescript *.md.ts modules.
+ * @param defaultEM the a module import manager (for caching imports)
+ * @param refine a default refinery to supply with the created factory object
+ * @returns
+ */
+export function fsExtnMarkdownResourceOriginator(
+  defaultEM: extn.ExtensionsManager,
+  refine?: coll.ResourceRefinery<MarkdownResource>,
+) {
+  const typicalStaticFactory = staticMarkdownFileSysResourceFactory(refine);
+  const typicalModuleFactory = markdownModuleFileSysResourceFactory(
+    defaultEM,
+    refine,
+  );
+  const allExtns = (fsPath: string) => {
+    const fileName = path.basename(fsPath);
+    return fileName.slice(fileName.indexOf("."));
+  };
+
+  return (fsPath: string, matchExtns = allExtns(fsPath)) => {
+    switch (matchExtns) {
+      case ".md":
+        return typicalStaticFactory;
+
+      case ".md.ts":
+        return typicalModuleFactory;
+    }
+
+    return undefined;
   };
 }

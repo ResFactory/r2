@@ -15,7 +15,9 @@ import * as fm from "../frontmatter/mod.ts";
 import * as r from "../render/mod.ts";
 import * as md from "./resource.ts";
 import * as extn from "../../../lib/module/mod.ts";
-import { Any } from "../../axiom/axiom-serde.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 /**
  * markdownRenderEnv is available after Markdown rendering and includes
@@ -489,4 +491,26 @@ export class MarkdownRenderStrategy
       ) as (md.MarkdownResource & c.HtmlSupplier);
     };
   }
+}
+
+/**
+ * Create an originator function that will return a factory object which will
+ * construct and refine markdown resources either from static *.md files or
+ * Typescript *.md.ts modules.
+ * @param defaultEM the a module import manager (for caching imports)
+ * @param mdRS markdown render strategy with render layouts for automatic loading
+ * @param refine a default refinery to supply with the created factory object
+ * @returns
+ */
+export function fsExtnRenderedMarkdownResourceOriginator(
+  defaultEM: extn.ExtensionsManager,
+  mdRS: MarkdownRenderStrategy = new MarkdownRenderStrategy(
+    new MarkdownLayouts(),
+  ),
+  refine = coll.pipelineUnitsRefinery<md.MarkdownResource>(
+    fm.prepareFrontmatter(fm.yamlTomlMarkdownFrontmatterRE),
+    mdRS.renderer(),
+  ),
+) {
+  return md.fsExtnMarkdownResourceOriginator(defaultEM, refine);
 }
