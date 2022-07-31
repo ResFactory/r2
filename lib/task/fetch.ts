@@ -73,7 +73,6 @@ export const reportDownloadConsole = async (
   );
 };
 
-// deno-lint-ignore require-await
 export async function downloadAsset(
   srcEndpoint: string,
   destFile: string,
@@ -93,7 +92,7 @@ export async function downloadAsset(
 ): Promise<void> {
   const markName = `${srcEndpoint}::${destFile}`;
   const mark = performance.mark(markName);
-  fetch(srcEndpoint).then(async (rsp) => {
+  await fetch(srcEndpoint).then(async (rsp) => {
     try {
       const rdr = rsp.body?.getReader();
       if (rdr) {
