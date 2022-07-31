@@ -140,7 +140,8 @@ When two or more domains need to be coordinated, they are called multi-domains.
 - [x] Enum Table (type-safe text key, text values, automatic seeds)
 - [x] Enum Table (text key, numeric values, automatic seeds)
 - [ ] Association Table (`M:M` relationship between two entities)
-- [ ] Data Vault 2.0 Tables (build on _Immutable Table_ patterns)
+- [x] Data Vault 2.0 Tables (build on _Immutable Table_ patterns)
+- [ ] Unified Star Schema (USS) "presentation layer" measures, bridges, etc.
 
 #### Entities (Table) Capabilities
 
@@ -430,6 +431,8 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] see if we can get types from SQL select strings using
+      [Extract parameter types from string literal types](https://lihautan.com/extract-parameters-type-from-string-literal-types-with-typescript/)
 - [ ] Incorporate A16z's
       [Emerging Architectures](https://future.com/emerging-architectures-modern-data-infrastructure/)
       nomenclature and concepts.
