@@ -1,14 +1,12 @@
-import { testingAsserts as ta } from "./deps-test.ts";
-import { path } from "./deps.ts";
-import * as safety from "../../lib/safety/mod.ts";
-import * as extn from "../../lib/module/mod.ts";
-import * as fsr from "../../lib/fs/fs-route.ts";
-import * as c from "./content/mod.ts";
-import * as r from "./route/mod.ts";
-import * as md from "./markdown/mod.ts";
-import * as mod from "./originate.ts";
-import { assert } from "https://deno.land/std@0.147.0/_util/assert.ts";
-import { assertEquals } from "https://deno.land/std@0.147.0/testing/asserts.ts";
+import { testingAsserts as ta } from "../deps-test.ts";
+import { path } from "../deps.ts";
+import * as safety from "../../../lib/safety/mod.ts";
+import * as extn from "../../../lib/module/mod.ts";
+import * as fsr from "../../../lib/fs/fs-route.ts";
+import * as c from "../content/mod.ts";
+import * as r from "../route/mod.ts";
+import * as md from "../markdown/mod.ts";
+import * as mod from "./mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -34,7 +32,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
       const testFsRoute = async (absPath: string) =>
         await fsRouteFactory.fsRoute(
           absPath,
-          path.fromFileUrl(import.meta.resolve("./markdown/test")),
+          path.fromFileUrl(import.meta.resolve("../markdown/test")),
           fsRouteOptions,
         );
 
@@ -45,7 +43,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
 
       await tc.step("static Markdown resource originator", async () => {
         const srcMdFile = path.fromFileUrl(
-          import.meta.resolve("./markdown/test/fixtures/markdownit.md"),
+          import.meta.resolve("../markdown/test/fixtures/markdownit.md"),
         );
         const staticMDO = tfseOriginators.originator(srcMdFile);
         ta.assert(staticMDO);
@@ -61,7 +59,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
           await c.flexibleText(resource.html, "?"),
           Deno.readTextFileSync(
             path.fromFileUrl(
-              import.meta.resolve("./markdown/test/golden/markdownit.md.html"),
+              import.meta.resolve("../markdown/test/golden/markdownit.md.html"),
             ),
           ),
         );
@@ -69,7 +67,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
 
       await tc.step("Markdown module resource originator", async () => {
         const srcMdFile = path.fromFileUrl(
-          import.meta.resolve("./markdown/test/fixtures/dynamic.md.ts"),
+          import.meta.resolve("../markdown/test/fixtures/dynamic.md.ts"),
         );
         const moduleMDO = tfseOriginators.originator(srcMdFile);
         ta.assert(moduleMDO);
@@ -87,7 +85,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
           await c.flexibleText(resource.html, "?"),
           Deno.readTextFileSync(
             path.fromFileUrl(
-              import.meta.resolve("./markdown/test/golden/dynamic.md.ts.html"),
+              import.meta.resolve("../markdown/test/golden/dynamic.md.ts.html"),
             ),
           ),
         );
@@ -101,7 +99,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
       const testFsRoute = async (absPath: string) =>
         await fsRouteFactory.fsRoute(
           absPath,
-          path.fromFileUrl(import.meta.resolve("./html/test")),
+          path.fromFileUrl(import.meta.resolve("../html/test")),
           fsRouteOptions,
         );
 
@@ -115,7 +113,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
         async () => {
           const srcHtmlFile = path.fromFileUrl(
             import.meta.resolve(
-              "./html/test/fixtures/client-side-markdown.html",
+              "../html/test/fixtures/client-side-markdown.html",
             ),
           );
           const staticMDO = tfseOriginators.originator(srcHtmlFile);
@@ -133,7 +131,7 @@ Deno.test(`single instance resource factory`, async (tc) => {
             Deno.readTextFileSync(
               path.fromFileUrl(
                 import.meta.resolve(
-                  "./html/test/golden/client-side-markdown.html",
+                  "../html/test/golden/client-side-markdown.html",
                 ),
               ),
             ),
@@ -164,8 +162,10 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
     return false;
   };
 
-  // the root is this file's directory
-  const rootPath = path.dirname(path.fromFileUrl(import.meta.url));
+  // the root is this file's parent directory
+  const rootPath = path.dirname(
+    path.dirname(path.fromFileUrl(import.meta.url)),
+  );
   const globs: WalkGlobExpectation[] = [
     {
       ...mod.walkFilesExcludeGitGlob(rootPath, "markdown/**/fixtures/*.md"),
@@ -215,7 +215,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
         await tc.step(
           `${glob.expectedCount} instances of ${glob.glob} in ${glob.rootPath}`,
           () => {
-            assertEquals(
+            ta.assertEquals(
               expected.length,
               glob.expectedCount,
               `expected ${glob.expectedCount} instances of ${glob.glob} in ${glob.rootPath}, found ${expected.length} instead`,
@@ -281,7 +281,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
         await tc.step(
           `${glob.expectedCount} instances of ${glob.glob} in ${glob.rootPath}`,
           () => {
-            assertEquals(
+            ta.assertEquals(
               expected.length,
               glob.expectedCount,
               `expected ${glob.expectedCount} instances of ${glob.glob} in ${glob.rootPath}, found ${expected.length} instead`,
@@ -291,32 +291,4 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       }
     },
   );
-
-  // await tc.step("custom route factory and options", async (tc) => {
-  //   const encountered = [];
-  //   const fsRouteFactory = new r.FileSysRouteFactory(
-  //     r.defaultRouteLocationResolver(),
-  //     r.defaultRouteWorkspaceEditorResolver(() => undefined),
-  //   );
-
-  //   const fsRouteOptions: r.FileSysRouteOptions = {
-  //     fsRouteFactory,
-  //     routeParser: fsr.humanFriendlyFileSysRouteParser,
-  //     extensionsManager: em,
-  //   };
-
-  //   for await (
-  //     const resource of tfseOriginators.instances(globs, {
-  //       fsRouteFactory,
-  //       fsRouteOptions,
-  //     })
-  //   ) {
-  //     ta.assert(c.isNatureSupplier(resource));
-  //     ta.assert(c.isMediaTypeNature(resource.nature));
-  //     encountered.push(resource);
-  //     console.log(resource.nature.mediaType);
-  //   }
-
-  //   ta.assert(encountered.length);
-  // });
 });
