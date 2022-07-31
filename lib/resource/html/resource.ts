@@ -114,7 +114,7 @@ export function staticHtmlFileSysResourceFactory(
  * @param refine a default refinery to supply with the created factory object
  * @returns
  */
-export function fsExtnHtmlResourceOriginator(
+export function fsFileSuffixHtmlResourceOriginator(
   _defaultEM: extn.ExtensionsManager,
   refine = fm.prepareFrontmatter<StaticHtmlResource>(fm.yamlHtmlFrontmatterRE),
 ) {

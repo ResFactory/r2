@@ -202,7 +202,7 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
     );
 
   await tc.step("fs extension-based originator", async (tc) => {
-    const fsemrOriginator = mod.fsExtnMarkdownResourceOriginator(em);
+    const fsemrOriginator = mod.fsFileSuffixMarkdownResourceOriginator(em);
 
     await tc.step("invalid extension", () => {
       const invalidMDO = fsemrOriginator("markdown.html");
@@ -301,7 +301,10 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
   await tc.step(
     "pipelined content from file extension originator",
     async () => {
-      const originator = mod.fsExtnRenderedMarkdownResourceOriginator(em, mdRS);
+      const originator = mod.fsFileSuffixRenderedMarkdownResourceOriginator(
+        em,
+        mdRS,
+      );
       const srcMdFile = path.fromFileUrl(
         import.meta.resolve("./test/fixtures/dynamic.md.ts"),
       );

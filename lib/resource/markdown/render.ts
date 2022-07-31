@@ -502,7 +502,7 @@ export class MarkdownRenderStrategy
  * @param refine a default refinery to supply with the created factory object
  * @returns
  */
-export function fsExtnRenderedMarkdownResourceOriginator(
+export function fsFileSuffixRenderedMarkdownResourceOriginator(
   defaultEM: extn.ExtensionsManager,
   mdRS: MarkdownRenderStrategy = new MarkdownRenderStrategy(
     new MarkdownLayouts(),
@@ -512,5 +512,5 @@ export function fsExtnRenderedMarkdownResourceOriginator(
     mdRS.renderer(),
   ),
 ) {
-  return md.fsExtnMarkdownResourceOriginator(defaultEM, refine);
+  return md.fsFileSuffixMarkdownResourceOriginator(defaultEM, refine);
 }

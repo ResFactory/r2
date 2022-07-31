@@ -32,7 +32,7 @@ Deno.test(`acquire HTML with frontmatter from local file`, async (tc) => {
       fsRouteOptions,
     );
 
-  const fsehrOriginator = mod.fsExtnHtmlResourceOriginator(em);
+  const fsehrOriginator = mod.fsFileSuffixHtmlResourceOriginator(em);
 
   await tc.step("fs extension-based originator", async (tc) => {
     await tc.step("invalid extension", () => {

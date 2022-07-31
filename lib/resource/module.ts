@@ -1,3 +1,4 @@
+import { path } from "./deps.ts";
 import * as safety from "../../lib/safety/mod.ts";
 import * as extn from "../../lib/module/mod.ts";
 import * as c from "./content/mod.ts";
@@ -5,6 +6,9 @@ import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
 import * as h from "./html/mod.ts";
 import * as r from "./route/mod.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 export interface IssueHtmlResource
   extends
@@ -18,35 +22,32 @@ export const isModuleResource = safety.typeGuard<c.ModuleResource>(
   "imported",
 );
 
-export interface FileSysResourceModuleConstructor<State> {
+export interface FileSysResourceModuleConstructor {
   (
-    origin: { path: string },
-    options: r.FileSysRouteOptions,
+    origin: { fsPath: string },
     imported: extn.ExtensionModule,
-    state: State,
+    options?: r.FileSysRouteOptions,
   ): Promise<c.ModuleResource>;
 }
 
 export function isModuleConstructor(
   o: unknown,
-  // deno-lint-ignore no-explicit-any
-): o is FileSysResourceModuleConstructor<any> {
+): o is FileSysResourceModuleConstructor {
   if (typeof o === "function") return true;
   return false;
 }
 
-export function moduleFileSysResourceFactory<State>(
-  state: State,
+export function moduleFileSysResourceFactory(
+  defaultEM: extn.ExtensionsManager,
   refine?: coll.ResourceRefinery<c.ModuleResource>,
 ) {
-  return {
+  const factory = {
     construct: async (
-      origin: r.RouteSupplier & { path: string },
-      options: r.FileSysRouteOptions,
+      origin: r.RouteSupplier & { fsPath: string },
+      options?: r.FileSysRouteOptions,
     ) => {
-      const imported = await options.extensionsManager.importModule(
-        origin.path,
-      );
+      const em = options?.extensionsManager ?? defaultEM;
+      const imported = await em.importModule(origin.fsPath);
       const issue = (diagnostics: string) => {
         const result: c.ModuleResource & IssueHtmlResource = {
           route: { ...origin.route, nature: h.htmlContentNature },
@@ -56,11 +57,11 @@ export function moduleFileSysResourceFactory<State>(
           imported,
           html: {
             // deno-lint-ignore require-await
-            text: async () => Deno.readTextFile(origin.path),
-            textSync: () => Deno.readTextFileSync(origin.path),
+            text: async () => Deno.readTextFile(origin.fsPath),
+            textSync: () => Deno.readTextFileSync(origin.fsPath),
           },
         };
-        options.log?.error(diagnostics, imported.importError);
+        options?.log?.error(diagnostics, imported.importError);
         return result;
       };
 
@@ -68,7 +69,7 @@ export function moduleFileSysResourceFactory<State>(
         // deno-lint-ignore no-explicit-any
         const constructor = (imported.module as any).default;
         if (isModuleConstructor(constructor)) {
-          const instance = await constructor(origin, options, imported, state);
+          const instance = await constructor(origin, imported, options);
           if (isModuleResource(instance)) {
             return instance;
           } else {
@@ -86,5 +87,44 @@ export function moduleFileSysResourceFactory<State>(
       }
     },
     refine,
+    instance: async (
+      we: r.RouteSupplier & {
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => {
+      const instance = await factory.construct(we, options);
+      return (refine ? await refine(instance) : instance);
+    },
+  };
+  return factory;
+}
+
+/**
+ * Create an originator function that will return a factory object which will
+ * construct and refine arbitrary resources either *.rf.ts modules.
+ * @param defaultEM the a module import manager (for caching imports)
+ * @param refine a default refinery to supply with the created factory object
+ * @returns
+ */
+export function fsFileSuffixModuleOriginator(
+  defaultEM: extn.ExtensionsManager,
+  refine?: coll.ResourceRefinery<Any>,
+) {
+  const typicalModuleFactory = moduleFileSysResourceFactory(defaultEM, refine);
+  const allExtns = (fsPath: string) => {
+    const fileName = path.basename(fsPath);
+    return fileName.slice(fileName.indexOf("."));
+  };
+
+  return (fsPath: string, matchExtns = allExtns(fsPath)) => {
+    switch (matchExtns) {
+      case ".rf.ts":
+      case ".rf.js":
+        return typicalModuleFactory;
+    }
+
+    return undefined;
   };
 }

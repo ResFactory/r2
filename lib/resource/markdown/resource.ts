@@ -405,7 +405,7 @@ export function markdownModuleFileSysResourceFactory(
  * @param refine a default refinery to supply with the created factory object
  * @returns
  */
-export function fsExtnMarkdownResourceOriginator(
+export function fsFileSuffixMarkdownResourceOriginator(
   defaultEM: extn.ExtensionsManager,
   refine?: coll.ResourceRefinery<MarkdownResource>,
 ) {
@@ -425,6 +425,7 @@ export function fsExtnMarkdownResourceOriginator(
         return typicalStaticFactory;
 
       case ".md.ts":
+      case ".md.js":
         return typicalModuleFactory;
     }
 

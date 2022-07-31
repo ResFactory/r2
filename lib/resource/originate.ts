@@ -12,6 +12,8 @@ import * as module from "./module.ts";
 import * as jsonM from "./json.ts";
 import * as g from "../../lib/git/mod.ts";
 
+// TODO: support JS/TS/CSS bundle "twins" instead of old-style RF
+
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
@@ -35,7 +37,7 @@ export interface FileExtnOriginationFactory<Resource> {
   >;
 }
 
-export function typicalFsExtnOriginators(
+export function typicalfsFileSuffixOriginators(
   em: extn.ExtensionsManager,
   tfseoOptions?: {
     onOriginated?: <Resource>(
@@ -63,7 +65,7 @@ export function typicalFsExtnOriginators(
     return fileName.slice(fileName.indexOf("."));
   };
 
-  const mdExtnFactory = md.fsExtnRenderedMarkdownResourceOriginator(em);
+  const mdExtnFactory = md.fsFileSuffixRenderedMarkdownResourceOriginator(em);
   const mdExtnOriginator: FileExtnOriginationFactory<Any> = {
     // deno-lint-ignore require-await
     factory: async (fsPath) => {
@@ -83,7 +85,7 @@ export function typicalFsExtnOriginators(
   originators.set(".md", mdExtnOriginator);
   originators.set(".md.ts", mdExtnOriginator);
 
-  const htmlExtnFactory = html.fsExtnHtmlResourceOriginator(em);
+  const htmlExtnFactory = html.fsFileSuffixHtmlResourceOriginator(em);
   const htmlExtnOriginator: FileExtnOriginationFactory<Any> = {
     // deno-lint-ignore require-await
     factory: async (fsPath) => {

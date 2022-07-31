@@ -12,7 +12,7 @@ type Any = any;
 
 Deno.test(`resource factory`, async (tc) => {
   const em = new extn.CachedExtensions();
-  const tfseOriginators = mod.typicalFsExtnOriginators(em);
+  const tfseOriginators = mod.typicalfsFileSuffixOriginators(em);
 
   const fsRouteFactory = new r.FileSysRouteFactory(
     r.defaultRouteLocationResolver(),

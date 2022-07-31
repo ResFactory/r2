@@ -1,10 +1,14 @@
-import { fs } from "./deps.ts";
+import { fs, path } from "./deps.ts";
+import * as extn from "../../lib/module/mod.ts";
 import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
 import * as r from "./route/mod.ts";
 import * as ren from "./render/mod.ts";
 import * as p from "./persist/mod.ts";
+
+// deno-lint-ignore no-explicit-any
+type Any = any;
 
 // ** TODO: ********************************************************************
 // * do we need a more sophisticated render strategy for JSON like we have for *
@@ -206,16 +210,18 @@ export function jsonTextProducer(
 }
 
 export function jsonFileSysResourceFactory(
+  defaultEM: extn.ExtensionsManager,
   refine?: coll.ResourceRefinery<c.StructuredDataInstanceSupplier>,
 ) {
-  return {
+  const factory = {
     construct: async (
-      we: r.RouteSupplier & { path: string },
-      options: r.FileSysRouteOptions,
+      we: r.RouteSupplier & { fsPath: string },
+      options?: r.FileSysRouteOptions,
     ) => {
-      const imported = await options.extensionsManager.importModule(we.path);
+      const em = options?.extensionsManager ?? defaultEM;
+      const imported = await em.importModule(we.fsPath);
       const issue = (diagnostics: string, ...args: unknown[]) => {
-        options.log?.error(diagnostics, ...args);
+        options?.log?.error(diagnostics, ...args);
         const structuredDataInstance = diagnostics;
         const result:
           & c.ModuleResource
@@ -261,5 +267,44 @@ export function jsonFileSysResourceFactory(
       }
     },
     refine,
+    instance: async (
+      we: r.RouteSupplier & {
+        fsPath: string;
+        diagnostics?: (error: Error, message?: string) => string;
+      },
+      options?: r.FileSysRouteOptions,
+    ) => {
+      const instance = await factory.construct(we, options);
+      return (refine ? await refine(instance) : instance);
+    },
+  };
+  return factory;
+}
+
+/**
+ * Create an originator function that will return a factory object which will
+ * construct and refine arbitrary resources from *.json.ts modules.
+ * @param defaultEM the a module import manager (for caching imports)
+ * @param refine a default refinery to supply with the created factory object
+ * @returns
+ */
+export function fsFileSuffixJsonResourceOriginator(
+  defaultEM: extn.ExtensionsManager,
+  refine?: coll.ResourceRefinery<Any>,
+) {
+  const typicalModuleFactory = jsonFileSysResourceFactory(defaultEM, refine);
+  const allExtns = (fsPath: string) => {
+    const fileName = path.basename(fsPath);
+    return fileName.slice(fileName.indexOf("."));
+  };
+
+  return (fsPath: string, matchExtns = allExtns(fsPath)) => {
+    switch (matchExtns) {
+      case ".json.ts":
+      case ".json.js":
+        return typicalModuleFactory;
+    }
+
+    return undefined;
   };
 }
