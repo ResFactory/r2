@@ -31,45 +31,61 @@ export interface FileExtnOriginationFactory<Resource> {
   >;
 }
 
-export interface FileSysWalkGlob {
+export interface FilePathWalkContext {
+  readonly fpSupplier: FilePathsSupplier;
+  readonly fsPath: string;
+  readonly fsRouteOptions: r.FileSysRouteOptions;
+}
+
+export interface FilePathsSupplier {
   readonly label?: string;
   readonly rootPath: string;
-  readonly glob: string;
-  readonly include: (we: fs.WalkEntry) => boolean;
-  readonly globOptions?: (path: string) => fs.ExpandGlobOptions;
+  readonly files: (
+    defaultRouteOptions: r.FileSysRouteOptions,
+  ) => AsyncIterable<FilePathWalkContext>;
   readonly relative: (path: string) => string;
   readonly fileSuffixes: (path: string) => string;
-  readonly forceIsOriginationSupplier?: boolean;
   readonly onOriginated?: <Resource>(
     resource: Resource,
     fsPath: string,
-    walkCtx?: FileSysWalkGlobContext,
+    fsWalkCtx?: FilePathWalkContext,
   ) => Promise<void>;
   readonly onOriginationError?: (
     fsPath: string,
     oe: OriginationError,
-    walkCtx?: FileSysWalkGlobContext,
+    fsWalkCtx?: FilePathWalkContext,
   ) => Promise<void>;
   readonly fsrOptionsSupplier?: (path: string) => r.FileSysRouteOptions;
+  readonly forceIsOriginationSupplier?: boolean;
 }
 
-export function walkFilesExcludeGitGlob(
+export interface FilePathWalkContextSupplier {
+  readonly fsWalkCtx: FilePathWalkContext;
+}
+
+export interface FileSysWalkGlob extends FilePathsSupplier {
+  readonly glob: string;
+  readonly include: (we: fs.WalkEntry) => boolean;
+  readonly globOptions?: (path: string) => fs.ExpandGlobOptions;
+}
+
+export interface FileSysWalkGlobContext extends FilePathWalkContext {
+  readonly entry: fs.WalkEntry;
+  readonly globOptions?: fs.ExpandGlobOptions;
+}
+
+export interface FileSysWalkGlobContextSupplier
+  extends FilePathWalkContextSupplier {
+  readonly fsWalkCtx: FileSysWalkGlobContext;
+}
+
+export function walkFilesBase(
   rootPath: string,
-  glob = "**/*",
-  inherit?: Partial<Omit<FileSysWalkGlob, "rootPath" | "glob">>,
-): FileSysWalkGlob {
+  inherit?: Partial<Omit<FilePathsSupplier, "rootPath" | "files">>,
+) {
   return {
     rootPath,
-    glob,
     label: inherit?.label ?? path.basename(rootPath),
-    include: inherit?.include ?? ((we) => we.isFile),
-    globOptions: inherit?.globOptions ?? ((path) => ({
-      root: path,
-      includeDirs: false,
-      globstar: true,
-      extended: true,
-      exclude: [".git"],
-    })),
     relative: (fsPath: string) => path.relative(rootPath, fsPath),
     fileSuffixes: (fsPath: string) => {
       // we don't use path.extname(fsPath) because it only returns last suffix
@@ -80,15 +96,41 @@ export function walkFilesExcludeGitGlob(
   };
 }
 
-export interface FileSysWalkGlobContext {
-  readonly entry: fs.WalkEntry;
-  readonly srcGlob: FileSysWalkGlob;
-  readonly fsRouteOptions: r.FileSysRouteOptions;
-  readonly globOptions?: fs.ExpandGlobOptions;
-}
-
-export interface FileSysWalkGlobContextSupplier {
-  readonly fsWalkCtx: FileSysWalkGlobContext;
+export function walkFilesExcludeGitGlob(
+  rootPath: string,
+  glob = "**/*",
+  inherit?: Partial<Omit<FileSysWalkGlob, "rootPath" | "glob">>,
+) {
+  const fswGlob: FileSysWalkGlob = {
+    ...walkFilesBase(rootPath),
+    glob,
+    include: inherit?.include ?? ((we) => we.isFile),
+    globOptions: inherit?.globOptions ?? ((path) => ({
+      root: path,
+      includeDirs: false,
+      globstar: true,
+      extended: true,
+      exclude: [".git"],
+    })),
+    files: async function* (defaultRouteOptions) {
+      const { glob, rootPath, fsrOptionsSupplier } = fswGlob;
+      const fsRouteOptions = fsrOptionsSupplier
+        ? fsrOptionsSupplier(rootPath)
+        : defaultRouteOptions;
+      const globOptions = fswGlob.globOptions?.(rootPath);
+      const globCtx = { fswGlob, globOptions, fsRouteOptions };
+      for await (const we of fs.expandGlob(glob, globOptions)) {
+        const fsWalkCtx: FileSysWalkGlobContext = {
+          fsPath: we.path,
+          fpSupplier: fswGlob,
+          entry: we,
+          ...globCtx,
+        };
+        yield fsWalkCtx;
+      }
+    },
+  };
+  return fswGlob;
 }
 
 export const isWalkGlobContextSupplier = safety.typeGuard<
@@ -112,12 +154,12 @@ export function typicalfsFileSuffixOriginators(
     readonly onOriginated?: <Resource>(
       resource: Resource,
       fsPath: string,
-      walkCtx?: FileSysWalkGlobContext,
+      walkCtx?: FilePathWalkContext,
     ) => Promise<void>;
     readonly onOriginationError?: (
       fsPath: string,
       oe: OriginationError,
-      walkCtx?: FileSysWalkGlobContext,
+      walkCtx?: FilePathWalkContext,
     ) => Promise<void>;
   },
 ) {
@@ -195,7 +237,7 @@ export function typicalfsFileSuffixOriginators(
         diagnostics?: (error: Error, message?: string) => string;
       },
       options?: r.FileSysRouteOptions,
-      fsWalkCtx?: FileSysWalkGlobContext,
+      fsWalkCtx?: FilePathWalkContext,
     ) => {
       const fsPath = origin.fsPath;
       const originator = result?.originator(fsPath);
@@ -203,13 +245,13 @@ export function typicalfsFileSuffixOriginators(
         const factory = await originator.factory(fsPath);
         if (factory) {
           if (isOriginationError(factory)) {
-            const onError = fsWalkCtx?.srcGlob?.onOriginationError ??
+            const onError = fsWalkCtx?.fpSupplier?.onOriginationError ??
               typicalSuffixOptions?.onOriginationError;
             onError?.(fsPath, factory, fsWalkCtx);
             return undefined;
           } else {
             const instance = factory(origin, options) as Resource;
-            const onOriginated = fsWalkCtx?.srcGlob?.onOriginated ??
+            const onOriginated = fsWalkCtx?.fpSupplier?.onOriginated ??
               typicalSuffixOptions?.onOriginated;
             onOriginated?.(instance, fsPath, fsWalkCtx);
             return instance;
@@ -218,32 +260,23 @@ export function typicalfsFileSuffixOriginators(
       }
       return undefined;
     },
-    instances: async function* <Resource>(srcGlobs: Iterable<FileSysWalkGlob>) {
-      for (const srcGlob of srcGlobs) {
-        const { glob, rootPath, fsrOptionsSupplier } = srcGlob;
-        const fsRouteOptions = fsrOptionsSupplier
-          ? fsrOptionsSupplier(rootPath)
-          : defaultRouteOptions;
-        const { fsRouteFactory } = fsRouteOptions;
-        const globOptions = srcGlob.globOptions?.(rootPath);
-        const globCtx = { srcGlob, globOptions, fsRouteOptions };
-        for await (const we of fs.expandGlob(glob, globOptions)) {
-          const fsWalkCtx: FileSysWalkGlobContext = { entry: we, ...globCtx };
-          const extraCtx: FileSysWalkGlobContextSupplier = { fsWalkCtx };
+    instances: async function* <Resource>(fps: Iterable<FilePathsSupplier>) {
+      for (const fp of fps) {
+        for await (const fsWalkCtx of fp.files(defaultRouteOptions)) {
+          const { fsPath, fsRouteOptions } = fsWalkCtx;
           const instance = await result.instance(
             {
-              fsPath: we.path,
-              route: await fsRouteFactory.fsRoute(
-                we.path,
-                rootPath,
+              fsPath: fsWalkCtx.fsPath,
+              route: await fsRouteOptions.fsRouteFactory.fsRoute(
+                fsPath,
+                fp.rootPath,
                 fsRouteOptions,
               ),
-              ...extraCtx,
             },
             fsRouteOptions,
             fsWalkCtx,
           );
-          if (instance && (srcGlob?.forceIsOriginationSupplier ?? true)) {
+          if (instance && (fp?.forceIsOriginationSupplier ?? true)) {
             const isForced = "${loc}::typicalfsFileSuffixOriginators";
             govn.mutateOrigination(instance, (instance) => {
               instance.origination = {

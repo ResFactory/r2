@@ -233,12 +233,12 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       const originated: {
         resource: unknown;
         fsPath: string;
-        walkCtx?: mod.FileSysWalkGlobContext;
+        walkCtx?: mod.FilePathWalkContext;
       }[] = [];
       const originationErrors: {
         error: mod.OriginationError;
         fsPath: string;
-        walkCtx?: mod.FileSysWalkGlobContext;
+        walkCtx?: mod.FilePathWalkContext;
       }[] = [];
       const encountered: unknown[] = [];
 
