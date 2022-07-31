@@ -21,7 +21,7 @@ Deno.test("walk FS and build SQLite data vault", async () => {
   // walk all the files in resFactory/factory
   (await fsc.entriesDML(
     ctx,
-    mod.walkFilesExcludeGitGlob(path.resolve(
+    mod.walkGlobbedFilesExcludeGit(path.resolve(
       path.dirname(path.fromFileUrl(import.meta.url)),
       "..",
       "..",

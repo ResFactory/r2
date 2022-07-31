@@ -6,7 +6,7 @@ import * as sqlite from "./sqlite.ts";
 type Any = any;
 
 // this is often used by task consumers to make it convenient
-export { walkFilesExcludeGitGlob } from "../sql/models/dv-device-fs.ts";
+export { walkGlobbedFilesExcludeGit } from "../sql/models/dv-device-fs.ts";
 
 type DeepPartial<T> = {
   // deno-lint-ignore ban-types
@@ -26,7 +26,7 @@ export function walkedFsDataVaultTask(
     const fsc = dvdfs.deviceFileSysContent<Context>();
     const SQL = [fsc.models.seedDDL.SQL(ctx)];
 
-    if (!globs) globs = [dvdfs.walkFilesExcludeGitGlob(rootPath)];
+    if (!globs) globs = [dvdfs.walkGlobbedFilesExcludeGit(rootPath)];
 
     const sddso: sqlite.SqliteDbDeployShellOptions = {
       sqliteSrc: {

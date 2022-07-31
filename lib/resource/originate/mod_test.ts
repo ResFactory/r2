@@ -156,7 +156,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
   );
   const globs: WalkGlobExpectation[] = [
     {
-      ...mod.walkFilesExcludeGitGlob(rootPath, "markdown/**/fixtures/*.md"),
+      ...mod.walkGlobbedFilesExcludeGit(rootPath, "markdown/**/fixtures/*.md"),
       expected: (instances) =>
         instances.filter((i) =>
           mod.isWalkGlobContextOriginationSupplier(i) &&
@@ -167,7 +167,10 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       expectedCount: 11,
     },
     {
-      ...mod.walkFilesExcludeGitGlob(rootPath, "markdown/**/fixtures/*.md.ts"),
+      ...mod.walkGlobbedFilesExcludeGit(
+        rootPath,
+        "markdown/**/fixtures/*.md.ts",
+      ),
       expected: (instances) =>
         instances.filter((i) =>
           mod.isWalkGlobContextOriginationSupplier(i) &&
@@ -178,7 +181,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       expectedCount: 1,
     },
     {
-      ...mod.walkFilesExcludeGitGlob(rootPath, "html/**/fixtures/*.html"),
+      ...mod.walkGlobbedFilesExcludeGit(rootPath, "html/**/fixtures/*.html"),
       expected: (instances) =>
         instances.filter((i) =>
           mod.isWalkGlobContextOriginationSupplier(i) &&

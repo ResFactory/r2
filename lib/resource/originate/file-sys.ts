@@ -96,7 +96,7 @@ export function walkFilesBase(
   };
 }
 
-export function walkFilesExcludeGitGlob(
+export function walkGlobbedFilesExcludeGit(
   rootPath: string,
   glob = "**/*",
   inherit?: Partial<Omit<FileSysWalkGlob, "rootPath" | "glob">>,

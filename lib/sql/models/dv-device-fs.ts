@@ -143,7 +143,7 @@ export interface WalkGlob {
   readonly options?: (path: string) => fs.ExpandGlobOptions;
 }
 
-export function walkFilesExcludeGitGlob(
+export function walkGlobbedFilesExcludeGit(
   rootPath: string,
   glob = "**/*",
   inherit?: Partial<Omit<WalkGlob, "rootPath" | "glob">>,
@@ -284,7 +284,7 @@ export async function deviceFileSysSQL(rootPath: string, ...globs: string[]) {
 
   const entries = await fsc.entriesDML(
     ctx,
-    ...globs.map((glob) => walkFilesExcludeGitGlob(rootPath, glob)),
+    ...globs.map((glob) => walkGlobbedFilesExcludeGit(rootPath, glob)),
   );
   entries.forEach((sql) => console.log(sql, ";"));
 }
