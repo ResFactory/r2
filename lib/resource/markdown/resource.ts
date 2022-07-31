@@ -1,5 +1,6 @@
 import { fs, log, path } from "../deps.ts";
 import * as extn from "../../../lib/module/mod.ts";
+import * as govn from "../governance.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
@@ -178,7 +179,7 @@ export const constructStaticMarkdownResourceSync = (
     & r.RouteSupplier
     & r.ParsedRouteConsumer
     & i.InstantiatorSupplier
-    & { origination: typeof origination } = {
+    & govn.OriginationSupplier<typeof origination> = {
       nature,
       frontmatter: {},
       route: {
@@ -271,7 +272,7 @@ export const constructMarkdownModuleResourceSync: (
     & MarkdownResource
     & r.RouteSupplier
     & i.InstantiatorSupplier
-    & { origination: typeof origination } = {
+    & govn.OriginationSupplier<typeof origination> = {
       nature,
       frontmatter,
       route: {
@@ -323,7 +324,7 @@ export function markdownModuleFileSysResourceFactory(
           & MarkdownResource
           & r.RouteSupplier
           & i.InstantiatorSupplier
-          & { origination: typeof origination } = {
+          & govn.OriginationSupplier<typeof origination> = {
             imported,
             nature,
             route: { ...origination.route, nature },
@@ -356,7 +357,7 @@ export function markdownModuleFileSysResourceFactory(
             & MarkdownResource
             & r.RouteSupplier
             & i.InstantiatorSupplier
-            & { origination: typeof origination } = {
+            & govn.OriginationSupplier<typeof origination> = {
               imported,
               frontmatter,
               nature,

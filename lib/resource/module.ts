@@ -1,6 +1,7 @@
 import { path } from "./deps.ts";
 import * as safety from "../../lib/safety/mod.ts";
 import * as extn from "../../lib/module/mod.ts";
+import * as govn from "./governance.ts";
 import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
@@ -25,8 +26,8 @@ export const isModuleResource = safety.typeGuard<c.ModuleResource>(
 export interface FileSysResourceModuleConstructor {
   (
     origin: { fsPath: string },
+    options: r.FileSysRouteOptions,
     imported: extn.ExtensionModule,
-    options?: r.FileSysRouteOptions,
   ): Promise<c.ModuleResource>;
 }
 
@@ -43,24 +44,28 @@ export function moduleFileSysResourceFactory(
 ) {
   const factory = {
     construct: async (
-      origin: r.RouteSupplier & { fsPath: string },
-      options?: r.FileSysRouteOptions,
+      origination: r.RouteSupplier & { fsPath: string },
+      options: r.FileSysRouteOptions,
     ) => {
       const em = options?.extensionsManager ?? defaultEM;
-      const imported = await em.importModule(origin.fsPath);
+      const imported = await em.importModule(origination.fsPath);
       const issue = (diagnostics: string) => {
-        const result: c.ModuleResource & IssueHtmlResource = {
-          route: { ...origin.route, nature: h.htmlContentNature },
-          nature: h.htmlContentNature,
-          frontmatter: {},
-          diagnostics,
-          imported,
-          html: {
-            // deno-lint-ignore require-await
-            text: async () => Deno.readTextFile(origin.fsPath),
-            textSync: () => Deno.readTextFileSync(origin.fsPath),
-          },
-        };
+        const result:
+          & c.ModuleResource
+          & IssueHtmlResource
+          & govn.OriginationSupplier<typeof origination> = {
+            route: { ...origination.route, nature: h.htmlContentNature },
+            nature: h.htmlContentNature,
+            frontmatter: {},
+            diagnostics,
+            imported,
+            origination,
+            html: {
+              // deno-lint-ignore require-await
+              text: async () => Deno.readTextFile(origination.fsPath),
+              textSync: () => Deno.readTextFileSync(origination.fsPath),
+            },
+          };
         options?.log?.error(diagnostics, imported.importError);
         return result;
       };
@@ -69,7 +74,7 @@ export function moduleFileSysResourceFactory(
         // deno-lint-ignore no-explicit-any
         const constructor = (imported.module as any).default;
         if (isModuleConstructor(constructor)) {
-          const instance = await constructor(origin, imported, options);
+          const instance = await constructor(origination, options, imported);
           if (isModuleResource(instance)) {
             return instance;
           } else {
@@ -92,7 +97,7 @@ export function moduleFileSysResourceFactory(
         fsPath: string;
         diagnostics?: (error: Error, message?: string) => string;
       },
-      options?: r.FileSysRouteOptions,
+      options: r.FileSysRouteOptions,
     ) => {
       const instance = await factory.construct(we, options);
       return (refine ? await refine(instance) : instance);

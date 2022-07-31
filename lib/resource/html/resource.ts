@@ -1,5 +1,6 @@
 import { path } from "../deps.ts";
 import * as extn from "../../../lib/module/mod.ts";
+import * as govn from "../governance.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
@@ -32,7 +33,7 @@ export const constructResourceSync: (
     & r.RouteSupplier
     & r.ParsedRouteConsumer
     & i.InstantiatorSupplier
-    & { origination: typeof origination } = {
+    & govn.OriginationSupplier<typeof origination> = {
       nature: n.htmlContentNature,
       frontmatter: {},
       route: { ...origination.route, nature: n.htmlContentNature },

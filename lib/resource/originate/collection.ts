@@ -16,13 +16,14 @@ export async function* originateDescendants<Resource>(
     readonly yieldInstance?: false | "before" | "after";
   },
 ) {
-  const { refine, yieldInstance = true } = options ?? {};
+  const { refine, yieldInstance = "before" } = options ?? {};
 
   async function* originate<Resource>(
     supplier: coll.ResourceFactorySupplier<Resource>,
   ): AsyncGenerator<Resource> {
     const child = await supplier.resourceFactory();
     const resource = refine ? refine(child) as Resource : child;
+    // TODO: mutate with resource.origination = { ? }
     let hasChildren = false;
     let yieldWithChildren = false;
     if (coll.isChildResourcesFactoriesSupplier<Resource>(resource)) {
@@ -46,4 +47,27 @@ export async function* originateDescendants<Resource>(
     yield* originate<Resource>(instance);
   }
   if (yieldInstance == "after") yield instance;
+}
+
+/**
+ * Given a set of AsyncIterable resources, automatically construct and yield any
+ * child resources (with unlimited descendants)
+ * @param supplier the instances to construct and yield descendants of
+ * @param options whether to do any refining or custom yielding
+ */
+export async function* originateAll<Resource>(
+  supplier: AsyncIterable<Resource>,
+  yieldInstance: "before" | "after",
+  options?: {
+    readonly refine?: coll.ResourceRefinerySync<Any>;
+  },
+) {
+  const descendantOptions = { yieldInstance, ...options };
+  for await (const resource of supplier) {
+    for await (
+      const instance of originateDescendants(resource, descendantOptions)
+    ) {
+      yield instance;
+    }
+  }
 }

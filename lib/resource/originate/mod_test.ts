@@ -1,6 +1,5 @@
 import { testingAsserts as ta } from "../deps-test.ts";
 import { path } from "../deps.ts";
-import * as safety from "../../../lib/safety/mod.ts";
 import * as extn from "../../../lib/module/mod.ts";
 import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as c from "../content/mod.ts";
@@ -13,7 +12,6 @@ type Any = any;
 
 Deno.test(`single instance resource factory`, async (tc) => {
   const em = new extn.CachedExtensions();
-  const tfseOriginators = mod.typicalfsFileSuffixOriginators(em);
 
   const fsRouteFactory = new r.FileSysRouteFactory(
     r.defaultRouteLocationResolver(),
@@ -25,6 +23,8 @@ Deno.test(`single instance resource factory`, async (tc) => {
     routeParser: fsr.humanFriendlyFileSysRouteParser,
     extensionsManager: em,
   };
+
+  const tfseOriginators = mod.typicalfsFileSuffixOriginators(fsRouteOptions);
 
   await tc.step(
     "fs file extension (suffix-based) Markdown originators",
@@ -150,18 +150,6 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
     readonly expectedCount: number;
   };
 
-  const isOriginated = safety.typeGuard<{ origination: unknown }>(
-    "origination",
-  );
-  const isOurOrigin = (
-    o: unknown,
-  ): o is { origination: mod.FileSysWalkGlobContextSupplier } => {
-    if (isOriginated(o) && mod.isWalkGlobContextSupplier(o.origination)) {
-      return true;
-    }
-    return false;
-  };
-
   // the root is this file's parent directory
   const rootPath = path.dirname(
     path.dirname(path.fromFileUrl(import.meta.url)),
@@ -171,7 +159,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       ...mod.walkFilesExcludeGitGlob(rootPath, "markdown/**/fixtures/*.md"),
       expected: (instances) =>
         instances.filter((i) =>
-          isOurOrigin(i) &&
+          mod.isWalkGlobContextOriginationSupplier(i) &&
           path.dirname(i.origination.fsWalkCtx.entry.path).endsWith(
             "markdown/test/fixtures",
           ) && i.origination.fsWalkCtx.entry.name.endsWith(".md")
@@ -182,7 +170,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       ...mod.walkFilesExcludeGitGlob(rootPath, "markdown/**/fixtures/*.md.ts"),
       expected: (instances) =>
         instances.filter((i) =>
-          isOurOrigin(i) &&
+          mod.isWalkGlobContextOriginationSupplier(i) &&
           path.dirname(i.origination.fsWalkCtx.entry.path).endsWith(
             "markdown/test/fixtures",
           ) && i.origination.fsWalkCtx.entry.name.endsWith(".md.ts")
@@ -193,7 +181,7 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
       ...mod.walkFilesExcludeGitGlob(rootPath, "html/**/fixtures/*.html"),
       expected: (instances) =>
         instances.filter((i) =>
-          isOurOrigin(i) &&
+          mod.isWalkGlobContextOriginationSupplier(i) &&
           path.dirname(i.origination.fsWalkCtx.entry.path).endsWith(
             "html/test/fixtures",
           ) && i.origination.fsWalkCtx.entry.name.endsWith(".html")
@@ -202,10 +190,23 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
     },
   ];
 
+  const fsRouteFactory = new r.FileSysRouteFactory(
+    r.defaultRouteLocationResolver(),
+    r.defaultRouteWorkspaceEditorResolver(() => undefined),
+  );
+
+  const fsRouteOptions: r.FileSysRouteOptions = {
+    fsRouteFactory,
+    routeParser: fsr.humanFriendlyFileSysRouteParser,
+    extensionsManager: em,
+  };
+
   await tc.step(
     "default fs file extension (suffix-based) multi-resource originator",
     async (tc) => {
-      const tfseOriginators = mod.typicalfsFileSuffixOriginators(em);
+      const tfseOriginators = mod.typicalfsFileSuffixOriginators(
+        fsRouteOptions,
+      );
       const encountered = [];
       for await (const resource of tfseOriginators.instances(globs)) {
         encountered.push(resource);
@@ -240,33 +241,23 @@ Deno.test(`multi-instance resource factory`, async (tc) => {
         walkCtx?: mod.FileSysWalkGlobContext;
       }[] = [];
       const encountered: unknown[] = [];
-      const tfseOriginators = mod.typicalfsFileSuffixOriginators(em, {
-        // deno-lint-ignore require-await
-        onOriginated: async (resource, fsPath, walkCtx) => {
-          originated.push({ resource, fsPath, walkCtx });
-        },
-        // deno-lint-ignore require-await
-        onOriginationError: async (fsPath, error, walkCtx) => {
-          originationErrors.push({ error, fsPath, walkCtx });
-        },
-      });
 
-      const fsRouteFactory = new r.FileSysRouteFactory(
-        r.defaultRouteLocationResolver(),
-        r.defaultRouteWorkspaceEditorResolver(() => undefined),
+      const tfseOriginators = mod.typicalfsFileSuffixOriginators(
+        fsRouteOptions,
+        {
+          // deno-lint-ignore require-await
+          onOriginated: async (resource, fsPath, walkCtx) => {
+            originated.push({ resource, fsPath, walkCtx });
+          },
+          // deno-lint-ignore require-await
+          onOriginationError: async (fsPath, error, walkCtx) => {
+            originationErrors.push({ error, fsPath, walkCtx });
+          },
+        },
       );
 
-      const fsRouteOptions: r.FileSysRouteOptions = {
-        fsRouteFactory,
-        routeParser: fsr.humanFriendlyFileSysRouteParser,
-        extensionsManager: em,
-      };
-
       for await (
-        const resource of tfseOriginators.instances(globs, {
-          fsrFactorySupplier: () => fsRouteFactory,
-          fsrOptionsSupplier: () => fsRouteOptions,
-        })
+        const resource of tfseOriginators.instances(globs)
       ) {
         ta.assert(c.isNatureSupplier(resource));
         ta.assert(c.isMediaTypeNature(resource.nature));
