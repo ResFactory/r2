@@ -20,7 +20,7 @@ export interface StaticHtmlResource extends
 }
 
 export const constructResourceSync: (
-  we: r.RouteSupplier & {
+  origination: r.RouteSupplier & {
     fsPath: string;
     diagnostics?: (error: Error, message?: string) => string;
   },
@@ -31,7 +31,8 @@ export const constructResourceSync: (
     & fm.FrontmatterConsumer<fm.UntypedFrontmatter>
     & r.RouteSupplier
     & r.ParsedRouteConsumer
-    & i.InstantiatorSupplier = {
+    & i.InstantiatorSupplier
+    & { origination: typeof origination } = {
       nature: n.htmlContentNature,
       frontmatter: {},
       route: { ...origination.route, nature: n.htmlContentNature },
@@ -75,6 +76,7 @@ export const constructResourceSync: (
         import.meta.url,
         "constructResourceSync",
       ),
+      origination,
     };
   return result;
 };
@@ -108,8 +110,8 @@ export function staticHtmlFileSysResourceFactory(
 
 /**
  * Create an originator function that will return a factory object which will
- * construct and refine markdown resources either from static *.html files with
- * optional "HTML frontmatter" with <!-- YAML --> strategy.
+ * construct and refine HTML resources from static *.html files with optional
+ * "HTML frontmatter" with <!-- YAML --> strategy.
  * @param _defaultEM the a module import manager (for caching imports)
  * @param refine a default refinery to supply with the created factory object
  * @returns
@@ -127,6 +129,7 @@ export function fsFileSuffixHtmlResourceOriginator(
   return (fsPath: string, matchExtns = allExtns(fsPath)) => {
     switch (matchExtns) {
       case ".html":
+      case ".fm.html": // .fm means frontmatter-capable, for convenience
         return typicalStaticFactory;
     }
 

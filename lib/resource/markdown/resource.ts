@@ -177,7 +177,8 @@ export const constructStaticMarkdownResourceSync = (
     & fm.FrontmatterConsumer<fm.UntypedFrontmatter>
     & r.RouteSupplier
     & r.ParsedRouteConsumer
-    & i.InstantiatorSupplier = {
+    & i.InstantiatorSupplier
+    & { origination: typeof origination } = {
       nature,
       frontmatter: {},
       route: {
@@ -227,6 +228,7 @@ export const constructStaticMarkdownResourceSync = (
         import.meta.url,
         "constructStaticMarkdownResourceSync",
       ),
+      origination,
     };
   return result;
 };
@@ -268,7 +270,8 @@ export const constructMarkdownModuleResourceSync: (
   const result:
     & MarkdownResource
     & r.RouteSupplier
-    & i.InstantiatorSupplier = {
+    & i.InstantiatorSupplier
+    & { origination: typeof origination } = {
       nature,
       frontmatter,
       route: {
@@ -288,6 +291,7 @@ export const constructMarkdownModuleResourceSync: (
         import.meta.url,
         "constructMarkdownModuleResourceSync",
       ),
+      origination,
     };
   return result;
 };
@@ -298,7 +302,7 @@ export function markdownModuleFileSysResourceFactory(
 ) {
   const factory = {
     construct: async (
-      we: r.RouteSupplier & {
+      origination: r.RouteSupplier & {
         fsPath: string;
         diagnostics?: (error: Error, message?: string) => string;
       },
@@ -311,17 +315,18 @@ export function markdownModuleFileSysResourceFactory(
         isContentAvailable: true,
         isMarkdownModel: true,
       };
-      const imported = await em.importModule(we.fsPath);
+      const imported = await em.importModule(origination.fsPath);
       const issue = (diagnostics: string, ...args: unknown[]) => {
         options?.log?.error(diagnostics, ...args);
         const result:
           & c.ModuleResource
           & MarkdownResource
           & r.RouteSupplier
-          & i.InstantiatorSupplier = {
+          & i.InstantiatorSupplier
+          & { origination: typeof origination } = {
             imported,
             nature,
-            route: { ...we.route, nature },
+            route: { ...origination.route, nature },
             model,
             // deno-lint-ignore require-await
             text: async () => diagnostics,
@@ -331,6 +336,7 @@ export function markdownModuleFileSysResourceFactory(
               import.meta.url,
               "markdownModuleFileSysResourceFactory.issue",
             ),
+            origination,
           };
         return result;
       };
@@ -349,14 +355,15 @@ export function markdownModuleFileSysResourceFactory(
             & c.ModuleResource
             & MarkdownResource
             & r.RouteSupplier
-            & i.InstantiatorSupplier = {
+            & i.InstantiatorSupplier
+            & { origination: typeof origination } = {
               imported,
               frontmatter,
               nature,
               route: r.isRouteSupplier(frontmatter) &&
                   r.isRoute(frontmatter.route)
                 ? frontmatter.route
-                : { ...we.route, nature },
+                : { ...origination.route, nature },
               model: {
                 isContentModel: true,
                 isContentAvailable: true,
@@ -370,6 +377,7 @@ export function markdownModuleFileSysResourceFactory(
                 import.meta.url,
                 "markdownModuleFileSysResourceFactory.defaultValue",
               ),
+              origination,
             };
           return result;
         } else {

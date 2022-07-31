@@ -1,16 +1,10 @@
-import { path } from "./deps.ts";
+import { fs, path } from "./deps.ts";
 import * as safety from "../../lib/safety/mod.ts";
 import * as extn from "../../lib/module/mod.ts";
 import * as fsr from "../../lib/fs/fs-route.ts";
-import * as coll from "./collection/mod.ts";
 import * as r from "./route/mod.ts";
-import * as fm from "./frontmatter/mod.ts";
 import * as md from "./markdown/mod.ts";
-import * as b from "./bundle.ts";
 import * as html from "./html/mod.ts";
-import * as module from "./module.ts";
-import * as jsonM from "./json.ts";
-import * as g from "../../lib/git/mod.ts";
 
 // TODO: support JS/TS/CSS bundle "twins" instead of old-style RF
 
@@ -37,16 +31,64 @@ export interface FileExtnOriginationFactory<Resource> {
   >;
 }
 
+export interface FileSysWalkGlob {
+  readonly label?: string;
+  readonly rootPath: string;
+  readonly glob: string;
+  readonly include: (we: fs.WalkEntry) => boolean;
+  readonly options?: (path: string) => fs.ExpandGlobOptions;
+  readonly relative: (path: string) => string;
+}
+
+export function walkFilesExcludeGitGlob(
+  rootPath: string,
+  glob = "**/*",
+  inherit?: Partial<Omit<FileSysWalkGlob, "rootPath" | "glob">>,
+): FileSysWalkGlob {
+  return {
+    rootPath,
+    glob,
+    label: inherit?.label ?? path.basename(rootPath),
+    include: inherit?.include ?? ((we) => we.isFile),
+    options: inherit?.options ?? ((path) => ({
+      root: path,
+      includeDirs: false,
+      globstar: true,
+      extended: true,
+      exclude: [".git"],
+    })),
+    relative: (fsPath: string) => path.relative(rootPath, fsPath),
+  };
+}
+
+export interface FileSysWalkGlobContext {
+  readonly entry: fs.WalkEntry;
+  readonly srcGlob: FileSysWalkGlob;
+  readonly fsRouteFactory: r.FileSysRouteFactory;
+  readonly fsRouteOptions: r.FileSysRouteOptions;
+  readonly globOptions?: fs.ExpandGlobOptions;
+}
+
+export interface FileSysWalkGlobContextSupplier {
+  readonly fsWalkCtx: FileSysWalkGlobContext;
+}
+
+export const isWalkGlobContextSupplier = safety.typeGuard<
+  FileSysWalkGlobContextSupplier
+>("fsWalkCtx");
+
 export function typicalfsFileSuffixOriginators(
   em: extn.ExtensionsManager,
   tfseoOptions?: {
     onOriginated?: <Resource>(
       resource: Resource,
       fsPath: string,
+      walkCtx?: FileSysWalkGlobContext,
     ) => Promise<void>;
     onOriginationError?: (
       fsPath: string,
       oe: OriginationError,
+      walkCtx?: FileSysWalkGlobContext,
     ) => Promise<void>;
   },
 ) {
@@ -64,19 +106,19 @@ export function typicalfsFileSuffixOriginators(
     const fileName = path.basename(fsPath);
     return fileName.slice(fileName.indexOf("."));
   };
+  const loc = path.basename(import.meta.url);
+  const oe = (message: string) => ({
+    originationError: new Error(
+      `${message} (${loc}::typicalfsFileSuffixOriginators)`,
+    ),
+  });
 
   const mdExtnFactory = md.fsFileSuffixRenderedMarkdownResourceOriginator(em);
   const mdExtnOriginator: FileExtnOriginationFactory<Any> = {
     // deno-lint-ignore require-await
     factory: async (fsPath) => {
       const factory = mdExtnFactory(fsPath);
-      if (!factory) {
-        return {
-          originationError: new Error(
-            "mdExtnFactory should not return undefined",
-          ),
-        };
-      }
+      if (!factory) return oe("mdExtnFactory should not return undefined");
       return async (we, options) => {
         return await factory.instance(we, options);
       };
@@ -90,33 +132,27 @@ export function typicalfsFileSuffixOriginators(
     // deno-lint-ignore require-await
     factory: async (fsPath) => {
       const factory = htmlExtnFactory(fsPath);
-      if (!factory) {
-        return {
-          originationError: new Error(
-            "htmlExtnFactory should not return undefined",
-          ),
-        };
-      }
+      if (!factory) return oe("htmlExtnFactory should not return undefined");
       return async (we, options) => {
         return await factory.instance(we, options);
       };
     },
   };
-  originators.set(".html", htmlExtnOriginator);
+  originators.set(".html", htmlExtnOriginator); // html with optional frontmatter
+  originators.set(".fm.html", htmlExtnOriginator); // alias for above, .fm means frontmatter
+  // TODO: originators.set(".html.ts", htmlExtnOriginator);
 
   const result = {
     originators,
     allExtns,
-    originator: (fsPath: string) => {
-      const extns = allExtns(fsPath);
-      return originators.get(extns);
-    },
+    originator: (fsPath: string) => originators.get(allExtns(fsPath)),
     instance: async <Resource>(
       origin: r.RouteSupplier & {
         fsPath: string;
         diagnostics?: (error: Error, message?: string) => string;
       },
       options?: r.FileSysRouteOptions,
+      fsWalkCtx?: FileSysWalkGlobContext,
     ) => {
       const fsPath = origin.fsPath;
       const originator = result?.originator(fsPath);
@@ -124,16 +160,73 @@ export function typicalfsFileSuffixOriginators(
         const factory = await originator.factory(fsPath);
         if (factory) {
           if (isOriginationError(factory)) {
-            tfseoOptions?.onOriginationError?.(fsPath, factory);
+            tfseoOptions?.onOriginationError?.(fsPath, factory, fsWalkCtx);
             return undefined;
           } else {
             const instance = factory(origin, options) as Resource;
-            tfseoOptions?.onOriginated?.(instance, fsPath);
+            tfseoOptions?.onOriginated?.(instance, fsPath, fsWalkCtx);
             return instance;
           }
         }
       }
       return undefined;
+    },
+    instances: async function* <Resource>(
+      srcGlobs: Iterable<FileSysWalkGlob>,
+      options?: {
+        readonly fsrFactorySupplier?: (path: string) => r.FileSysRouteFactory;
+        readonly fsrOptionsSupplier?: (
+          path: string,
+          rf: r.FileSysRouteFactory,
+        ) => r.FileSysRouteOptions;
+      },
+    ) {
+      const { fsrFactorySupplier, fsrOptionsSupplier } = options ?? {};
+      const defaultRouteFactory = new r.FileSysRouteFactory(
+        r.defaultRouteLocationResolver(),
+        r.defaultRouteWorkspaceEditorResolver(() => undefined),
+      );
+      const defaultRouteOptions: r.FileSysRouteOptions = {
+        fsRouteFactory: defaultRouteFactory,
+        routeParser: fsr.humanFriendlyFileSysRouteParser,
+        extensionsManager: em,
+      };
+
+      for (const srcGlob of srcGlobs) {
+        const fsRouteFactory = fsrFactorySupplier
+          ? fsrFactorySupplier(srcGlob.rootPath)
+          : defaultRouteFactory;
+        const fsRouteOptions = fsrOptionsSupplier
+          ? fsrOptionsSupplier(srcGlob.rootPath, fsRouteFactory)
+          : defaultRouteOptions;
+        const globOptions = srcGlob.options?.(srcGlob.rootPath);
+        const globCtx = {
+          srcGlob,
+          globOptions,
+          fsRouteFactory,
+          fsRouteOptions,
+        };
+        for await (
+          const we of fs.expandGlob(srcGlob.glob, globOptions)
+        ) {
+          const fsWalkCtx: FileSysWalkGlobContext = { entry: we, ...globCtx };
+          const extraCtx: FileSysWalkGlobContextSupplier = { fsWalkCtx };
+          const instance = await result.instance(
+            {
+              fsPath: we.path,
+              route: await fsRouteFactory.fsRoute(
+                we.path,
+                srcGlob.rootPath,
+                fsRouteOptions,
+              ),
+              ...extraCtx,
+            },
+            fsRouteOptions,
+            fsWalkCtx,
+          );
+          if (instance) yield instance as Resource;
+        }
+      }
     },
   };
   return result;

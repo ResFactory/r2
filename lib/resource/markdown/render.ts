@@ -494,9 +494,9 @@ export class MarkdownRenderStrategy
 }
 
 /**
- * Create an originator function that will return a factory object which will
- * construct and refine markdown resources either from static *.md files or
- * Typescript *.md.ts modules.
+ * Create an originator function that will return a factory object which can
+ * acquire a markdown resource and render its  HTML either from static *.md
+ * files or Typescript *.md.ts modules.
  * @param defaultEM the a module import manager (for caching imports)
  * @param mdRS markdown render strategy with render layouts for automatic loading
  * @param refine a default refinery to supply with the created factory object
