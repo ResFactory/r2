@@ -1,4 +1,4 @@
-import * as colors from "https://deno.land/std@0.147.0/fmt/colors.ts";
+import * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
 
 import * as st from "../statistics/stream.ts";
 import * as k from "../knowledge/mod.ts";
@@ -206,7 +206,9 @@ export abstract class StaticPublication {
    * Create symlinks for files such as images, CSS style sheets, and other
    * "assets".
    */
-  async symlinkAssets() {
+  async symlinkAssets(
+    onDestExists?: (src: fs.WalkEntry, dest: string) => void,
+  ) {
     await Promise.all([
       ...Array.from(this.config.originationSources).map((os) => {
         // For any files that are in the content directory but were not "consumed"
@@ -215,28 +217,14 @@ export abstract class StaticPublication {
         // in the source content path. Images, and other assets sitting in same
         // directories as *.html, *.ts, *.md, etc. will be symlink'd so that they
         // do not need to be copied.
-        return fsLink.linkAssets(
-          os.rootPath,
-          this.config.destRootPath,
-          {
-            destExistsHandler: (src, dest) => {
-              // if we wrote the file ourselves, don't warn - otherwise, warn and skip
-              if (!this.persistedIndex.has(dest)) {
-                console.warn(
-                  colors.red(
-                    `unable to symlink ${src.path} to ${dest}: cannot overwrite destination`,
-                  ),
-                );
-              }
-            },
-          },
-          {
-            glob: "**/*",
-            options: { exclude: ["**/*.ts"] },
-            include: (we) =>
-              we.isFile && !this.consumedFileSysWalkPaths.has(we.path),
-          },
-        );
+        return fsLink.linkAssets(os.rootPath, this.config.destRootPath, {
+          destExistsHandler: onDestExists,
+        }, {
+          glob: "**/*",
+          options: { exclude: ["**/*.ts"] },
+          include: (we) =>
+            we.isFile && !this.consumedFileSysWalkPaths.has(we.path),
+        });
       }),
     ]);
   }
