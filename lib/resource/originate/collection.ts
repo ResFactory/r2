@@ -38,7 +38,9 @@ export async function* originateDescendants<Resource>(
     }
   }
 
-  if (yieldInstance == "before") yield instance;
+  if (yieldInstance == "before") {
+    yield refine ? refine(instance) as Resource : instance;
+  }
   if (coll.isResourcesFactoriesSupplier<Resource>(instance)) {
     for await (const rf of instance.resourcesFactories()) {
       yield* originate<Resource>(rf);
@@ -46,7 +48,9 @@ export async function* originateDescendants<Resource>(
   } else if (coll.isResourceFactorySupplier<Resource>(instance)) {
     yield* originate<Resource>(instance);
   }
-  if (yieldInstance == "after") yield instance;
+  if (yieldInstance == "after") {
+    yield refine ? refine(instance) as Resource : instance;
+  }
 }
 
 /**

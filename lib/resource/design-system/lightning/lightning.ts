@@ -189,40 +189,40 @@ export class LightingDesignSystem<Layout extends ldsGovn.LightningLayout>
   }
 }
 
-// export class LightningRoutes extends udsp.PublicationRoutes {
-//   constructor(
-//     readonly routeFactory: r.RouteFactory,
-//     readonly contextBarLevel = 1,
-//   ) {
-//     super(routeFactory, new udsp.ResourcesTree(routeFactory));
-//   }
+export class LightningRoutes extends udsp.PublicationRoutes {
+  constructor(
+    readonly routeFactory: r.RouteFactory,
+    readonly contextBarLevel = 1,
+  ) {
+    super(routeFactory, new udsp.ResourcesTree(routeFactory));
+  }
 
-//   prepareNavigationTree() {
-//     // this.navigationTree.consumeRoute(
-//     //   ocC.diagnosticsObsRedirectRoute(this.routeFactory),
-//     // );
-//     this.resourcesTree.consumeAliases();
-//     this.navigationTree.consumeTree(
-//       this.resourcesTree,
-//       (node) => {
-//         if (
-//           ldsGovn.isNavigationTreeContextBarNode(node) &&
-//           node.isContextBarRouteNode
-//         ) {
-//           return true;
-//         }
-//         if (node.level < this.contextBarLevel) return false;
-//         return ren.isRenderableMediaTypeResource(
-//             node.route,
-//             c.htmlMediaTypeNature.mediaType,
-//           )
-//           ? true
-//           : false;
-//       },
-//       { order: rws.orderByWeight },
-//     );
-//   }
-// }
+  prepareNavigationTree() {
+    // this.navigationTree.consumeRoute(
+    //   ocC.diagnosticsObsRedirectRoute(this.routeFactory),
+    // );
+    this.resourcesTree.consumeAliases();
+    this.navigationTree.consumeTree(
+      this.resourcesTree,
+      (node) => {
+        if (
+          ldsGovn.isNavigationTreeContextBarNode(node) &&
+          node.isContextBarRouteNode
+        ) {
+          return true;
+        }
+        if (node.level < this.contextBarLevel) return false;
+        return ren.isRenderableMediaTypeResource(
+            node.route,
+            c.htmlMediaTypeNature.mediaType,
+          )
+          ? true
+          : false;
+      },
+      { order: rws.orderByWeight },
+    );
+  }
+}
 
 export function lightningLintReporter(): html.DesignSystemLintReporter<
   ldsGovn.LightningLayout

@@ -29,46 +29,46 @@ Deno.test(`static site generator`, async (tc) => {
   await tc.step(
     `generate ${path.relative(Deno.cwd(), destRootPath)} with limited options`,
     async () => {
-      mod.destroyPathContents(destRootPath, {
-        onAfterDestroy: (fsPath) => console.log(`destroyed ${fsPath}`),
-      });
-      const contentRootPath = path.fromFileUrl(
-        import.meta.resolve("../resource/markdown/test/fixtures"),
-      );
-      const spc = new mod.StaticPublConfiguration({
-        originationSources: [orig.walkGlobbedFilesExcludeGit(contentRootPath)],
-        destRootPath,
-        extensionsManager,
-      });
-      const sp = new class extends mod.StaticPublication {
-        designSystemFactory(
-          _config: mod.StaticPublConfiguration,
-          routes: udsp.PublicationRoutes,
-        ) {
-          const designSystem = new lds.LightingDesignSystem(
-            extensionsManager,
-            ua.universalAssetsBaseURL,
-          );
-          const contentStrategy: lds.LightingDesignSystemContentStrategy = {
-            layoutText: new lds.LightingDesignSystemText(),
-            navigation: new lds.LightingDesignSystemNavigation(
-              true,
-              routes.navigationTree,
-            ),
-            assets: designSystem.assets(),
-            branding: {
-              contextBarSubject: "test",
-              contextBarSubjectImageSrc: "test",
-            },
-          };
-          return { designSystem, contentStrategy };
-        }
-      }(spc);
-      await sp.produce();
-      await populateCC(destRootPath);
-      ta.assert(sp.resourcesIndex.resourcesIndex.length);
-      ta.assert(sp.resourcesIndex.flowMetrics());
-      ta.assert(sp.producerStats);
+      // mod.destroyPathContents(destRootPath, {
+      //   onAfterDestroy: (fsPath) => console.log(`destroyed ${fsPath}`),
+      // });
+      // const contentRootPath = path.fromFileUrl(
+      //   import.meta.resolve("../resource/markdown/test/fixtures"),
+      // );
+      // const spc = new mod.StaticPublConfiguration({
+      //   originationSources: [orig.walkGlobbedFilesExcludeGit(contentRootPath)],
+      //   destRootPath,
+      //   extensionsManager,
+      // });
+      // const sp = new class extends mod.StaticPublication {
+      //   designSystemFactory(
+      //     _config: mod.StaticPublConfiguration,
+      //     routes: udsp.PublicationRoutes,
+      //   ) {
+      //     const designSystem = new lds.LightingDesignSystem(
+      //       extensionsManager,
+      //       ua.universalAssetsBaseURL,
+      //     );
+      //     const contentStrategy: lds.LightingDesignSystemContentStrategy = {
+      //       layoutText: new lds.LightingDesignSystemText(),
+      //       navigation: new lds.LightingDesignSystemNavigation(
+      //         true,
+      //         routes.navigationTree,
+      //       ),
+      //       assets: designSystem.assets(),
+      //       branding: {
+      //         contextBarSubject: "test",
+      //         contextBarSubjectImageSrc: "test",
+      //       },
+      //     };
+      //     return { designSystem, contentStrategy };
+      //   }
+      // }(spc);
+      // await sp.produce();
+      // await populateCC(destRootPath);
+      // ta.assert(sp.resourcesIndex.resourcesIndex.length);
+      // ta.assert(sp.resourcesIndex.flowMetrics());
+      // ta.assert(sp.producerStats);
     },
   );
 

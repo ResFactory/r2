@@ -262,6 +262,9 @@ export interface DesignSystemContentStrategy<
   Navigation extends DesignSystemNavigationStrategy<Layout>,
   OperationalCtxClientCargo = unknown,
 > {
+  // TODO: replace with gitRepo?: (something) => git.GitExecutive where `something`
+  // is a location or contentRoot or _something_ which would allow multiple
+  // git repos to be determined; or can we just get it from mGitResolvers?
   readonly git?: git.GitExecutive;
   readonly mGitResolvers?: git.ManagedGitResolvers<string>;
   readonly routeGitRemoteResolver?: r.RouteGitRemoteResolver<
@@ -300,6 +303,9 @@ export interface DesignSystemFactory<
   AssetLocations extends DesignSystemAssetLocations,
   Navigation extends DesignSystemNavigationStrategy<Layout>,
 > {
+  readonly beforeFirstRender?: (
+    dsf: DesignSystemFactory<Layout, LayoutText, AssetLocations, Navigation>,
+  ) => Promise<void>;
   readonly designSystem: DesignSystem<Layout>;
   readonly contentStrategy: DesignSystemContentStrategy<
     Layout,

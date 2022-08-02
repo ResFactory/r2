@@ -4,7 +4,6 @@ import * as st from "../statistics/stream.ts";
 import * as k from "../knowledge/mod.ts";
 import * as fsr from "../fs/fs-route.ts";
 import * as fsLink from "../fs/link.ts";
-import * as git from "../git/mod.ts";
 import * as gi from "../structure/govn-index.ts";
 import * as m from "../metrics/mod.ts";
 import * as extn from "../module/mod.ts";
@@ -26,33 +25,6 @@ import * as udsp from "../resource/design-system/universal/publication.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
-
-export const destroyPathContents = async (
-  fsPath: string,
-  options?: {
-    readonly onAfterDestroy?: (fsPath: string) => void | Promise<void>;
-    readonly onUnableToDestroy?: (
-      fsPath: string,
-      error: Error,
-    ) => void | Promise<void>;
-  },
-) => {
-  const {
-    onAfterDestroy,
-    // deno-lint-ignore require-await
-    onUnableToDestroy = async (_fsPath: string, error: Error) => {
-      if (!(error instanceof Deno.errors.NotFound)) {
-        throw error;
-      }
-    },
-  } = options ?? {};
-  try {
-    await Deno.remove(fsPath, { recursive: true });
-    await onAfterDestroy?.(fsPath);
-  } catch (error) {
-    await onUnableToDestroy(fsPath, error);
-  }
-};
 
 export class PublicationResourcesIndex<Resource = Any>
   extends gi.UniversalIndex<Resource> {
@@ -86,50 +58,21 @@ export class PublicationPersistedIndex {
   }
 }
 
-export interface Preferences {
-  readonly originationSources: Iterable<orig.FilePathsSupplier>;
-  readonly destRootPath: string;
-  readonly appName?: string;
-  readonly persistClientCargo?: ds.HtmlLayoutClientCargoPersister;
-  readonly mGitResolvers?: git.ManagedGitResolvers<string>;
-  readonly routeGitRemoteResolver?: r.RouteGitRemoteResolver<
-    ds.GitRemoteAnchor
-  >;
-  readonly routeLocationResolver?: r.RouteLocationResolver;
-  readonly rewriteMarkdownLink?: md.MarkdownLinkUrlRewriter;
-  readonly extensionsManager: extn.ExtensionsManager;
-  readonly termsManager?: k.TermsManager;
+export interface StaticPublIssue {
+  readonly humanFriendlyMessage: string;
+  readonly locationHref?: string;
+  readonly error?: Error;
 }
 
-export class StaticPublConfiguration implements Preferences {
-  readonly metrics = new m.TypicalMetrics();
-  readonly fsRouteFactory: r.FileSysRouteFactory;
-  readonly routeLocationResolver?: r.RouteLocationResolver;
+export interface StaticPublInit {
   readonly extensionsManager: extn.ExtensionsManager;
-  readonly termsManager?: k.TermsManager;
   readonly originationSources: Iterable<orig.FilePathsSupplier>;
   readonly destRootPath: string;
-  readonly appName?: string;
-  readonly mGitResolvers?: git.ManagedGitResolvers<string>;
-  readonly routeGitRemoteResolver?: r.RouteGitRemoteResolver<
-    ds.GitRemoteAnchor
-  >;
+  readonly fsRouteFactory: r.FileSysRouteFactory;
+  readonly routes: udsp.PublicationRoutes;
   readonly rewriteMarkdownLink?: md.MarkdownLinkUrlRewriter;
-
-  constructor(prefs: Preferences) {
-    this.mGitResolvers = prefs.mGitResolvers;
-    this.originationSources = prefs.originationSources;
-    this.destRootPath = prefs.destRootPath;
-    this.appName = prefs.appName;
-    this.routeGitRemoteResolver = prefs.routeGitRemoteResolver;
-    this.routeLocationResolver = prefs.routeLocationResolver;
-    this.fsRouteFactory = new r.FileSysRouteFactory(
-      this.routeLocationResolver || r.defaultRouteLocationResolver(),
-    );
-    this.rewriteMarkdownLink = prefs.rewriteMarkdownLink;
-    this.extensionsManager = prefs.extensionsManager;
-    this.termsManager = prefs.termsManager;
-  }
+  readonly termsManager?: k.TermsManager;
+  readonly reportIssue?: (issue: StaticPublIssue) => void;
 }
 
 export class ScopedStatistics {
@@ -162,7 +105,6 @@ export class ScopedStatistics {
 }
 
 export abstract class StaticPublication {
-  readonly namespaceURIs = ["TypicalPublication<Resource>"];
   readonly producerStats: ScopedStatistics;
   readonly resourcesIndex: PublicationResourcesIndex;
   readonly persistedIndex: PublicationPersistedIndex;
@@ -171,12 +113,8 @@ export abstract class StaticPublication {
   // deno-lint-ignore no-explicit-any
   readonly dsFactory: ds.DesignSystemFactory<any, any, any, any>;
 
-  constructor(
-    readonly config: StaticPublConfiguration,
-    readonly routes = new udsp.PublicationRoutes(config.fsRouteFactory),
-  ) {
-    this.dsFactory = this.designSystemFactory(config, routes);
-    this.config.mGitResolvers?.registerResolver(routes.gitAssetPublUrlResolver);
+  constructor(readonly spInit: StaticPublInit) {
+    this.dsFactory = this.prepareDesignSystemFactory(spInit);
     this.persistedIndex = new PublicationPersistedIndex();
     this.resourcesIndex = new PublicationResourcesIndex();
     this.producerStats = new ScopedStatistics("producer");
@@ -197,10 +135,21 @@ export abstract class StaticPublication {
     );
   }
 
-  abstract designSystemFactory(
-    config: StaticPublConfiguration,
-    routes: udsp.PublicationRoutes,
+  protected abstract prepareDesignSystemFactory(
+    spInit: StaticPublInit,
   ): ds.DesignSystemFactory<Any, Any, Any, Any>;
+
+  fileSysRouteParser(): fsr.FileSysRouteParser {
+    return fsr.humanFriendlyFileSysRouteParser;
+  }
+
+  fileSysRouteOptions(): r.FileSysRouteOptions {
+    return {
+      fsRouteFactory: this.spInit.fsRouteFactory,
+      extensionsManager: this.spInit.extensionsManager,
+      routeParser: this.fileSysRouteParser(),
+    };
+  }
 
   /**
    * Create symlinks for files such as images, CSS style sheets, and other
@@ -210,14 +159,14 @@ export abstract class StaticPublication {
     onDestExists?: (src: fs.WalkEntry, dest: string) => void,
   ) {
     await Promise.all([
-      ...Array.from(this.config.originationSources).map((os) => {
+      ...Array.from(this.spInit.originationSources).map((os) => {
         // For any files that are in the content directory but were not "consumed"
         // (transformed or rendered) we will assume that they should be symlinked
         // to the destination path in the same directory structure as they exist
         // in the source content path. Images, and other assets sitting in same
         // directories as *.html, *.ts, *.md, etc. will be symlink'd so that they
         // do not need to be copied.
-        return fsLink.linkAssets(os.rootPath, this.config.destRootPath, {
+        return fsLink.linkAssets(os.rootPath, this.spInit.destRootPath, {
           destExistsHandler: onDestExists,
         }, {
           glob: "**/*",
@@ -249,7 +198,7 @@ export abstract class StaticPublication {
     return new md.MarkdownRenderStrategy(
       new md.MarkdownLayouts({
         directiveExpectations: this.directiveExpectationsSupplier(),
-        rewriteURL: this.config.rewriteMarkdownLink,
+        rewriteURL: this.spInit.rewriteMarkdownLink,
         customize: (mdi) => {
           mdi.renderer.rules.image = md.autoCorrectPrettyUrlImagesRule(
             mdi.renderer.rules.image,
@@ -266,7 +215,7 @@ export abstract class StaticPublication {
 
   originationRefinery() {
     // usually all we want to do is put originated resources into a tree
-    return this.routes.resourcesTreePopulatorSync();
+    return this.spInit.routes.resourcesTreePopulatorSync();
   }
 
   persistersRefinery() {
@@ -308,21 +257,21 @@ export abstract class StaticPublication {
       {
         identity: "prettyUrlsHtmlProducer",
         refinery: this.dsFactory.designSystem.prettyUrlsHtmlProducer(
-          this.config.destRootPath,
+          this.spInit.destRootPath,
           this.dsFactory.contentStrategy,
           { fspEE },
         ),
       },
       {
         identity: "jsonTextProducer",
-        refinery: jrs.jsonTextProducer(this.config.destRootPath, {
-          routeTree: this.routes.resourcesTree,
+        refinery: jrs.jsonTextProducer(this.spInit.destRootPath, {
+          routeTree: this.spInit.routes.resourcesTree,
         }, fspEE),
       },
       {
         identity: "csvProducer",
         refinery: dtr.csvProducer<unknown>(
-          this.config.destRootPath,
+          this.spInit.destRootPath,
           undefined, // TODO: what should `state` be?
           fspEE,
         ),
@@ -330,7 +279,7 @@ export abstract class StaticPublication {
       {
         identity: "textFileProducer",
         refinery: tfr.textFileProducer<unknown>(
-          this.config.destRootPath,
+          this.spInit.destRootPath,
           undefined, // TODO: what should `state` be?
           {
             eventsEmitter: fspEE,
@@ -340,7 +289,7 @@ export abstract class StaticPublication {
       {
         identity: "bundleProducer",
         refinery: br.bundleProducer<unknown>(
-          this.config.destRootPath,
+          this.spInit.destRootPath,
           undefined, // TODO: what should `state` be?
           {
             eventsEmitter: fspEE,
@@ -351,30 +300,26 @@ export abstract class StaticPublication {
   }
 
   async initProduce() {
-    // setup the cache and any other git-specific initialization
-    if (this.dsFactory.contentStrategy.git instanceof git.TypicalGit) {
-      await this.dsFactory.contentStrategy.git.init();
-    }
+    await this.dsFactory.beforeFirstRender?.(this.dsFactory);
   }
 
   async *resources<Resource>(refine: coll.ResourceRefinerySync<Resource>) {
     const mdRenderers = this.markdownRenderers();
-    const { fsRouteFactory } = this.config;
-    const fso = orig.typicalfsFileSuffixOriginators({
-      fsRouteFactory,
-      extensionsManager: this.config.extensionsManager,
-      routeParser: fsr.humanFriendlyFileSysRouteParser,
-    }, {
-      markdownRS: mdRenderers,
-      // deno-lint-ignore require-await
-      onOriginated: async (_, fsPath) => {
-        // if we "consumed" (handled) the resource it means we do not want it to
-        // go to the destination directory so let's track it
-        this.consumedFileSysWalkPaths.add(fsPath);
+    const fsro = this.fileSysRouteOptions();
+    const fso = orig.typicalfsFileSuffixOriginators(
+      fsro,
+      {
+        markdownRS: mdRenderers,
+        // deno-lint-ignore require-await
+        onOriginated: async (_, fsPath) => {
+          // if we "consumed" (handled) the resource it means we do not want it to
+          // go to the destination directory so let's track it
+          this.consumedFileSysWalkPaths.add(fsPath);
+        },
       },
-    });
+    );
     yield* orig.originateAll(
-      fso.instances(this.config.originationSources),
+      fso.instances(this.spInit.originationSources),
       "before",
       { refine },
     );
@@ -388,11 +333,11 @@ export abstract class StaticPublication {
   ) {
     // the first round of all resources are now available, but haven't yet been
     // persisted so let's prepare the navigation trees before we persist
-    this.routes.prepareNavigationTree();
+    this.spInit.routes.prepareNavigationTree();
 
     // the navigation tree may have generated redirect HTML pages (e.g. aliases
     // or redirects) so let's get those into the index too
-    const redirects = this.routes.redirectResources();
+    const redirects = this.spInit.routes.redirectResources();
     for await (
       const resource of orig.originateAll(
         redirects.resourcesFactories(),

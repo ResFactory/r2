@@ -184,9 +184,6 @@ export class PublicationRoutes {
    * resourcesTree.
    */
   prepareNavigationTree() {
-    // this.navigationTree.consumeRoute(
-    //   ocC.diagnosticsObsRedirectRoute(this.routeFactory),
-    // );
     this.resourcesTree.consumeAliases();
     this.navigationTree.consumeTree(
       this.resourcesTree,

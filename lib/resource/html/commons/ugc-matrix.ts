@@ -1,4 +1,13 @@
-import * as ds from "../mod.ts";
+import * as safety from "../../../../lib/safety/mod.ts";
+import * as html from "../mod.ts";
+
+export interface UserGeneratedContentFrontmatter {
+  readonly ugc: { comments: boolean };
+}
+
+export const isUserGeneratedContentFrontmatter = safety.typeGuard<
+  UserGeneratedContentFrontmatter
+>("ugc");
 
 export interface CactusMatrixServerConfig {
   readonly defaultHomeserverUrl: string;
@@ -32,7 +41,7 @@ export function cactusMatrixServerEnvConfig(
 }
 
 export function matrixCactusCommentsContribs(
-  contribs: ds.HtmlLayoutContributions,
+  contribs: html.HtmlLayoutContributions,
   mcConfig: CactusMatrixServerConfig,
 ): void {
   contribs.scripts
