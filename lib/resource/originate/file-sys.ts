@@ -151,6 +151,7 @@ export const isWalkGlobContextOriginationSupplier = (
 export function typicalfsFileSuffixOriginators(
   defaultRouteOptions: r.FileSysRouteOptions,
   typicalSuffixOptions?: {
+    readonly markdownRS?: md.MarkdownRenderStrategy;
     readonly onOriginated?: <Resource>(
       resource: Resource,
       fsPath: string,
@@ -198,7 +199,10 @@ export function typicalfsFileSuffixOriginators(
   originators.set(".rf.ts", moduleSuffixOriginator);
   originators.set(".rf.js", moduleSuffixOriginator);
 
-  const mdSuffixFactory = md.fsFileSuffixRenderedMarkdownResourceOriginator(em);
+  const mdSuffixFactory = md.fsFileSuffixRenderedMarkdownResourceOriginator(
+    em,
+    typicalSuffixOptions?.markdownRS,
+  );
   const mdSuffixOriginator: FileExtnOriginationFactory<Any> = {
     // deno-lint-ignore require-await
     factory: async (fsPath) => {

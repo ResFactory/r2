@@ -8,6 +8,8 @@ import * as html from "../../html/mod.ts";
 import * as ldsGovn from "./governance.ts";
 import * as l from "./layout/mod.ts";
 import * as ldsDirec from "./directive/mod.ts";
+import * as udsp from "../universal/publication.ts";
+import * as rws from "../../route/commons/weight.ts";
 
 export class LightingDesignSystemLayouts<
   Layout extends ldsGovn.LightningLayout,
@@ -186,6 +188,41 @@ export class LightingDesignSystem<Layout extends ldsGovn.LightningLayout>
     return result as Layout; // TODO: consider not casting to type
   }
 }
+
+// export class LightningRoutes extends udsp.PublicationRoutes {
+//   constructor(
+//     readonly routeFactory: r.RouteFactory,
+//     readonly contextBarLevel = 1,
+//   ) {
+//     super(routeFactory, new udsp.ResourcesTree(routeFactory));
+//   }
+
+//   prepareNavigationTree() {
+//     // this.navigationTree.consumeRoute(
+//     //   ocC.diagnosticsObsRedirectRoute(this.routeFactory),
+//     // );
+//     this.resourcesTree.consumeAliases();
+//     this.navigationTree.consumeTree(
+//       this.resourcesTree,
+//       (node) => {
+//         if (
+//           ldsGovn.isNavigationTreeContextBarNode(node) &&
+//           node.isContextBarRouteNode
+//         ) {
+//           return true;
+//         }
+//         if (node.level < this.contextBarLevel) return false;
+//         return ren.isRenderableMediaTypeResource(
+//             node.route,
+//             c.htmlMediaTypeNature.mediaType,
+//           )
+//           ? true
+//           : false;
+//       },
+//       { order: rws.orderByWeight },
+//     );
+//   }
+// }
 
 export function lightningLintReporter(): html.DesignSystemLintReporter<
   ldsGovn.LightningLayout

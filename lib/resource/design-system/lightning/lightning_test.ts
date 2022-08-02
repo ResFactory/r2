@@ -5,6 +5,7 @@ import * as r from "../../route/mod.ts";
 import * as ldsGovn from "./governance.ts";
 import * as git from "../../../../lib/git/mod.ts";
 import * as k from "../../../../lib/knowledge/mod.ts";
+import * as ua from "../../design-system/universal/assets.ts";
 import * as mod from "./lightning.ts";
 
 export type Resource = c.TextSyncSupplier;
@@ -12,7 +13,7 @@ export type Resource = c.TextSyncSupplier;
 Deno.test(`htmlLayoutTransformers with lds prime`, async () => {
   const lds = new mod.LightingDesignSystem(
     new extn.CachedExtensions(),
-    `/universal-cc`,
+    ua.universalAssetsBaseURL,
   );
   const lss = lds.layoutStrategies.defaultLayoutStrategySupplier;
   const ls = lss.layoutStrategy;

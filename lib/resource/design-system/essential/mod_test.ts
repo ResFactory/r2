@@ -6,6 +6,7 @@ import * as k from "../../../../lib/knowledge/mod.ts";
 import * as ws from "../../../../lib/text/whitespace.ts";
 import * as c from "../../content/mod.ts";
 import * as r from "../../route/mod.ts";
+import * as ua from "../../design-system/universal/assets.ts";
 import * as html from "../../html/mod.ts";
 import * as mod from "./mod.ts";
 
@@ -14,7 +15,7 @@ type Resource = c.TextSyncSupplier;
 Deno.test(`TailwindDesignSystem layouts`, async (tc) => {
   const twDS = new mod.TailwindDesignSystem(
     new extn.CachedExtensions(),
-    `/universal-cc`,
+    ua.universalAssetsBaseURL,
   );
 
   await tc.step("named layouts", () => {
@@ -53,7 +54,7 @@ Deno.test(`TailwindDesignSystem layouts`, async (tc) => {
 Deno.test(`TailwindDesignSystem rendering with no HTML decoration`, async () => {
   const twDS = new mod.TailwindDesignSystem(
     new extn.CachedExtensions(),
-    `/universal-cc`,
+    ua.universalAssetsBaseURL,
   );
   const resource: Resource = {
     textSync: "Test of content transformation to HTML layout",
@@ -98,7 +99,7 @@ const syntheticLayout = mod.essentialPageLayout(mod.pageIdentity('synthetic'), {
 Deno.test(`TailwindDesignSystem rendering with synthetic HTML layout, no navigation`, async () => {
   const twDS = new mod.TailwindDesignSystem(
     new extn.CachedExtensions(),
-    `/universal-cc`,
+    ua.universalAssetsBaseURL,
   );
   const resource: Resource = {
     textSync:
@@ -143,7 +144,7 @@ Deno.test(`TailwindDesignSystem rendering with synthetic HTML layout, with navig
 
   const twDS = new mod.TailwindDesignSystem(
     new extn.CachedExtensions(),
-    `/universal-cc`,
+    ua.universalAssetsBaseURL,
   );
   const resource: Resource = {
     textSync:
@@ -176,7 +177,7 @@ Deno.test(`TailwindDesignSystem rendering with synthetic HTML layout, with navig
 // Deno.test(`navigable htmlLayoutTransformers with EssentialDS`, async () => {
 //   const twDS = new mod.TailwindDesignSystem(
 //     new extn.CachedExtensions(),
-//     `/universal-cc`,
+//     ua.universalAssetsBaseURL,
 //   );
 //   const lss = twDS.layoutStrategies.defaultLayoutStrategySupplier;
 //   const ls = lss.layoutStrategy;
