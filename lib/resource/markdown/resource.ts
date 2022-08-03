@@ -111,7 +111,8 @@ export const constructStaticMarkdownTextResource = (
     & fm.FrontmatterConsumer<fm.UntypedFrontmatter>
     & r.RouteSupplier
     & r.ParsedRouteConsumer
-    & i.InstantiatorSupplier = {
+    & i.InstantiatorSupplier
+    & govn.OriginationSupplier<typeof origination> = {
       nature,
       frontmatter: {},
       route: {
@@ -160,6 +161,7 @@ export const constructStaticMarkdownTextResource = (
         import.meta.url,
         "constructStaticMarkdownTextResource",
       ),
+      origination,
     };
   origination.frontmatterEffector?.(result);
   return result;
@@ -179,7 +181,9 @@ export const constructStaticMarkdownResourceSync = (
     & r.RouteSupplier
     & r.ParsedRouteConsumer
     & i.InstantiatorSupplier
-    & govn.OriginationSupplier<typeof origination> = {
+    & govn.OriginationSupplier<
+      typeof origination & coll.ResourceFactorySupplier<MarkdownResource>
+    > = {
       nature,
       frontmatter: {},
       route: {
@@ -229,7 +233,16 @@ export const constructStaticMarkdownResourceSync = (
         import.meta.url,
         "constructStaticMarkdownResourceSync",
       ),
-      origination,
+      origination: {
+        ...origination,
+        // the resourceFactory in an origination object is responsible for
+        // "cloning" an instatiation; this is used by memoizers to replay an
+        // object construction activity
+        // deno-lint-ignore require-await
+        resourceFactory: async () => {
+          return constructStaticMarkdownResourceSync(origination, options);
+        },
+      },
     };
   return result;
 };
@@ -255,6 +268,13 @@ export function staticMarkdownFileSysResourceFactory(
       options?: r.FileSysRouteOptions,
     ) => {
       const instance = await factory.construct(we, options);
+      coll.forceOriginationRF<MarkdownResource>(instance, async () => {
+        // the resourceFactory in an origination object is responsible for
+        // "cloning" an instatiation; this is used by memoizers to replay an
+        // object construction activity
+        const instance = await factory.construct(we, options);
+        return (refine ? await refine(instance) : instance);
+      });
       return refine ? await refine(instance) : instance;
     },
   };
@@ -266,13 +286,15 @@ export const constructMarkdownModuleResourceSync: (
   content: string,
   frontmatter: extn.UntypedExports,
   options?: r.FileSysRouteOptions,
-) => MarkdownResource = (origination, content, frontmatter) => {
+) => MarkdownResource = (origination, content, frontmatter, options) => {
   const nature = markdownContentNature;
   const result:
     & MarkdownResource
     & r.RouteSupplier
     & i.InstantiatorSupplier
-    & govn.OriginationSupplier<typeof origination> = {
+    & govn.OriginationSupplier<
+      typeof origination & coll.ResourceFactorySupplier<MarkdownResource>
+    > = {
       nature,
       frontmatter,
       route: {
@@ -292,7 +314,21 @@ export const constructMarkdownModuleResourceSync: (
         import.meta.url,
         "constructMarkdownModuleResourceSync",
       ),
-      origination,
+      origination: {
+        ...origination,
+        // the resourceFactory in an origination object is responsible for
+        // "cloning" an instatiation; this is used by memoizers to replay an
+        // object construction activity
+        // deno-lint-ignore require-await
+        resourceFactory: async () => {
+          return constructMarkdownModuleResourceSync(
+            origination,
+            content,
+            frontmatter,
+            options,
+          );
+        },
+      },
     };
   return result;
 };
@@ -357,7 +393,10 @@ export function markdownModuleFileSysResourceFactory(
             & MarkdownResource
             & r.RouteSupplier
             & i.InstantiatorSupplier
-            & govn.OriginationSupplier<typeof origination> = {
+            & govn.OriginationSupplier<
+              & typeof origination
+              & coll.ResourceFactorySupplier<MarkdownResource>
+            > = {
               imported,
               frontmatter,
               nature,
@@ -378,7 +417,16 @@ export function markdownModuleFileSysResourceFactory(
                 import.meta.url,
                 "markdownModuleFileSysResourceFactory.defaultValue",
               ),
-              origination,
+              origination: {
+                ...origination,
+                // the resourceFactory in an origination object is responsible for
+                // "cloning" an instatiation; this is used by memoizers to replay an
+                // object construction activity
+                // deno-lint-ignore require-await
+                resourceFactory: async () => {
+                  return factory.construct(origination, options);
+                },
+              },
             };
           return result;
         } else {
@@ -400,6 +448,13 @@ export function markdownModuleFileSysResourceFactory(
       options?: r.FileSysRouteOptions,
     ) => {
       const instance = await factory.construct(we, options);
+      coll.forceOriginationRF<MarkdownResource>(instance, async () => {
+        // the resourceFactory in an origination object is responsible for
+        // "cloning" an instatiation; this is used by memoizers to replay an
+        // object construction activity
+        const instance = await factory.construct(we, options);
+        return (refine ? await refine(instance) : instance);
+      });
       return (refine ? await refine(instance) : instance);
     },
   };

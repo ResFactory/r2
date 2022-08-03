@@ -239,7 +239,7 @@ export abstract class StaticPublication {
           isPersisting: false,
           // deno-lint-ignore require-await
           memoize: async (resource, suggestedDestName, producer) => {
-            this.memoizedProducers.memoize(
+            this.memoizedProducers.smartMemoize(
               (unit) =>
                 this.dsFactory.contentStrategy.navigation?.location(unit) ??
                   "/renderersRefinery/no-navigation",

@@ -16,7 +16,7 @@ export interface MemoizedResource {
   readonly unit: r.RouteNode;
   readonly isReloadRequired: () => boolean;
   // deno-lint-ignore no-explicit-any
-  readonly replay: () => Promise<any>;
+  readonly replay: (forceReloadIfPossible?: boolean) => Promise<any>;
   readonly potentialDestPath: string;
   readonly becauseOfIssue?: MemoizedResourceIssue;
 }
@@ -108,13 +108,17 @@ export class MemoizedResources {
                 resource,
               ) && coll.isResourceFactorySupplier(resource.origination)
             ) {
+              const isReloadRequired = () => unit.isModifiedInFileSys();
               const mp: MemoizedResource = {
                 unit,
                 potentialDestPath,
-                isReloadRequired: () => unit.isModifiedInFileSys(),
-                replay: async () => {
-                  const cloned = await resource.origination.resourceFactory();
-                  return await producer(cloned);
+                isReloadRequired,
+                replay: async (forceReloadIfPossible?: boolean) => {
+                  if (forceReloadIfPossible || isReloadRequired()) {
+                    const cloned = await resource.origination.resourceFactory();
+                    return await producer(cloned);
+                  }
+                  return await producer(resource);
                 },
               };
               this.producersByRouteLocation.set(location(unit), mp);
