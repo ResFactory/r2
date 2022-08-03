@@ -18,6 +18,7 @@ export interface MemoizedResource {
   // deno-lint-ignore no-explicit-any
   readonly replay: () => Promise<any>;
   readonly potentialDestPath: string;
+  readonly becauseOfIssue?: MemoizedResourceIssue;
 }
 
 export class MemoizedResources {
@@ -42,12 +43,14 @@ export class MemoizedResources {
    * @param resource the resource
    * @param producer the producer we're memoizing
    * @param potentialDestPath either the name of the file that was generated or a potential that might be generated
+   * @param becauseOfIssue if this memoize call is being made due to an issue with smartMemoize
    */
   memoize<Resource>(
     location: (unit: r.RouteNode) => r.RouteLocation,
     resource: Resource,
     producer: (resource: Resource) => Promise<Resource>,
     potentialDestPath: string,
+    becauseOfIssue?: MemoizedResourceIssue,
   ) {
     const { reportIssue } = this.init ?? {};
     if (r.isRouteSupplier(resource)) {
@@ -60,6 +63,7 @@ export class MemoizedResources {
           replay: async () => {
             return await producer(resource);
           },
+          becauseOfIssue,
         };
         this.producersByRouteLocation.set(location(unit), mp);
         this.producersByDestPath.set(potentialDestPath, mp);
@@ -116,16 +120,16 @@ export class MemoizedResources {
               this.producersByRouteLocation.set(location(unit), mp);
               this.producersByDestPath.set(potentialDestPath, mp);
             } else {
-              reportIssue?.({
+              this.memoize(location, resource, producer, potentialDestPath, {
                 humanFriendlyMessage:
-                  `Smart-memoizing a resource producer that is not an origination supplier will not work`,
+                  `Smart-memoizing a resource producer that is not an origination supplier will not work, defaulting to static memoize instead`,
                 inspectable: Deno.inspect({ unit, resource }),
               });
             }
           } else {
-            reportIssue?.({
+            this.memoize(location, resource, producer, potentialDestPath, {
               humanFriendlyMessage:
-                `Smart-memoizing a resource producer without lastModifiedAt will not work`,
+                `Smart-memoizing a resource producer without lastModifiedAt will not work, defaulting to static memoize instead`,
               inspectable: Deno.inspect(unit),
             });
           }

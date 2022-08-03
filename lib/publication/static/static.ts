@@ -1,4 +1,4 @@
-import * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
+import { fs, path } from "../deps.ts";
 
 import * as st from "../../statistics/stream.ts";
 import * as k from "../../knowledge/mod.ts";
@@ -336,45 +336,6 @@ export abstract class StaticPublication {
 
   async initProduce() {
     await this.dsFactory.beforeFirstRender?.(this.dsFactory);
-  }
-
-  // deno-lint-ignore require-await
-  async memoizedResource(location: r.RouteLocation) {
-    const matchers = [
-      {
-        label: "producersByDestPath(exact)",
-        matcher: () => this.memoizedProducers.producersByDestPath.get(location),
-      },
-      {
-        label: "producersByDestPath(index.html)",
-        matcher: () =>
-          this.memoizedProducers.producersByDestPath.get(
-            location + "/index.html",
-          ),
-      },
-      {
-        label: "producersByRouteLocation(exact)",
-        matcher: () =>
-          this.memoizedProducers.producersByRouteLocation.get(location),
-      },
-      {
-        label: "producersByRouteLocation(slashTail)",
-        matcher: () =>
-          this.memoizedProducers.producersByRouteLocation.get(location + "/"),
-      },
-    ];
-    for (const m of matchers) {
-      const memoized = m.matcher();
-      if (memoized) return { location, matched: m.label, memoized };
-    }
-    return {
-      location,
-      matched: "none",
-      matchers,
-      error: new Error(
-        `location ${location} not found`,
-      ),
-    };
   }
 
   async *resources<Resource>(refine: coll.ResourceRefinerySync<Resource>) {
