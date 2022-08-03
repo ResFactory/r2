@@ -1,27 +1,28 @@
 import * as fs from "https://deno.land/std@0.147.0/fs/mod.ts";
 
-import * as st from "../statistics/stream.ts";
-import * as k from "../knowledge/mod.ts";
-import * as fsr from "../fs/fs-route.ts";
-import * as fsLink from "../fs/link.ts";
-import * as gi from "../structure/govn-index.ts";
-import * as m from "../metrics/mod.ts";
-import * as extn from "../module/mod.ts";
+import * as st from "../../statistics/stream.ts";
+import * as k from "../../knowledge/mod.ts";
+import * as fsr from "../../fs/fs-route.ts";
+import * as fsLink from "../../fs/link.ts";
+import * as gi from "../../structure/govn-index.ts";
+import * as m from "../../metrics/mod.ts";
+import * as extn from "../../module/mod.ts";
+import * as memo from "../memoize.ts";
 
-import * as jrs from "../resource/json.ts";
-import * as dtr from "../resource/delimited-text.ts";
-import * as tfr from "../resource/text.ts";
-import * as br from "../resource/bundle.ts";
-import * as orig from "../resource/originate/mod.ts";
-import * as c from "../resource/content/mod.ts";
-import * as p from "../resource/persist/mod.ts";
-import * as coll from "../resource/collection/mod.ts";
-import * as fm from "../resource/frontmatter/mod.ts";
-import * as r from "../resource/route/mod.ts";
-import * as i from "../resource/instantiate.ts";
-import * as md from "../resource/markdown/mod.ts";
-import * as ds from "../resource/html/mod.ts";
-import * as udsp from "../resource/design-system/universal/publication.ts";
+import * as jrs from "../../resource/json.ts";
+import * as dtr from "../../resource/delimited-text.ts";
+import * as tfr from "../../resource/text.ts";
+import * as br from "../../resource/bundle.ts";
+import * as orig from "../../resource/originate/mod.ts";
+import * as c from "../../resource/content/mod.ts";
+import * as p from "../../resource/persist/mod.ts";
+import * as coll from "../../resource/collection/mod.ts";
+import * as fm from "../../resource/frontmatter/mod.ts";
+import * as r from "../../resource/route/mod.ts";
+import * as i from "../../resource/instantiate.ts";
+import * as md from "../../resource/markdown/mod.ts";
+import * as ds from "../../resource/html/mod.ts";
+import * as udsp from "../../resource/design-system/universal/publication.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -104,6 +105,10 @@ export class ScopedStatistics {
   }
 }
 
+export interface StaticPublicationStrategy {
+  readonly isPersisting: boolean;
+}
+
 export abstract class StaticPublication {
   readonly producerStats: ScopedStatistics;
   readonly resourcesIndex: PublicationResourcesIndex;
@@ -112,9 +117,16 @@ export abstract class StaticPublication {
   readonly fspEventsEmitter = new p.FileSysPersistenceEventsEmitter();
   // deno-lint-ignore no-explicit-any
   readonly dsFactory: ds.DesignSystemFactory<any, any, any, any>;
+  readonly memoizedProducers: memo.MemoizedResources;
 
-  constructor(readonly spInit: StaticPublInit) {
+  constructor(
+    readonly spInit: StaticPublInit,
+    readonly strategy: StaticPublicationStrategy = { isPersisting: true },
+  ) {
     this.dsFactory = this.prepareDesignSystemFactory(spInit);
+    this.memoizedProducers = new memo.MemoizedResources({
+      reportIssue: spInit.reportIssue,
+    });
     this.persistedIndex = new PublicationPersistedIndex();
     this.resourcesIndex = new PublicationResourcesIndex();
     this.producerStats = new ScopedStatistics("producer");
@@ -218,6 +230,29 @@ export abstract class StaticPublication {
     return this.spInit.routes.resourcesTreePopulatorSync();
   }
 
+  memoizersRefinery() {
+    return coll.pipelineUnitsRefineryUntyped(
+      this.dsFactory.designSystem.potentialPrettyUrlsHtmlProducer(
+        this.spInit.destRootPath,
+        this.dsFactory.contentStrategy,
+        {
+          isPersisting: false,
+          // deno-lint-ignore require-await
+          memoize: async (resource, suggestedDestName, producer) => {
+            this.memoizedProducers.memoize(
+              (unit) =>
+                this.dsFactory.contentStrategy.navigation?.location(unit) ??
+                  "/renderersRefinery/no-navigation",
+              resource,
+              producer,
+              "/" + path.relative(this.spInit.destRootPath, suggestedDestName),
+            );
+          },
+        },
+      ),
+    );
+  }
+
   persistersRefinery() {
     const fspEE = this.fspEventsEmitter;
     // fspEE.on("afterPersistResourceFile", (resource, fspr) => {
@@ -255,8 +290,8 @@ export abstract class StaticPublication {
         );
       },
       {
-        identity: "prettyUrlsHtmlProducer",
-        refinery: this.dsFactory.designSystem.prettyUrlsHtmlProducer(
+        identity: "potentialPrettyUrlsHtmlProducer",
+        refinery: this.dsFactory.designSystem.potentialPrettyUrlsHtmlProducer(
           this.spInit.destRootPath,
           this.dsFactory.contentStrategy,
           { fspEE },
@@ -303,6 +338,45 @@ export abstract class StaticPublication {
     await this.dsFactory.beforeFirstRender?.(this.dsFactory);
   }
 
+  // deno-lint-ignore require-await
+  async memoizedResource(location: r.RouteLocation) {
+    const matchers = [
+      {
+        label: "producersByDestPath(exact)",
+        matcher: () => this.memoizedProducers.producersByDestPath.get(location),
+      },
+      {
+        label: "producersByDestPath(index.html)",
+        matcher: () =>
+          this.memoizedProducers.producersByDestPath.get(
+            location + "/index.html",
+          ),
+      },
+      {
+        label: "producersByRouteLocation(exact)",
+        matcher: () =>
+          this.memoizedProducers.producersByRouteLocation.get(location),
+      },
+      {
+        label: "producersByRouteLocation(slashTail)",
+        matcher: () =>
+          this.memoizedProducers.producersByRouteLocation.get(location + "/"),
+      },
+    ];
+    for (const m of matchers) {
+      const memoized = m.matcher();
+      if (memoized) return { location, matched: m.label, memoized };
+    }
+    return {
+      location,
+      matched: "none",
+      matchers,
+      error: new Error(
+        `location ${location} not found`,
+      ),
+    };
+  }
+
   async *resources<Resource>(refine: coll.ResourceRefinerySync<Resource>) {
     const mdRenderers = this.markdownRenderers();
     const fsro = this.fileSysRouteOptions();
@@ -329,7 +403,7 @@ export abstract class StaticPublication {
     originationRefinery: coll.ResourceRefinerySync<
       r.RouteSupplier<r.RouteNode>
     >,
-    resourcesIndex: gi.UniversalIndex<unknown>,
+    resourcesIndex: PublicationResourcesIndex,
   ) {
     // the first round of all resources are now available, but haven't yet been
     // persisted so let's prepare the navigation trees before we persist
@@ -378,13 +452,32 @@ export abstract class StaticPublication {
     // or any other pre-persist activities
     await this.finalizePrePersist(originationRefinery, resourcesIndex);
 
-    // now all resources, child resources, redirect pages, etc. have been
-    // created so we can persist all pages that are in our index
-    const persist = this.persistersRefinery();
-    const ri = resourcesIndex.resourcesIndex;
-    for (let i = 0; i < ri.length; i++) {
-      const resource = ri[i];
-      await persist(resource);
+    // if we're acting like a normal static site generator (SSG) then we'll be
+    // "persisting" (saving) our generated output; otherwise, we will be acting
+    // in a "service" model and serving individually-rendered resources when
+    // requested by path
+    if (this.strategy.isPersisting) {
+      // now all resources, child resources, redirect pages, etc. have been
+      // created so we can persist all pages that are in our index
+      const persist = this.persistersRefinery();
+      const ri = resourcesIndex.resourcesIndex;
+      for (let i = 0; i < ri.length; i++) {
+        const resource = ri[i];
+        await persist(resource);
+      }
+    } else {
+      // now all resources, child resources, redirect pages, etc. have been
+      // created so we can "memoize" all pages that are in our index instead of
+      // storing to disk -- memoization can "replay" any resources on demand;
+      // NOTE: if the navigation structure has changed, the entire publication
+      // should be rebuilt because memoization only works on a single resource
+      // file basis.
+      const memoize = this.memoizersRefinery();
+      const ri = resourcesIndex.resourcesIndex;
+      for (let i = 0; i < ri.length; i++) {
+        const resource = ri[i];
+        await memoize(resource);
+      }
     }
 
     // give opportunity for subclasses to finalize the production pipeline

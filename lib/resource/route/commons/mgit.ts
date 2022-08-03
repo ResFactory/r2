@@ -1,3 +1,4 @@
+import { path } from "../../deps.ts";
 import * as git from "../../../../lib/git/mod.ts";
 import * as r from "../mod.ts";
 import * as html from "../../html/mod.ts";

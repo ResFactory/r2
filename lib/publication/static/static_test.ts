@@ -1,12 +1,10 @@
-import { testingAsserts as ta } from "./deps-test.ts";
-import { path } from "./deps.ts";
-import * as extn from "../module/mod.ts";
-// import * as git from "../git/mod.ts";
-// import * as k from "../knowledge/mod.ts";
-import * as lds from "../resource/design-system/lightning/mod.ts";
-import * as orig from "../resource/originate/mod.ts";
-import * as ua from "../resource/design-system/universal/assets.ts";
-import * as udsp from "../resource/design-system/universal/publication.ts";
+import { testingAsserts as ta } from "../deps-test.ts";
+import { path } from "../deps.ts";
+import * as extn from "../../module/mod.ts";
+import * as lds from "../../resource/design-system/lightning/mod.ts";
+import * as orig from "../../resource/originate/mod.ts";
+import * as ua from "../../resource/design-system/universal/assets.ts";
+import * as udsp from "../../resource/design-system/universal/publication.ts";
 import * as mod from "./static.ts";
 
 // deno-lint-ignore no-explicit-any

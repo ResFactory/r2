@@ -652,27 +652,38 @@ export abstract class DesignSystem<Layout extends l.HtmlLayout>
     };
   }
 
-  prettyUrlsHtmlProducer(
+  /**
+   * A resource refinery that will look at the resource to see if it's HTML-
+   * renderable and renders, then persists the resource. If it's not HTML-
+   * renderable the resource remains untouched.
+   * @returns a refinery function that can be passed into a pipeline
+   */
+  potentialPrettyUrlsHtmlProducer(
     destRootPath: string,
     contentStrategy: UntypedDesignSystemContentStrategy,
     options?: {
+      readonly isPersisting?: boolean;
       readonly fspEE?: p.FileSysPersistenceEventsEmitter;
       readonly memoize?: (
         resource: c.HtmlSupplier,
+        suggestedDestName: string,
         producer: (replay: c.HtmlSupplier) => Promise<c.HtmlSupplier>,
       ) => Promise<void>;
     },
   ): coll.ResourceRefinery<c.HtmlSupplier> {
-    const producer = coll.pipelineUnitsRefineryUntyped(
-      this.pageRenderer(contentStrategy),
-      n.htmlContentNature.persistFileSysRefinery(
-        destRootPath,
-        p.routePersistPrettyUrlHtmlNamingStrategy((ru) =>
-          ru.unit === this.prettyUrlIndexUnitName
+    const { isPersisting = true, fspEE, memoize } = options ?? {};
+    const producer = isPersisting
+      ? coll.pipelineUnitsRefineryUntyped(
+        this.pageRenderer(contentStrategy),
+        n.htmlContentNature.persistFileSysRefinery(
+          destRootPath,
+          p.routePersistPrettyUrlHtmlNamingStrategy((ru) =>
+            ru.unit === this.prettyUrlIndexUnitName
+          ),
+          fspEE,
         ),
-        options?.fspEE,
-      ),
-    );
+      )
+      : this.pageRenderer(contentStrategy);
 
     return async (resource) => {
       if (
@@ -681,8 +692,14 @@ export abstract class DesignSystem<Layout extends l.HtmlLayout>
           c.htmlMediaTypeNature.mediaType,
         )
       ) {
-        if (options?.memoize) {
-          options?.memoize(resource, async (replay) => {
+        if (memoize) {
+          const ns = p.routePersistPrettyUrlHtmlNamingStrategy((ru) =>
+            ru.unit === this.prettyUrlIndexUnitName
+          );
+          const suggestedDestName = r.isRouteSupplier(resource)
+            ? ns(resource, destRootPath)
+            : "/potentialPrettyUrlsHtmlProducer/resource/not-route-supplier.html";
+          memoize(resource, suggestedDestName, async (replay) => {
             return await producer(replay);
           });
         }
