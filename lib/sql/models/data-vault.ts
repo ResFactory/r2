@@ -192,6 +192,14 @@ export type DataVaultHubTableDefn<
   readonly hubName: HubName;
 };
 
+export type DataVaultLinkTableDefn<
+  LinkName extends string,
+  LinkTableName extends string,
+  Context extends SQLa.SqlEmitContext,
+> = SQLa.TableDefinition<LinkTableName, Context> & {
+  readonly linkName: LinkName;
+};
+
 /**
  * dataVaultGovn is a "data vault governer" builders object for data vault models.
  * @param ddlOptions optional DDL string template literal options
@@ -383,12 +391,12 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
             SQLa.TableForeignKeyColumnDefn<Any, typeof tableName, Context>
           >,
       >(satelliteName: SatelliteName, satProps: TPropSatAxioms) =>
-        satelliteTable(result, satelliteName, satProps),
+        hubSatelliteTable(result, satelliteName, satProps),
     };
     return result;
   };
 
-  const satelliteTableName = <
+  const hubSatelliteTableName = <
     HubName extends string,
     SatelliteName extends string,
     TableName extends `sat_${HubName}_${SatelliteName}` =
@@ -399,7 +407,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       `sat_${hubName}_${satelliteName}` as TableName,
     );
 
-  const satelliteTable = <
+  const hubSatelliteTable = <
     HubName extends string,
     HubTableName extends string,
     SatelliteName extends string,
@@ -418,7 +426,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     satelliteName: SatelliteName,
     props: SatPropAxioms,
   ) => {
-    const satTableName = satelliteTableName<HubName, SatelliteName>(
+    const satTableName = hubSatelliteTableName<HubName, SatelliteName>(
       hubTableDefn.hubName,
       satelliteName,
     );
@@ -465,7 +473,7 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
         }
       }
     }
-    return {
+    const lTableResult = {
       ...table(
         lTableName,
         {
@@ -478,6 +486,69 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
       ),
       linkName,
       hubIdColNames,
+      satTable: <
+        SatelliteName extends string,
+        TPropSatAxioms extends
+          & Record<string, ax.Axiom<Any>>
+          & Record<
+            `sat_${LinkName}_${SatelliteName}_id`,
+            SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+          >
+          & Record<
+            `link_${LinkName}_id`,
+            SQLa.TableForeignKeyColumnDefn<Any, typeof lTableName, Context>
+          >,
+      >(satelliteName: SatelliteName, satProps: TPropSatAxioms) =>
+        linkSatelliteTable(lTableResult, satelliteName, satProps),
+    };
+    return lTableResult;
+  };
+
+  const linkSatelliteTableName = <
+    LinkName extends string,
+    SatelliteName extends string,
+    TableName extends `sat_${LinkName}_${SatelliteName}` =
+      `sat_${LinkName}_${SatelliteName}`,
+    Qualified extends string = TableName,
+  >(linkName: LinkName, satelliteName: SatelliteName) =>
+    tableName<TableName, Qualified>(
+      `sat_${linkName}_${satelliteName}` as TableName,
+    );
+
+  const linkSatelliteTable = <
+    LinkName extends string,
+    LinkTableName extends string,
+    SatelliteName extends string,
+    SatPropAxioms extends
+      & Record<string, (ax.Axiom<Any> & Partial<SQLa.UniqueTableColumn>)>
+      & Record<
+        `sat_${LinkName}_${SatelliteName}_id`,
+        SQLa.TablePrimaryKeyColumnDefn<Any, Context>
+      >
+      & Record<
+        `link_${LinkName}_id`,
+        SQLa.TableForeignKeyColumnDefn<Any, LinkTableName, Context>
+      >,
+  >(
+    linkTableDefn: DataVaultLinkTableDefn<LinkName, LinkTableName, Context>,
+    satelliteName: SatelliteName,
+    props: SatPropAxioms,
+  ) => {
+    const lSatTableName = linkSatelliteTableName<LinkName, SatelliteName>(
+      linkTableDefn.linkName,
+      satelliteName,
+    );
+    // TODO: add lint rule for checking if key or group of keys is unique
+    return {
+      ...table(
+        lSatTableName,
+        {
+          ...props,
+          ...housekeeping.typical.columns,
+        },
+      ),
+      linkTableDefn,
+      satelliteName,
     };
   };
 
@@ -493,8 +564,8 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     table,
     hubTableName,
     hubTable,
-    satelliteTableName,
-    satelliteTable,
+    hubSatelliteTableName,
+    hubSatelliteTable,
     linkTableName,
     linkTable,
     tableLintRules,
