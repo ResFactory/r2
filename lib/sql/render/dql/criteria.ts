@@ -31,13 +31,20 @@ export interface FilterCriteriaCompare<
   ) => tmpl.SqlTextSupplier<Context>;
 }
 
-export function fccEquals<Context extends tmpl.SqlEmitContext>() {
+export const fccValueIsNULL = (value: unknown) =>
+  value === undefined ||
+  (typeof value === "string" &&
+    value.trim().toUpperCase() == "NULL");
+
+export function fccEquals<Context extends tmpl.SqlEmitContext>(
+  valueIsNull: (value: unknown) => boolean = fccValueIsNULL,
+) {
   const result: FilterCriteriaCompare<Any, Context> = {
     nature: "=",
     sqlText: (lhs, value) => {
       return {
         SQL: () => {
-          return `${lhs} = ${value}`;
+          return valueIsNull(value) ? `${lhs} IS NULL` : `${lhs} = ${value}`;
         },
       };
     },
@@ -47,10 +54,10 @@ export function fccEquals<Context extends tmpl.SqlEmitContext>() {
 
 export function filterCriteriaCompareHelpers<
   Context extends tmpl.SqlEmitContext,
->() {
+>(valueIsNull: (value: unknown) => boolean = fccValueIsNULL) {
   return {
-    "=": () => fccEquals<Context>(),
-    equals: () => fccEquals<Context>(),
+    "=": () => fccEquals<Context>(valueIsNull),
+    equals: () => fccEquals<Context>(valueIsNull),
   };
 }
 

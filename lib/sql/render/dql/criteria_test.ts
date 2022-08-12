@@ -42,7 +42,7 @@ Deno.test("SQL Aide (SQLa) where-like criteria SQL fragments", async (tc) => {
     }));
     ta.assertEquals(
       where.SQL(ctx),
-      `"first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" = NULL`,
+      `"first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" IS NULL`,
     );
   });
 

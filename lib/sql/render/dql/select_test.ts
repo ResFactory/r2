@@ -121,7 +121,7 @@ Deno.test("SQL Aide (SQLa) typed entity SELECT statement", async (tc) => {
       uws(`
         SELECT "customer_id"
           FROM "customers"
-         WHERE "first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" = NULL`),
+         WHERE "first_name" = 'Shahid' OR "last_name" = 'Shah' AND "zip_code" IS NULL`),
     );
   });
 
