@@ -77,21 +77,6 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     glob: pkDigest(text()),
   });
 
-  const fsWalkPathPartsSat = fsWalkHub.satTable("path_parts", {
-    hub_fs_walk_id: fsWalkHub.foreignKeyRef.hub_fs_walk_id(),
-    sat_fs_walk_path_parts_id: dvg.ulidPrimaryKey(),
-    file_abs_path_and_file_name_extn: text(),
-    file_rel_path_and_file_name_extn: text(), // rel is relative to fs_walk.root_path
-    file_grandparent_rel_path: text(), // rel is relative to fs_walk.root_path
-    file_parent_rel_path: text(), // rel is relative to fs_walk.root_path
-    file_name_without_extn: text(),
-    file_name_with_extn: text(),
-    file_extn_tail: textNullable(),
-    file_extn_modifiers: textNullable(),
-    file_extn_full: textNullable(),
-    // TODO: add mtime, ctime, size, etc. `stat`?
-  }); // TODO: add unique constraints from fs.ts
-
   const deviceFileLink = dvg.linkTable("device_file", {
     link_device_file_id: dvg.digestPrimaryKey(),
     hub_device_id: pkDigest(deviceHub.foreignKeyRef.hub_device_id()),
@@ -104,6 +89,25 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     hub_fs_walk_id: pkDigest(fsWalkHub.foreignKeyRef.hub_fs_walk_id()),
     hub_file_id: pkDigest(fileHub.foreignKeyRef.hub_file_id()),
   });
+
+  const deviceFsWalkFileLinkRelPathPartsSat = deviceFsWalkFileLink.satTable(
+    "path_parts",
+    {
+      link_device_fs_walk_file_id: deviceFsWalkFileLink.foreignKeyRef
+        .link_device_fs_walk_file_id(),
+      sat_device_fs_walk_file_path_parts_id: dvg.ulidPrimaryKey(),
+      file_abs_path_and_file_name_extn: text(),
+      file_rel_path_and_file_name_extn: text(), // rel is relative to fs_walk.root_path
+      file_grandparent_rel_path: text(), // rel is relative to fs_walk.root_path
+      file_parent_rel_path: text(), // rel is relative to fs_walk.root_path
+      file_name_without_extn: text(),
+      file_name_with_extn: text(),
+      file_extn_tail: textNullable(),
+      file_extn_modifiers: textNullable(),
+      file_extn_full: textNullable(),
+      // TODO: add mtime, ctime, size, etc. `stat`?
+    },
+  ); // TODO: add unique constraints from fs.ts
 
   // deno-fmt-ignore
   const seedDDL = SQLa.SQL<Context>(stso)`
@@ -119,11 +123,11 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
     ${fsWalkHub}
 
-    ${fsWalkPathPartsSat}
-
     ${deviceFileLink}
 
     ${deviceFsWalkFileLink}
+
+    ${deviceFsWalkFileLinkRelPathPartsSat}
 
     ${dvg.sqlTmplEngineLintSummary}
     ${dvg.sqlTextLintSummary}`;
@@ -135,9 +139,9 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fsWalkHub,
-    fsWalkPathPartsSat,
     deviceFileLink,
     deviceFsWalkFileLink,
+    deviceFsWalkFileLinkRelPathPartsSat,
     seedDDL,
     isValid: () => {
       const stls = seedDDL.stsOptions.sqlTextLintState;
@@ -189,9 +193,9 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fsWalkHub,
-    fsWalkPathPartsSat,
     deviceFileLink,
     deviceFsWalkFileLink,
+    deviceFsWalkFileLinkRelPathPartsSat: dfswflrPathPartsSat,
   } = fsm;
 
   return {
@@ -255,11 +259,29 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
             }),
           );
 
+          memoizeSQL(
+            await deviceFileLink.insertDML({
+              hub_device_id,
+              hub_file_id,
+            }),
+          );
+
+          const dfswFileLink = memoizeSQL(
+            await deviceFsWalkFileLink.insertDML({
+              hub_device_id,
+              hub_fs_walk_id,
+              hub_file_id,
+            }),
+          );
+          const { link_device_fs_walk_file_id } = dfswFileLink.returnable(
+            dfswFileLink.insertable,
+          );
+
           const weRelPath = path.relative(activeWalkerRootPath, we.path);
           const relPP = pathParts(weRelPath);
           memoizeSQL(
-            await fsWalkPathPartsSat.insertDML({
-              hub_fs_walk_id,
+            await dfswflrPathPartsSat.insertDML({
+              link_device_fs_walk_file_id,
               file_abs_path_and_file_name_extn: we.path,
               file_rel_path_and_file_name_extn: weRelPath,
               file_parent_rel_path: relPP.dir,
@@ -273,20 +295,6 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
               file_extn_full: relPP.ext.length > 0
                 ? relPP.modifiersText + relPP.ext
                 : undefined,
-            }),
-          );
-
-          memoizeSQL(
-            await deviceFileLink.insertDML({
-              hub_device_id,
-              hub_file_id,
-            }),
-          );
-          memoizeSQL(
-            await deviceFsWalkFileLink.insertDML({
-              hub_device_id,
-              hub_fs_walk_id,
-              hub_file_id,
             }),
           );
         }
