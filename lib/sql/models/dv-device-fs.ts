@@ -68,6 +68,7 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     file_extn_tail: textNullable(),
     file_extn_modifiers: textNullable(),
     file_extn_full: textNullable(),
+    // TODO: add mtime, ctime, size, etc. `stat`?
   }); // TODO: add unique constraints from fs.ts
 
   const fsWalkHub = dvg.hubTable("fs_walk", {
@@ -75,6 +76,21 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     root_path: pkDigest(text()),
     glob: pkDigest(text()),
   });
+
+  const fsWalkPathPartsSat = fsWalkHub.satTable("path_parts", {
+    hub_fs_walk_id: fsWalkHub.foreignKeyRef.hub_fs_walk_id(),
+    sat_fs_walk_path_parts_id: dvg.ulidPrimaryKey(),
+    file_abs_path_and_file_name_extn: text(),
+    file_rel_path_and_file_name_extn: text(), // rel is relative to fs_walk.root_path
+    file_grandparent_rel_path: text(), // rel is relative to fs_walk.root_path
+    file_parent_rel_path: text(), // rel is relative to fs_walk.root_path
+    file_name_without_extn: text(),
+    file_name_with_extn: text(),
+    file_extn_tail: textNullable(),
+    file_extn_modifiers: textNullable(),
+    file_extn_full: textNullable(),
+    // TODO: add mtime, ctime, size, etc. `stat`?
+  }); // TODO: add unique constraints from fs.ts
 
   const deviceFileLink = dvg.linkTable("device_file", {
     link_device_file_id: dvg.digestPrimaryKey(),
@@ -103,6 +119,8 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
     ${fsWalkHub}
 
+    ${fsWalkPathPartsSat}
+
     ${deviceFileLink}
 
     ${deviceFsWalkFileLink}
@@ -117,6 +135,7 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fsWalkHub,
+    fsWalkPathPartsSat,
     deviceFileLink,
     deviceFsWalkFileLink,
     seedDDL,
@@ -170,6 +189,7 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fsWalkHub,
+    fsWalkPathPartsSat,
     deviceFileLink,
     deviceFsWalkFileLink,
   } = fsm;
@@ -200,9 +220,10 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
             srcGlob.options?.(srcGlob.rootPath),
           )
         ) {
+          const activeWalkerRootPath = path.resolve(srcGlob.rootPath);
           const activeWalker = memoizeSQL(
             await fsWalkHub.insertDML({
-              root_path: srcGlob.rootPath,
+              root_path: activeWalkerRootPath,
               glob: srcGlob.glob,
             }),
           );
@@ -214,22 +235,43 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
             await fileHub.insertDML({ abs_path: we.path }),
           );
           const { hub_file_id } = dfDML.returnable(dfDML.insertable);
-          const pp = pathParts(we.path);
+          const absPP = pathParts(we.path);
           memoizeSQL(
             await filePathPartsSat.insertDML({
               hub_file_id,
               file_abs_path_and_file_name_extn: we.path,
-              file_parent_path: pp.dir,
-              file_grandparent_path: path.dirname(pp.dir),
-              file_name_with_extn: pp.base,
-              file_name_without_extn: pp.name,
-              file_root: pp.root, // e.g. C:\ on Windows, / on Linux/MacOS
-              file_extn_tail: pp.ext.length > 0 ? pp.ext : undefined,
-              file_extn_modifiers: pp.modifiersList.length > 0
-                ? pp.modifiersText
+              file_parent_path: absPP.dir,
+              file_grandparent_path: path.dirname(absPP.dir),
+              file_name_with_extn: absPP.base,
+              file_name_without_extn: absPP.name,
+              file_root: absPP.root, // e.g. C:\ on Windows, / on Linux/MacOS
+              file_extn_tail: absPP.ext.length > 0 ? absPP.ext : undefined,
+              file_extn_modifiers: absPP.modifiersList.length > 0
+                ? absPP.modifiersText
                 : undefined,
-              file_extn_full: pp.ext.length > 0
-                ? pp.modifiersText + pp.ext
+              file_extn_full: absPP.ext.length > 0
+                ? absPP.modifiersText + absPP.ext
+                : undefined,
+            }),
+          );
+
+          const weRelPath = path.relative(activeWalkerRootPath, we.path);
+          const relPP = pathParts(weRelPath);
+          memoizeSQL(
+            await fsWalkPathPartsSat.insertDML({
+              hub_fs_walk_id,
+              file_abs_path_and_file_name_extn: we.path,
+              file_rel_path_and_file_name_extn: weRelPath,
+              file_parent_rel_path: relPP.dir,
+              file_grandparent_rel_path: path.dirname(relPP.dir),
+              file_name_with_extn: relPP.base,
+              file_name_without_extn: relPP.name,
+              file_extn_tail: relPP.ext.length > 0 ? relPP.ext : undefined,
+              file_extn_modifiers: relPP.modifiersList.length > 0
+                ? relPP.modifiersText
+                : undefined,
+              file_extn_full: relPP.ext.length > 0
+                ? relPP.modifiersText + relPP.ext
                 : undefined,
             }),
           );
