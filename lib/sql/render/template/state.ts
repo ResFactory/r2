@@ -10,6 +10,12 @@ export type SqlTextCollection = {
   readonly uniqueSQL: Iterable<string>;
 };
 
+/**
+ * A SQL text memoizer that will store only unique SQL statements in the order
+ * that they were added.
+ * @param ctx SqlEmitContext
+ * @returns a memoizer function and SQL set
+ */
 export function typicalSqlTextState<Context extends tmpl.SqlEmitContext>(
   ctx: Context,
 ) {

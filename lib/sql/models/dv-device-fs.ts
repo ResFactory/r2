@@ -43,7 +43,8 @@ export function pathParts(
 export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
-  const { text, textNullable, integer, dateNullable } = dvg.domains;
+  const { text, textNullable, integer, integerNullable, dateNullable } =
+    dvg.domains;
   const { digestPkMember: pkDigest } = dvg;
 
   const deviceHub = dvg.hubTable("device", {
@@ -84,13 +85,17 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
   const fileSuffixHub = dvg.hubTable("file_suffix", {
     hub_file_suffix_id: dvg.digestPrimaryKey(),
-    suffix: { ...pkDigest(text()), isUnique: true },
+    suffix_unit: pkDigest(text()),
+    suffix_full: pkDigest(text()),
+    suffix_unit_index: pkDigest(integerNullable()),
   });
 
   const fileSuffixMediaTypeSat = fileSuffixHub.satTable("media_type", {
     hub_file_suffix_id: fileSuffixHub.foreignKeyRef.hub_file_suffix_id(),
     sat_file_suffix_media_type_id: dvg.digestPrimaryKey(),
-    file_suffix: pkDigest(text()),
+    file_suffix_unit: pkDigest(text()),
+    file_suffix_full: pkDigest(text()),
+    file_suffix_unit_index: pkDigest(integerNullable()),
     mime_type: pkDigest(text()),
     content_type: pkDigest(text()),
   });
@@ -234,142 +239,180 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     deviceFsWalkFileLinkRelPathPartsSat: dfswflrPathPartsSat,
   } = fsm;
 
+  const walkedEntries = async function* (
+    state: SQLa.SqlTextMemoizer<Context>,
+    ...globs: WalkGlob[]
+  ) {
+    const { memoizeSQL } = state;
+    const memoizeSuffixDML = async (
+      suffixUnit: string,
+      unitIndex: number | undefined,
+      suffixFull: string,
+    ) => {
+      const content_type = mt.contentType(suffixUnit);
+      const mime_type = mt.typeByExtension(suffixUnit);
+      if (!content_type || !mime_type) return;
+
+      const hubRec = memoizeSQL(
+        await fileSuffixHub.insertDML({
+          suffix_unit: suffixUnit,
+          suffix_full: suffixFull,
+          suffix_unit_index: unitIndex,
+        }),
+      );
+      const { hub_file_suffix_id } = hubRec.returnable(
+        hubRec.insertable,
+      );
+      memoizeSQL(
+        await fileSuffixMediaTypeSat.insertDML({
+          hub_file_suffix_id,
+          file_suffix_unit: suffixUnit,
+          file_suffix_full: suffixFull,
+          file_suffix_unit_index: unitIndex,
+          content_type,
+          mime_type,
+        }),
+      );
+    };
+
+    const activeHost = memoizeSQL(
+      await deviceHub.insertDML({
+        host: Deno.hostname(),
+        host_ipv4_address: Deno.hostname(), // TODO: add IPv4 address
+      }),
+    );
+    const { hub_device_id } = activeHost.returnable(activeHost.insertable);
+
+    for (const srcGlob of globs) {
+      for await (
+        const we of fs.expandGlob(
+          srcGlob.glob,
+          srcGlob.options?.(srcGlob.rootPath),
+        )
+      ) {
+        const activeWalkerRootPath = path.resolve(srcGlob.rootPath);
+        const activeWalker = memoizeSQL(
+          await fsWalkHub.insertDML({
+            root_path: activeWalkerRootPath,
+            glob: srcGlob.glob,
+          }),
+        );
+        const { hub_fs_walk_id } = activeWalker.returnable(
+          activeWalker.insertable,
+        );
+
+        const dfDML = memoizeSQL(
+          await fileHub.insertDML({ abs_path: we.path }),
+        );
+        const { hub_file_id } = dfDML.returnable(dfDML.insertable);
+        const absPP = pathParts(we.path);
+        const file_extn_tail = absPP.ext.length > 0 ? absPP.ext : undefined;
+        const file_extn_full = absPP.ext.length > 0
+          ? absPP.modifiersText + absPP.ext
+          : undefined;
+        memoizeSQL(
+          await filePathPartsSat.insertDML({
+            hub_file_id,
+            file_abs_path_and_file_name_extn: we.path,
+            file_parent_path: absPP.dir,
+            file_grandparent_path: path.dirname(absPP.dir),
+            file_name_with_extn: absPP.base,
+            file_name_without_extn: absPP.name,
+            file_root: absPP.root, // e.g. C:\ on Windows, / on Linux/MacOS
+            file_extn_tail,
+            file_extn_modifiers: absPP.modifiersList.length > 0
+              ? absPP.modifiersText
+              : undefined,
+            file_extn_full,
+          }),
+        );
+
+        const stat = await Deno.stat(we.path);
+        memoizeSQL(
+          await fileStatSat.insertDML({
+            hub_file_id,
+            file_abs_path_and_file_name_extn: we.path,
+            is_symlink: stat.isSymlink ? 1 : 0,
+            size: stat.size,
+            mtime: stat.mtime ?? undefined,
+            atime: stat.atime ?? undefined,
+            birthtime: stat.birthtime ?? undefined,
+          }),
+        );
+
+        if (file_extn_tail && file_extn_full) {
+          memoizeSuffixDML(file_extn_tail, undefined, file_extn_full);
+          for (let i = 0; i < absPP.modifiersList.length; i++) {
+            const modf = absPP.modifiersList[i];
+            memoizeSuffixDML(modf, i, file_extn_full);
+          }
+        }
+
+        memoizeSQL(
+          await deviceFileLink.insertDML({
+            hub_device_id,
+            hub_file_id,
+          }),
+        );
+
+        const dfswFileLink = memoizeSQL(
+          await deviceFsWalkFileLink.insertDML({
+            hub_device_id,
+            hub_fs_walk_id,
+            hub_file_id,
+          }),
+        );
+        const { link_device_fs_walk_file_id } = dfswFileLink.returnable(
+          dfswFileLink.insertable,
+        );
+
+        const weRelPath = path.relative(activeWalkerRootPath, we.path);
+        const relPP = pathParts(weRelPath);
+        memoizeSQL(
+          await dfswflrPathPartsSat.insertDML({
+            link_device_fs_walk_file_id,
+            file_abs_path_and_file_name_extn: we.path,
+            file_rel_path_and_file_name_extn: weRelPath,
+            file_parent_rel_path: relPP.dir,
+            file_grandparent_rel_path: path.dirname(relPP.dir),
+            file_name_with_extn: relPP.base,
+            file_name_without_extn: relPP.name,
+            file_extn_tail: relPP.ext.length > 0 ? relPP.ext : undefined,
+            file_extn_modifiers: relPP.modifiersList.length > 0
+              ? relPP.modifiersText
+              : undefined,
+            file_extn_full: relPP.ext.length > 0
+              ? relPP.modifiersText + relPP.ext
+              : undefined,
+          }),
+        );
+
+        yield {
+          state,
+          models: fsm,
+          srcGlob,
+          walkEntry: we,
+          activeWalker,
+          dvState: {
+            hub_device_id,
+            hub_fs_walk_id,
+            hub_file_id,
+          },
+        };
+      }
+    }
+  };
+
   return {
     models: fsm,
+    walkedEntries,
     prepareEntriesDML: async (
       state: SQLa.SqlTextMemoizer<Context>,
       ...globs: WalkGlob[]
     ) => {
-      const { memoizeSQL } = state;
-      const memoizeSuffixDML = async (suffix: string) => {
-        const content_type = mt.contentType(suffix);
-        const mime_type = mt.typeByExtension(suffix);
-        if (!content_type || !mime_type) return;
-
-        const hubRec = memoizeSQL(
-          await fileSuffixHub.insertDML({ suffix }),
-        );
-        const { hub_file_suffix_id } = hubRec.returnable(
-          hubRec.insertable,
-        );
-        memoizeSQL(
-          await fileSuffixMediaTypeSat.insertDML({
-            hub_file_suffix_id,
-            file_suffix: suffix,
-            content_type,
-            mime_type,
-          }),
-        );
-      };
-
-      const activeHost = memoizeSQL(
-        await deviceHub.insertDML({
-          host: Deno.hostname(),
-          host_ipv4_address: Deno.hostname(), // TODO: add IPv4 address
-        }),
-      );
-      const { hub_device_id } = activeHost.returnable(activeHost.insertable);
-
-      for (const srcGlob of globs) {
-        for await (
-          const we of fs.expandGlob(
-            srcGlob.glob,
-            srcGlob.options?.(srcGlob.rootPath),
-          )
-        ) {
-          const activeWalkerRootPath = path.resolve(srcGlob.rootPath);
-          const activeWalker = memoizeSQL(
-            await fsWalkHub.insertDML({
-              root_path: activeWalkerRootPath,
-              glob: srcGlob.glob,
-            }),
-          );
-          const { hub_fs_walk_id } = activeWalker.returnable(
-            activeWalker.insertable,
-          );
-
-          const dfDML = memoizeSQL(
-            await fileHub.insertDML({ abs_path: we.path }),
-          );
-          const { hub_file_id } = dfDML.returnable(dfDML.insertable);
-          const absPP = pathParts(we.path);
-          const file_extn_tail = absPP.ext.length > 0 ? absPP.ext : undefined;
-          memoizeSQL(
-            await filePathPartsSat.insertDML({
-              hub_file_id,
-              file_abs_path_and_file_name_extn: we.path,
-              file_parent_path: absPP.dir,
-              file_grandparent_path: path.dirname(absPP.dir),
-              file_name_with_extn: absPP.base,
-              file_name_without_extn: absPP.name,
-              file_root: absPP.root, // e.g. C:\ on Windows, / on Linux/MacOS
-              file_extn_tail,
-              file_extn_modifiers: absPP.modifiersList.length > 0
-                ? absPP.modifiersText
-                : undefined,
-              file_extn_full: absPP.ext.length > 0
-                ? absPP.modifiersText + absPP.ext
-                : undefined,
-            }),
-          );
-
-          const stat = await Deno.stat(we.path);
-          memoizeSQL(
-            await fileStatSat.insertDML({
-              hub_file_id,
-              file_abs_path_and_file_name_extn: we.path,
-              is_symlink: stat.isSymlink ? 1 : 0,
-              size: stat.size,
-              mtime: stat.mtime ?? undefined,
-              atime: stat.atime ?? undefined,
-              birthtime: stat.birthtime ?? undefined,
-            }),
-          );
-
-          if (file_extn_tail) memoizeSuffixDML(file_extn_tail);
-          for (const modf of absPP.modifiersList) {
-            memoizeSuffixDML(modf);
-          }
-
-          memoizeSQL(
-            await deviceFileLink.insertDML({
-              hub_device_id,
-              hub_file_id,
-            }),
-          );
-
-          const dfswFileLink = memoizeSQL(
-            await deviceFsWalkFileLink.insertDML({
-              hub_device_id,
-              hub_fs_walk_id,
-              hub_file_id,
-            }),
-          );
-          const { link_device_fs_walk_file_id } = dfswFileLink.returnable(
-            dfswFileLink.insertable,
-          );
-
-          const weRelPath = path.relative(activeWalkerRootPath, we.path);
-          const relPP = pathParts(weRelPath);
-          memoizeSQL(
-            await dfswflrPathPartsSat.insertDML({
-              link_device_fs_walk_file_id,
-              file_abs_path_and_file_name_extn: we.path,
-              file_rel_path_and_file_name_extn: weRelPath,
-              file_parent_rel_path: relPP.dir,
-              file_grandparent_rel_path: path.dirname(relPP.dir),
-              file_name_with_extn: relPP.base,
-              file_name_without_extn: relPP.name,
-              file_extn_tail: relPP.ext.length > 0 ? relPP.ext : undefined,
-              file_extn_modifiers: relPP.modifiersList.length > 0
-                ? relPP.modifiersText
-                : undefined,
-              file_extn_full: relPP.ext.length > 0
-                ? relPP.modifiersText + relPP.ext
-                : undefined,
-            }),
-          );
-        }
+      for await (const _entry of walkedEntries(state, ...globs)) {
+        // we're not doing anything with the yieled entries so they're just
+        // being memoized
       }
     },
   };
