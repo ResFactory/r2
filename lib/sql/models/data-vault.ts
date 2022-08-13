@@ -568,6 +568,8 @@ export function dataVaultGovn<Context extends SQLa.SqlEmitContext>(
     hubSatelliteTable,
     linkTableName,
     linkTable,
+    linkSatelliteTableName,
+    linkSatelliteTable,
     tableLintRules,
     erdConfig,
     enumTable: SQLa.enumTable,

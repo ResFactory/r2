@@ -1,4 +1,5 @@
 import { fs, path } from "../render/deps.ts";
+import * as mt from "https://deno.land/std@0.147.0/media_types/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as dv from "./data-vault.ts";
 
@@ -42,7 +43,7 @@ export function pathParts(
 export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
-  const { text, textNullable } = dvg.domains;
+  const { text, textNullable, integer, dateNullable } = dvg.domains;
   const { digestPkMember: pkDigest } = dvg;
 
   const deviceHub = dvg.hubTable("device", {
@@ -68,8 +69,31 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     file_extn_tail: textNullable(),
     file_extn_modifiers: textNullable(),
     file_extn_full: textNullable(),
-    // TODO: add mtime, ctime, size, etc. `stat`?
-  }); // TODO: add unique constraints from fs.ts
+  });
+
+  const fileStatSat = fileHub.satTable("stat", {
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    sat_file_stat_id: dvg.ulidPrimaryKey(),
+    file_abs_path_and_file_name_extn: text(),
+    is_symlink: integer(),
+    size: integer(),
+    birthtime: dateNullable(),
+    mtime: dateNullable(),
+    atime: dateNullable(),
+  });
+
+  const fileSuffixHub = dvg.hubTable("file_suffix", {
+    hub_file_suffix_id: dvg.digestPrimaryKey(),
+    suffix: { ...pkDigest(text()), isUnique: true },
+  });
+
+  const fileSuffixMediaTypeSat = fileSuffixHub.satTable("media_type", {
+    hub_file_suffix_id: fileSuffixHub.foreignKeyRef.hub_file_suffix_id(),
+    sat_file_suffix_media_type_id: dvg.digestPrimaryKey(),
+    file_suffix: pkDigest(text()),
+    mime_type: pkDigest(text()),
+    content_type: pkDigest(text()),
+  });
 
   const fsWalkHub = dvg.hubTable("fs_walk", {
     hub_fs_walk_id: dvg.digestPrimaryKey(),
@@ -121,6 +145,12 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
     ${filePathPartsSat}
 
+    ${fileStatSat}
+
+    ${fileSuffixHub}
+
+    ${fileSuffixMediaTypeSat}
+
     ${fsWalkHub}
 
     ${deviceFileLink}
@@ -138,6 +168,9 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     deviceHub,
     fileHub,
     filePathPartsSat,
+    fileStatSat,
+    fileSuffixHub,
+    fileSuffixMediaTypeSat,
     fsWalkHub,
     deviceFileLink,
     deviceFsWalkFileLink,
@@ -192,6 +225,9 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     deviceHub,
     fileHub,
     filePathPartsSat,
+    fileStatSat,
+    fileSuffixHub,
+    fileSuffixMediaTypeSat,
     fsWalkHub,
     deviceFileLink,
     deviceFsWalkFileLink,
@@ -200,13 +236,30 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
 
   return {
     models: fsm,
-    entriesDML: async (ctx: Context, ...globs: WalkGlob[]) => {
-      const uniqueDML = new Set<string>();
-      const memoizeSQL = <STS extends SQLa.SqlTextSupplier<Context>>(
-        sts: STS,
-      ) => {
-        uniqueDML.add(sts.SQL(ctx));
-        return sts;
+    prepareEntriesDML: async (
+      state: SQLa.SqlTextMemoizer<Context>,
+      ...globs: WalkGlob[]
+    ) => {
+      const { memoizeSQL } = state;
+      const memoizeSuffixDML = async (suffix: string) => {
+        const content_type = mt.contentType(suffix);
+        const mime_type = mt.typeByExtension(suffix);
+        if (!content_type || !mime_type) return;
+
+        const hubRec = memoizeSQL(
+          await fileSuffixHub.insertDML({ suffix }),
+        );
+        const { hub_file_suffix_id } = hubRec.returnable(
+          hubRec.insertable,
+        );
+        memoizeSQL(
+          await fileSuffixMediaTypeSat.insertDML({
+            hub_file_suffix_id,
+            file_suffix: suffix,
+            content_type,
+            mime_type,
+          }),
+        );
       };
 
       const activeHost = memoizeSQL(
@@ -240,6 +293,7 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
           );
           const { hub_file_id } = dfDML.returnable(dfDML.insertable);
           const absPP = pathParts(we.path);
+          const file_extn_tail = absPP.ext.length > 0 ? absPP.ext : undefined;
           memoizeSQL(
             await filePathPartsSat.insertDML({
               hub_file_id,
@@ -249,7 +303,7 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
               file_name_with_extn: absPP.base,
               file_name_without_extn: absPP.name,
               file_root: absPP.root, // e.g. C:\ on Windows, / on Linux/MacOS
-              file_extn_tail: absPP.ext.length > 0 ? absPP.ext : undefined,
+              file_extn_tail,
               file_extn_modifiers: absPP.modifiersList.length > 0
                 ? absPP.modifiersText
                 : undefined,
@@ -258,6 +312,24 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
                 : undefined,
             }),
           );
+
+          const stat = await Deno.stat(we.path);
+          memoizeSQL(
+            await fileStatSat.insertDML({
+              hub_file_id,
+              file_abs_path_and_file_name_extn: we.path,
+              is_symlink: stat.isSymlink ? 1 : 0,
+              size: stat.size,
+              mtime: stat.mtime ?? undefined,
+              atime: stat.atime ?? undefined,
+              birthtime: stat.birthtime ?? undefined,
+            }),
+          );
+
+          if (file_extn_tail) memoizeSuffixDML(file_extn_tail);
+          for (const modf of absPP.modifiersList) {
+            memoizeSuffixDML(modf);
+          }
 
           memoizeSQL(
             await deviceFileLink.insertDML({
@@ -299,7 +371,6 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
           );
         }
       }
-      return uniqueDML;
     },
   };
 }
@@ -308,11 +379,11 @@ export function deviceFileSysPlantUmlDiagram() {
   const ctx = SQLa.typicalSqlEmitContext();
   type Context = typeof ctx;
 
-  const fsc = deviceFileSysContent<Context>();
-  console.log(fsc.models.dvg.plantUmlIE(
+  const fsm = deviceFileSysModels<Context>();
+  console.log(fsm.dvg.plantUmlIE(
     ctx,
     "main",
-    Object.values(fsc.models).filter((m) =>
+    Object.values(fsm).filter((m) =>
       SQLa.isTableDefinition(m) && SQLa.isSqlDomainsSupplier(m)
     ) as Any,
   ));
@@ -332,11 +403,14 @@ export async function deviceFileSysSQL(rootPath: string, ...globs: string[]) {
     Deno.exit(validity);
   }
 
-  const entries = await fsc.entriesDML(
-    ctx,
+  const sts = SQLa.typicalSqlTextState(ctx);
+  await fsc.prepareEntriesDML(
+    sts,
     ...globs.map((glob) => walkGlobbedFilesExcludeGit(rootPath, glob)),
   );
-  entries.forEach((sql) => console.log(sql, ";"));
+  for (const sql of sts.uniqueSQL) {
+    console.log(sql, ";");
+  }
 }
 
 if (import.meta.main) {

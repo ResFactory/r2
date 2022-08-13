@@ -25,10 +25,12 @@ Deno.test("Data Vault governance", () => {
   ta.assert(dvg.table);
   ta.assert(dvg.hubTableName);
   ta.assert(dvg.hubTable);
-  ta.assert(dvg.satelliteTableName);
-  ta.assert(dvg.satelliteTable);
+  ta.assert(dvg.hubSatelliteTableName);
+  ta.assert(dvg.hubSatelliteTable);
   ta.assert(dvg.linkTableName);
   ta.assert(dvg.linkTable);
+  ta.assert(dvg.linkSatelliteTableName);
+  ta.assert(dvg.linkSatelliteTable);
   ta.assert(dvg.tableLintRules);
 });
 
@@ -124,7 +126,7 @@ Deno.test("Data Vault models", async (tc) => {
   // expectType(satellite2.foreignKeyRef.badColumnName);
 
   // satellites can be created "manually" through dataVaultGovn too (if necessary)
-  const hub1Sat2 = dvg.satelliteTable(syntheticHub1, "attrs1", {
+  const hub1Sat2 = dvg.hubSatelliteTable(syntheticHub1, "attrs1", {
     hub_synthethic1_id: syntheticHub1.foreignKeyRef.hub_synthethic1_id(),
     sat_synthethic1_attrs1_id: dvg.digestPrimaryKey(),
   });
