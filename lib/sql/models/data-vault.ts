@@ -34,6 +34,9 @@ export function dataVaultDomains<Context extends SQLa.SqlEmitContext>() {
     integer: SQLa.integer,
     integerNullable: SQLa.integerNullable,
 
+    jsonText: SQLa.jsonText,
+    jsonTextNullable: SQLa.jsonTextNullable,
+
     boolean: SQLa.integer,
     booleanNullable: SQLa.integerNullable,
 

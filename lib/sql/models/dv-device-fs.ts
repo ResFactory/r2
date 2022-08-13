@@ -2,6 +2,7 @@ import { fs, path } from "../render/deps.ts";
 import * as mt from "https://deno.land/std@0.147.0/media_types/mod.ts";
 import * as SQLa from "../render/mod.ts";
 import * as dv from "./data-vault.ts";
+import * as fm from "../../text/frontmatter.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -43,8 +44,14 @@ export function pathParts(
 export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   const stso = SQLa.typicalSqlTextSupplierOptions<Context>();
   const dvg = dv.dataVaultGovn<Context>(stso);
-  const { text, textNullable, integer, integerNullable, dateNullable } =
-    dvg.domains;
+  const {
+    text,
+    textNullable,
+    integer,
+    integerNullable,
+    dateNullable,
+    jsonTextNullable,
+  } = dvg.domains;
   const { digestPkMember: pkDigest } = dvg;
 
   const deviceHub = dvg.hubTable("device", {
@@ -83,27 +90,45 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     atime: dateNullable(),
   });
 
-  const fileSuffixHub = dvg.hubTable("file_suffix", {
-    hub_file_suffix_id: dvg.digestPrimaryKey(),
-    suffix_unit: pkDigest(text()),
-    suffix_full: pkDigest(text()),
-    suffix_unit_index: pkDigest(integerNullable()),
+  const fileFrontmatterSat = fileHub.satTable("frontmatter", {
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    sat_file_frontmatter_id: dvg.ulidPrimaryKey(),
+    file_abs_path_and_file_name_extn: text(),
+    nature: text(),
+    frontmatter: jsonTextNullable(),
+    content: textNullable(),
+    content_length: integerNullable(),
+    error: textNullable(),
+    reg_exp: textNullable(),
   });
 
-  const fileSuffixMediaTypeSat = fileSuffixHub.satTable("media_type", {
-    hub_file_suffix_id: fileSuffixHub.foreignKeyRef.hub_file_suffix_id(),
-    sat_file_suffix_media_type_id: dvg.digestPrimaryKey(),
-    file_suffix_unit: pkDigest(text()),
-    file_suffix_full: pkDigest(text()),
-    file_suffix_unit_index: pkDigest(integerNullable()),
-    mime_type: pkDigest(text()),
-    content_type: pkDigest(text()),
+  // TODO: add # and <h1>, <h2> parsers to grab headings and put them into
+  // content analysis tables; we might want to "read" and parse all MD and HTML
+  // content and perform keyword analysis using full text search;
+  // we also need to parse HTML and store links into tables, parse tweets and
+  // store links into tables; parse tables in HTML and store as tables, etc.
+
+  const fileMetaSat = fileHub.satTable("meta", {
+    hub_file_id: fileHub.foreignKeyRef.hub_file_id(),
+    sat_file_meta_id: dvg.ulidPrimaryKey(),
+    key: text(),
+    value: text(),
   });
 
   const fsWalkHub = dvg.hubTable("fs_walk", {
     hub_fs_walk_id: dvg.digestPrimaryKey(),
     root_path: pkDigest(text()),
     glob: pkDigest(text()),
+  });
+
+  const fsWalkMediaTypeSat = fsWalkHub.satTable("media_type", {
+    hub_fs_walk_id: fsWalkHub.foreignKeyRef.hub_fs_walk_id(),
+    sat_fs_walk_media_type_id: dvg.digestPrimaryKey(),
+    file_suffix_unit: pkDigest(text()),
+    file_suffix_full: pkDigest(text()),
+    file_suffix_unit_index: pkDigest(integerNullable()),
+    mime_type: pkDigest(text()),
+    content_type: pkDigest(text()),
   });
 
   const deviceFileLink = dvg.linkTable("device_file", {
@@ -134,9 +159,27 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
       file_extn_tail: textNullable(),
       file_extn_modifiers: textNullable(),
       file_extn_full: textNullable(),
-      // TODO: add mtime, ctime, size, etc. `stat`?
+      file_mime_type: textNullable(),
+      file_content_type: textNullable(),
     },
   ); // TODO: add unique constraints from fs.ts
+
+  const deviceFsWalkFileLinkSuffixMediaTypesSat = deviceFsWalkFileLink.satTable(
+    "suffix_media_type",
+    {
+      link_device_fs_walk_file_id: deviceFsWalkFileLink.foreignKeyRef
+        .link_device_fs_walk_file_id(),
+      sat_device_fs_walk_file_suffix_media_type_id: dvg.ulidPrimaryKey(),
+      file_suffix_unit: text(),
+      file_suffix_unit_index: integer(),
+      file_suffix_units_count: integer(),
+      file_suffix_unit_is_initial: integer(),
+      file_suffix_unit_is_final: integer(),
+      file_suffix_full: text(),
+      mime_type: textNullable(),
+      content_type: textNullable(),
+    },
+  );
 
   // deno-fmt-ignore
   const seedDDL = SQLa.SQL<Context>(stso)`
@@ -152,17 +195,21 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
 
     ${fileStatSat}
 
-    ${fileSuffixHub}
+    ${fileFrontmatterSat}
 
-    ${fileSuffixMediaTypeSat}
+    ${fileMetaSat}
 
     ${fsWalkHub}
+
+    ${fsWalkMediaTypeSat}
 
     ${deviceFileLink}
 
     ${deviceFsWalkFileLink}
 
     ${deviceFsWalkFileLinkRelPathPartsSat}
+
+    ${deviceFsWalkFileLinkSuffixMediaTypesSat}
 
     ${dvg.sqlTmplEngineLintSummary}
     ${dvg.sqlTextLintSummary}`;
@@ -174,12 +221,14 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fileStatSat,
-    fileSuffixHub,
-    fileSuffixMediaTypeSat,
+    fileFrontmatterSat,
+    fileMetaSat,
     fsWalkHub,
+    fsWalkMediaTypeSat,
     deviceFileLink,
     deviceFsWalkFileLink,
     deviceFsWalkFileLinkRelPathPartsSat,
+    deviceFsWalkFileLinkSuffixMediaTypesSat,
     seedDDL,
     isValid: () => {
       const stls = seedDDL.stsOptions.sqlTextLintState;
@@ -196,12 +245,47 @@ export function deviceFileSysModels<Context extends SQLa.SqlEmitContext>() {
   };
 }
 
+export type MediaType = { contentType: string; mimeType: string };
+
+export type TextMediaTypeDetector = (text: string) => MediaType | undefined;
+
+export type FileSuffixMediaTypeDetector = TextMediaTypeDetector;
+
+export const stdFileSuffixMediaType: FileSuffixMediaTypeDetector = (
+  suffixUnit,
+) => {
+  const contentType = mt.contentType(suffixUnit);
+  const mimeType = mt.typeByExtension(suffixUnit);
+  if (contentType && mimeType) {
+    return { contentType, mimeType };
+  }
+  return undefined;
+};
+
+export const tsStdFileSuffixMediaType: FileSuffixMediaTypeDetector = (
+  suffixUnit,
+) => {
+  if (suffixUnit == ".ts") {
+    return {
+      contentType: "application/typescript",
+      mimeType: "application/typescript",
+    };
+  }
+  return stdFileSuffixMediaType(suffixUnit);
+};
+
 export interface WalkGlob {
   readonly rootPath: string;
   readonly label: string;
   readonly glob: string;
-  readonly include: (we: fs.WalkEntry) => boolean;
-  readonly options?: (path: string) => fs.ExpandGlobOptions;
+  readonly include?: (we: fs.WalkEntry) => boolean;
+  readonly globOptions?: (rootPath: string) => fs.ExpandGlobOptions;
+  readonly suffixMediaType?: (we: fs.WalkEntry) => FileSuffixMediaTypeDetector;
+  readonly frontmatter?: (
+    pathParts: PathParts,
+    we: fs.WalkEntry,
+    weMT?: MediaType,
+  ) => Promise<fm.FrontmatterParseResult<fm.UntypedFrontmatter> | undefined>;
 }
 
 export function walkGlobbedFilesExcludeGit(
@@ -214,13 +298,24 @@ export function walkGlobbedFilesExcludeGit(
     glob,
     label: inherit?.label ?? rootPath,
     include: inherit?.include ?? ((we) => we.isFile),
-    options: inherit?.options ?? ((path) => ({
-      root: path,
+    globOptions: inherit?.globOptions ?? ((root) => ({
+      root,
       includeDirs: false,
       globstar: true,
       extended: true,
       exclude: [".git"],
     })),
+    suffixMediaType: inherit?.suffixMediaType ??
+      (() => tsStdFileSuffixMediaType),
+    frontmatter: async (pp, we, suffixMT) => {
+      if (suffixMT?.mimeType == "text/markdown" || pp.ext == ".md") {
+        return await fm.parseFileYamlTomlFrontmatter(we.path);
+      }
+      if (pp.ext == ".html") {
+        return await fm.parseFileYamlHtmlFrontmatter(we.path);
+      }
+      return undefined;
+    },
   };
 }
 
@@ -231,48 +326,44 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     fileHub,
     filePathPartsSat,
     fileStatSat,
-    fileSuffixHub,
-    fileSuffixMediaTypeSat,
+    fileFrontmatterSat,
+    //fileMetaSat, TODO: add HTML parsing and meta data
     fsWalkHub,
+    fsWalkMediaTypeSat,
     deviceFileLink,
     deviceFsWalkFileLink,
     deviceFsWalkFileLinkRelPathPartsSat: dfswflrPathPartsSat,
+    deviceFsWalkFileLinkSuffixMediaTypesSat: dfswflSuffixMediaTypeSat,
   } = fsm;
 
   const walkedEntries = async function* (
-    state: SQLa.SqlTextMemoizer<Context>,
+    state: SQLa.SqlTextMemoizer<Context> & {
+      readonly mediaType?: FileSuffixMediaTypeDetector;
+    },
     ...globs: WalkGlob[]
   ) {
     const { memoizeSQL } = state;
+
     const memoizeSuffixDML = async (
+      mediaType: FileSuffixMediaTypeDetector,
+      walkFsId: string | SQLa.SqlTextSupplier<Context>,
       suffixUnit: string,
       unitIndex: number | undefined,
       suffixFull: string,
     ) => {
-      const content_type = mt.contentType(suffixUnit);
-      const mime_type = mt.typeByExtension(suffixUnit);
-      if (!content_type || !mime_type) return;
-
-      const hubRec = memoizeSQL(
-        await fileSuffixHub.insertDML({
-          suffix_unit: suffixUnit,
-          suffix_full: suffixFull,
-          suffix_unit_index: unitIndex,
-        }),
-      );
-      const { hub_file_suffix_id } = hubRec.returnable(
-        hubRec.insertable,
-      );
+      const suMT = mediaType(suffixUnit);
+      if (!suMT) return undefined;
       memoizeSQL(
-        await fileSuffixMediaTypeSat.insertDML({
-          hub_file_suffix_id,
+        await fsWalkMediaTypeSat.insertDML({
+          hub_fs_walk_id: walkFsId,
           file_suffix_unit: suffixUnit,
           file_suffix_full: suffixFull,
           file_suffix_unit_index: unitIndex,
-          content_type,
-          mime_type,
+          content_type: suMT.contentType,
+          mime_type: suMT.mimeType,
         }),
       );
+      return suMT;
     };
 
     const activeHost = memoizeSQL(
@@ -284,12 +375,10 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     const { hub_device_id } = activeHost.returnable(activeHost.insertable);
 
     for (const srcGlob of globs) {
-      for await (
-        const we of fs.expandGlob(
-          srcGlob.glob,
-          srcGlob.options?.(srcGlob.rootPath),
-        )
-      ) {
+      const globOptions = srcGlob.globOptions?.(srcGlob.rootPath);
+      for await (const we of fs.expandGlob(srcGlob.glob, globOptions)) {
+        const suffixMediaType = srcGlob.suffixMediaType?.(we) ??
+          tsStdFileSuffixMediaType;
         const activeWalkerRootPath = path.resolve(srcGlob.rootPath);
         const fsWalkHubRec = memoizeSQL(
           await fsWalkHub.insertDML({
@@ -305,6 +394,7 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
           await fileHub.insertDML({ abs_path: we.path }),
         );
         const { hub_file_id } = fileHubRec.returnable(fileHubRec.insertable);
+
         const absPP = pathParts(we.path);
         const file_extn_tail = absPP.ext.length > 0 ? absPP.ext : undefined;
         const file_extn_full = absPP.ext.length > 0
@@ -340,12 +430,46 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
           }),
         );
 
+        let suffixMT: MediaType | undefined = undefined;
         if (file_extn_tail && file_extn_full) {
-          memoizeSuffixDML(file_extn_tail, undefined, file_extn_full);
+          suffixMT = await memoizeSuffixDML(
+            suffixMediaType,
+            hub_fs_walk_id,
+            file_extn_tail,
+            undefined,
+            file_extn_full,
+          );
+
           for (let i = 0; i < absPP.modifiersList.length; i++) {
             const modf = absPP.modifiersList[i];
-            memoizeSuffixDML(modf, i, file_extn_full);
+            memoizeSuffixDML(
+              suffixMediaType,
+              hub_fs_walk_id,
+              modf,
+              i,
+              file_extn_full,
+            );
           }
+        }
+
+        const frontmatter = await srcGlob.frontmatter?.(absPP, we, suffixMT);
+        if (frontmatter) {
+          memoizeSQL(
+            await fileFrontmatterSat.insertDML({
+              hub_file_id,
+              file_abs_path_and_file_name_extn: we.path,
+              nature: frontmatter.nature,
+              frontmatter: JSON.stringify(frontmatter.frontmatter),
+              content: frontmatter.content?.length == 0
+                ? undefined
+                : frontmatter.content,
+              content_length: frontmatter.content?.length ?? undefined,
+              error: frontmatter.error ? String(frontmatter.error) : undefined,
+              reg_exp: frontmatter.regExp
+                ? String(frontmatter.regExp)
+                : undefined,
+            }),
+          );
         }
 
         memoizeSQL(
@@ -368,6 +492,13 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
 
         const weRelPath = path.relative(activeWalkerRootPath, we.path);
         const relPP = pathParts(weRelPath);
+        const relFileExtnTail = relPP.ext.length > 0 ? relPP.ext : undefined;
+        const relFileExtnFull = relPP.ext.length > 0
+          ? relPP.modifiersText + relPP.ext
+          : undefined;
+        const relMediaType = relFileExtnTail
+          ? suffixMediaType(relFileExtnTail)
+          : undefined;
         memoizeSQL(
           await dfswflrPathPartsSat.insertDML({
             link_device_fs_walk_file_id,
@@ -377,15 +508,42 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
             file_grandparent_rel_path: path.dirname(relPP.dir),
             file_name_with_extn: relPP.base,
             file_name_without_extn: relPP.name,
-            file_extn_tail: relPP.ext.length > 0 ? relPP.ext : undefined,
+            file_extn_tail: relFileExtnTail,
             file_extn_modifiers: relPP.modifiersList.length > 0
               ? relPP.modifiersText
               : undefined,
-            file_extn_full: relPP.ext.length > 0
-              ? relPP.modifiersText + relPP.ext
+            file_extn_full: relFileExtnFull,
+            file_content_type: relMediaType
+              ? relMediaType.contentType
               : undefined,
+            file_mime_type: relMediaType ? relMediaType.mimeType : undefined,
           }),
         );
+
+        if (relFileExtnTail && relFileExtnFull) {
+          // put extensions in the order of "most signficant" (last extension is
+          // most important, followed by modifiers in reverse order).
+          const allExtns = [relFileExtnTail, ...relPP.modifiersList.reverse()];
+          const file_suffix_units_count = allExtns.length;
+          const last = file_suffix_units_count - 1;
+          for (let i = 0; i < file_suffix_units_count; i++) {
+            const file_suffix_unit = allExtns[i];
+            const suMT = suffixMediaType(file_suffix_unit);
+            memoizeSQL(
+              await dfswflSuffixMediaTypeSat.insertDML({
+                link_device_fs_walk_file_id,
+                file_suffix_unit,
+                file_suffix_full: relFileExtnFull,
+                file_suffix_unit_index: i,
+                file_suffix_units_count,
+                file_suffix_unit_is_final: i == last ? 1 : 0,
+                file_suffix_unit_is_initial: i == 0 ? 1 : 0,
+                content_type: suMT ? suMT.contentType : undefined,
+                mime_type: suMT ? suMT.mimeType : undefined,
+              }),
+            );
+          }
+        }
 
         yield {
           state,
@@ -412,7 +570,9 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
     models: fsm,
     walkedEntries,
     prepareEntriesDML: async (
-      state: SQLa.SqlTextMemoizer<Context>,
+      state: SQLa.SqlTextMemoizer<Context> & {
+        readonly mediaType?: FileSuffixMediaTypeDetector;
+      },
       ...globs: WalkGlob[]
     ) => {
       for await (const _entry of walkedEntries(state, ...globs)) {
