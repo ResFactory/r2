@@ -2,7 +2,7 @@ import { testingAsserts as ta } from "./deps-test.ts";
 import * as mod from "./frontmatter.ts";
 
 Deno.test(`frontmatter Markdown-style parser`, async (tc) => {
-  await tc.step("not found", () => {
+  await tc.step("not found (missing)", () => {
     const result = mod.parseYamlTomlFrontmatter(
       "__transform__ test without frontmatter but has \n---\nseparators",
     );
@@ -16,7 +16,16 @@ Deno.test(`frontmatter Markdown-style parser`, async (tc) => {
     );
   });
 
-  await tc.step("YAML", () => {
+  await tc.step("YAML error", () => {
+    const result = mod.parseYamlTomlFrontmatter(
+      "---\nforgot: to close\n__transform__ test without frontmatter but has \n---\nseparators",
+    );
+    ta.assert(result);
+    ta.assertIsError(result.error);
+    ta.assertEquals(result.nature, "error");
+  });
+
+  await tc.step("YAML with content", () => {
     const result = mod.parseYamlTomlFrontmatter(
       "---\nfirst: value\nsecond: 40\n---\n__transform__ test with frontmatter and additional\n---\nseparators",
     );
@@ -30,7 +39,18 @@ Deno.test(`frontmatter Markdown-style parser`, async (tc) => {
     );
   });
 
-  await tc.step("TOML", () => {
+  await tc.step("YAML without content", () => {
+    const result = mod.parseYamlTomlFrontmatter(
+      "---\nfirst: value\nsecond: 75\n---",
+    );
+    ta.assert(result);
+    ta.assert(!result.error);
+    ta.assertEquals(result.nature, "yaml");
+    ta.assertEquals(result.frontmatter, { first: "value", second: 75 });
+    ta.assertEquals(result.content, "");
+  });
+
+  await tc.step("TOML with content", () => {
     const result = mod.parseYamlTomlFrontmatter(
       `+++\nfirst = "value"\nsecond = 50\n+++\n__transform__ test with frontmatter and additional\n---\nseparators`,
     );
