@@ -9,7 +9,7 @@ Deno.test(`frontmatter Markdown-style parser`, async (tc) => {
     ta.assert(result);
     ta.assert(!result.error);
     ta.assertEquals(result.frontmatter, undefined);
-    ta.assertEquals(result.nature, "not-found");
+    ta.assertEquals(result.nature, "not-found-in-text");
     ta.assertEquals(
       result.content,
       "__transform__ test without frontmatter but has \n---\nseparators",
@@ -59,7 +59,7 @@ Deno.test(`frontmatter HTML-style parser`, async (tc) => {
     ta.assert(result);
     ta.assert(!result.error);
     ta.assertEquals(result.frontmatter, undefined);
-    ta.assertEquals(result.nature, "not-found");
+    ta.assertEquals(result.nature, "not-found-in-text");
     ta.assertEquals(result.content, "<div>no frontmatter</div>");
   });
 
