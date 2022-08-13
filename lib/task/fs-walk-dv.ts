@@ -54,11 +54,9 @@ export function walkedFsDataVaultTask(
       Deno.exit(validity);
     }
 
-    const sts = SQLa.typicalSqlTextState(ctx);
+    const sts = SQLa.uniqueSqlTextState(ctx);
     await fsc.prepareEntriesDML(sts, ...globs);
-    for (const sql of sts.uniqueSQL) {
-      SQL.push(sql + ";");
-    }
+    sts.populate((sql) => sql + ";", SQL);
     sqlite.sqliteDbDeployShell(sddso);
 
     if (options?.erDiagram?.plantUML?.pumlFilePath) {

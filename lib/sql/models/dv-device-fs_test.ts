@@ -19,7 +19,7 @@ Deno.test("walk FS and build SQLite data vault", async () => {
   );
 
   // walk all the files in resFactory/factory
-  const sts = SQLa.typicalSqlTextState(ctx);
+  const sts = SQLa.uniqueSqlTextState(ctx);
   await fsc.prepareEntriesDML(
     sts,
     mod.walkGlobbedFilesExcludeGit(path.resolve(
@@ -29,7 +29,7 @@ Deno.test("walk FS and build SQLite data vault", async () => {
       "..",
     )),
   );
-  for (const sql of sts.uniqueSQL) SQL.push(sql + ";");
+  sts.populate((sql) => sql + ";", SQL);
 
   const sqliteEngine = sqlE.sqliteEngine();
   const instance = sqliteEngine.instance({

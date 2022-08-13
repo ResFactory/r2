@@ -291,20 +291,20 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
         )
       ) {
         const activeWalkerRootPath = path.resolve(srcGlob.rootPath);
-        const activeWalker = memoizeSQL(
+        const fsWalkHubRec = memoizeSQL(
           await fsWalkHub.insertDML({
             root_path: activeWalkerRootPath,
             glob: srcGlob.glob,
           }),
         );
-        const { hub_fs_walk_id } = activeWalker.returnable(
-          activeWalker.insertable,
+        const { hub_fs_walk_id } = fsWalkHubRec.returnable(
+          fsWalkHubRec.insertable,
         );
 
-        const dfDML = memoizeSQL(
+        const fileHubRec = memoizeSQL(
           await fileHub.insertDML({ abs_path: we.path }),
         );
-        const { hub_file_id } = dfDML.returnable(dfDML.insertable);
+        const { hub_file_id } = fileHubRec.returnable(fileHubRec.insertable);
         const absPP = pathParts(we.path);
         const file_extn_tail = absPP.ext.length > 0 ? absPP.ext : undefined;
         const file_extn_full = absPP.ext.length > 0
@@ -392,7 +392,12 @@ export function deviceFileSysContent<Context extends SQLa.SqlEmitContext>() {
           models: fsm,
           srcGlob,
           walkEntry: we,
-          activeWalker,
+          weRelPath,
+          stat,
+          absPP,
+          relPP,
+          fsWalkHubRec,
+          fileHubRec,
           dvState: {
             hub_device_id,
             hub_fs_walk_id,
@@ -446,7 +451,7 @@ export async function deviceFileSysSQL(rootPath: string, ...globs: string[]) {
     Deno.exit(validity);
   }
 
-  const sts = SQLa.typicalSqlTextState(ctx);
+  const sts = SQLa.uniqueSqlTextState(ctx);
   await fsc.prepareEntriesDML(
     sts,
     ...globs.map((glob) => walkGlobbedFilesExcludeGit(rootPath, glob)),
