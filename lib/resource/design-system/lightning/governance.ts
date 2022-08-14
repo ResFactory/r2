@@ -1,6 +1,6 @@
 import * as safety from "../../../../lib/safety/mod.ts";
 import * as c from "../../content/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as html from "../../html/mod.ts";
 import * as l from "./layout/mod.ts";
 

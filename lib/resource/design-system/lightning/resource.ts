@@ -2,7 +2,7 @@ import * as gi from "../../../../lib/structure/govn-index.ts";
 import * as c from "../../content/mod.ts";
 import * as coll from "../../collection/mod.ts";
 import * as fm from "../../frontmatter/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as h from "../../html/mod.ts";
 import * as lds from "./governance.ts";
 import * as ldsL from "./layout/mod.ts";

@@ -3,7 +3,7 @@ import { path } from "../deps.ts";
 import * as extn from "../../../lib/module/mod.ts";
 import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as c from "../content/mod.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as mod from "./mod.ts";
 
 // deno-lint-ignore no-explicit-any

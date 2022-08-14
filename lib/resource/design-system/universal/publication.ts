@@ -4,7 +4,7 @@ import * as c from "../../content/mod.ts";
 import * as coll from "../../collection/mod.ts";
 import * as fm from "../../frontmatter/mod.ts";
 import * as notif from "../../../notification/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as ren from "../../render/mod.ts";
 import * as redir from "../../html/commons/redirects.ts";
 

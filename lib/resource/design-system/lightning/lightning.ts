@@ -2,14 +2,14 @@ import * as extn from "../../../../lib/module/mod.ts";
 import * as c from "../../content/mod.ts";
 import * as direc from "../../markdown/directive/mod.ts";
 import * as fm from "../../frontmatter/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as ren from "../../render/mod.ts";
 import * as html from "../../html/mod.ts";
 import * as ldsGovn from "./governance.ts";
 import * as l from "./layout/mod.ts";
 import * as ldsDirec from "./directive/mod.ts";
 import * as udsp from "../universal/publication.ts";
-import * as rws from "../../route/commons/weight.ts";
+import * as rws from "../../../route/commons/weight.ts";
 
 export class LightingDesignSystemLayouts<
   Layout extends ldsGovn.LightningLayout,

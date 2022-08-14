@@ -5,7 +5,7 @@ import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as p from "../persist/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as ren from "../render/mod.ts";
 import * as i from "../instantiate.ts";
 import * as hn from "../html/nature.ts";

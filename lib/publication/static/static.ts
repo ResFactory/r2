@@ -8,6 +8,7 @@ import * as gi from "../../structure/govn-index.ts";
 import * as m from "../../metrics/mod.ts";
 import * as extn from "../../module/mod.ts";
 import * as memo from "../memoize.ts";
+import * as r from "../../route/mod.ts";
 
 import * as jrs from "../../resource/json.ts";
 import * as dtr from "../../resource/delimited-text.ts";
@@ -18,7 +19,6 @@ import * as c from "../../resource/content/mod.ts";
 import * as p from "../../resource/persist/mod.ts";
 import * as coll from "../../resource/collection/mod.ts";
 import * as fm from "../../resource/frontmatter/mod.ts";
-import * as r from "../../resource/route/mod.ts";
 import * as i from "../../resource/instantiate.ts";
 import * as md from "../../resource/markdown/mod.ts";
 import * as ds from "../../resource/html/mod.ts";

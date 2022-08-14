@@ -3,7 +3,7 @@ import * as safety from "../../../lib/safety/mod.ts";
 import * as govn from "./governance.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
-import * as rt from "../route/mod.ts";
+import * as rt from "../../route/mod.ts";
 
 export const isLocalFileSystemDestsListener = safety.typeGuard<
   govn.LocalFileSystemDestsListener<unknown>

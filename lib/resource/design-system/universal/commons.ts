@@ -1,4 +1,4 @@
-import * as rws from "../../route/commons/weight.ts";
+import * as rws from "../../../route/commons/weight.ts";
 import * as fm from "../../frontmatter/mod.ts";
 
 export interface TypicalPageProperties extends rws.WeightSupplier {

@@ -1,6 +1,6 @@
 import * as html from "../../html/mod.ts";
 import * as c from "../../content/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as dsGovn from "./governance.ts";
 import * as git from "../../../../lib/git/mod.ts";
 import * as ws from "../../../../lib/workspace/mod.ts";

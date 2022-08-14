@@ -1,7 +1,7 @@
 import { events } from "../deps.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
-import * as route from "../route/mod.ts";
+import * as route from "../../route/mod.ts";
 
 export type LocalFileSystemDestinationRootPath = string;
 export type LocalFileSystemDestination = string;

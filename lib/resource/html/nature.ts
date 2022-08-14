@@ -1,6 +1,6 @@
 import { fs } from "../deps.ts";
 import * as c from "../content/mod.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as p from "../persist/mod.ts";
 
 export const htmlContentNature:

@@ -1,5 +1,5 @@
 import { testingAsserts as ta } from "../deps-test.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as mod from "./mod.ts";
 
 const root1: r.RouteUnit = {

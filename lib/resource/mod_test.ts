@@ -7,7 +7,7 @@ import * as ws from "../../lib/text/whitespace.ts";
 import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
-import * as r from "./route/mod.ts";
+import * as r from "../route/mod.ts";
 import * as html from "./html/mod.ts";
 import * as md from "./markdown/mod.ts";
 import * as ds from "./design-system/essential/mod.ts";

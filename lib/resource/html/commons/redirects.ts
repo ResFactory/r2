@@ -2,7 +2,7 @@ import * as govn from "../../governance.ts";
 import * as c from "../../content/mod.ts";
 import * as fm from "../../frontmatter/mod.ts";
 import * as coll from "../../collection/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as html from "../mod.ts";
 
 // TODO: redirects might also want to generate (yield) .htaccess files too?

@@ -5,7 +5,7 @@ import * as git from "../../../../lib/git/mod.ts";
 import * as k from "../../../../lib/knowledge/mod.ts";
 import * as ws from "../../../../lib/text/whitespace.ts";
 import * as c from "../../content/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as ua from "../../design-system/universal/assets.ts";
 import * as html from "../../html/mod.ts";
 import * as mod from "./mod.ts";

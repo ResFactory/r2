@@ -1,7 +1,7 @@
 import { fs, path } from "../deps.ts";
 import * as safety from "../../../lib/safety/mod.ts";
 import * as govn from "../governance.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as md from "../markdown/mod.ts";
 import * as module from "../module.ts";
 import * as html from "../html/mod.ts";

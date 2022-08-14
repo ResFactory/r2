@@ -1,6 +1,6 @@
 import * as govn from "../resource/governance.ts";
 import * as coll from "../resource/collection/mod.ts";
-import * as r from "../resource/route/mod.ts";
+import * as r from "../route/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;

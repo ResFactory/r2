@@ -5,7 +5,7 @@ import * as extn from "../../lib/module/mod.ts";
 import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
-import * as r from "./route/mod.ts";
+import * as r from "../route/mod.ts";
 import * as ren from "./render/mod.ts";
 import * as p from "./persist/mod.ts";
 

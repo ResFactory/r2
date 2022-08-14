@@ -1,4 +1,4 @@
-import * as r from "../../../../route/mod.ts";
+import * as r from "../../../../../route/mod.ts";
 import * as ldsGovn from "../../governance.ts";
 import * as icon from "./icon.ts";
 

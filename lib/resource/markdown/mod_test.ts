@@ -5,7 +5,7 @@ import * as fsr from "../../../lib/fs/fs-route.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as direc from "./directive/mod.ts";
 import * as mod from "./mod.ts";
 

@@ -11,7 +11,7 @@ import * as l from "./layout.ts";
 import * as n from "./nature.ts";
 import * as htmlRen from "./render.ts";
 import * as coll from "../collection/mod.ts";
-import * as r from "../route/mod.ts";
+import * as r from "../../route/mod.ts";
 import * as ren from "../render/mod.ts";
 import * as p from "../persist/mod.ts";
 

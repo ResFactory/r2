@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "../../deps-test.ts";
 import * as extn from "../../../../lib/module/mod.ts";
 import * as c from "../../content/mod.ts";
-import * as r from "../../route/mod.ts";
+import * as r from "../../../route/mod.ts";
 import * as ldsGovn from "./governance.ts";
 import * as git from "../../../../lib/git/mod.ts";
 import * as k from "../../../../lib/knowledge/mod.ts";
