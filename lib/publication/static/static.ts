@@ -2,7 +2,7 @@ import { fs, path } from "../deps.ts";
 
 import * as st from "../../statistics/stream.ts";
 import * as k from "../../knowledge/mod.ts";
-import * as fsr from "../../fs/fs-route.ts";
+import * as fsr from "../../route/fs-route-parse.ts";
 import * as fsLink from "../../fs/link.ts";
 import * as gi from "../../structure/govn-index.ts";
 import * as m from "../../metrics/mod.ts";
