@@ -12,6 +12,7 @@ export type FileExtnModifiers = string[];
 export interface ParsedFileSysRoute {
   readonly parsedPath: path.ParsedPath;
   readonly modifiers?: FileExtnModifiers;
+  readonly modifiersText?: string;
   readonly routeUnit: { readonly unit: string; readonly label: string };
 }
 
@@ -48,6 +49,7 @@ export const typicalFileSysRouteParser: FileSysRouteParser = (fsp) => {
     return {
       parsedPath,
       modifiers,
+      modifiersText: modifiers ? modifiers.join("") : undefined,
       routeUnit: { unit: parsedPath.name, label: parsedPath.name },
     };
   }

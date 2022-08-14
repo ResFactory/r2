@@ -2,6 +2,10 @@ import * as r from "../../../../../route/mod.ts";
 import * as ldsGovn from "../../governance.ts";
 import * as icon from "./icon.ts";
 
+function isHintable(item: r.RouteNode): item is r.RouteNode & { hint: string } {
+  return "hint" in item ? true : false;
+}
+
 export const contextBarPartial: ldsGovn.LightningPartial = (layout) => {
   const cbs = layout.contentStrategy.branding.contextBarSubject;
   const subject = typeof cbs === "function"
@@ -77,8 +81,8 @@ export const contextBarPartial: ldsGovn.LightningPartial = (layout) => {
       <ul class="slds-grid">
         ${layout.contentStrategy.navigation?.contextBarItems(layout).map(item => { return `
         <li class="slds-context-bar__item${layout.activeRoute?.inRoute(item) ? ' slds-is-active' : ''}">
-          <a href="${layout.contentStrategy.navigation?.location(item)}" class="slds-context-bar__label-action" ${item.hint ? `title="${item.hint}"` : '' }">
-            <span class="slds-truncate"${item.hint ? ` title="${item.hint}"` : '' }>${item.label}</span>
+          <a href="${layout.contentStrategy.navigation?.location(item)}" class="slds-context-bar__label-action" ${isHintable(item) ? `title="${item.hint}"` : '' }">
+            <span class="slds-truncate"${isHintable(item) ? ` title="${item.hint}"` : '' }>${item.label}</span>
           </a>
         </li>`}).join("\n")}
       </ul>
@@ -116,7 +120,7 @@ export function routeTreePartial(
               ${icon.renderedButtonIcon(layout, "chevronright")}
               <span class="slds-assistive-text">Expand ${caption}</span>
           </button>
-          <span class="slds-tree__item-label" title="${rtn.hint || caption}"><a href="${layout.contentStrategy.navigation?.location(rtn)}">${caption}<a/></span>
+          <span class="slds-tree__item-label" title="${(isHintable(rtn) ? rtn.hint : caption) || caption}"><a href="${layout.contentStrategy.navigation?.location(rtn)}">${caption}<a/></span>
       </div>
       ${rtn.children.length > 0 ? routeTreePartial(rtn, layout, level+1) : '<!-- leaf node -->'}
     </li>`}).join("\n")}

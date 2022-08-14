@@ -6,6 +6,10 @@ import * as git from "../../../../lib/git/mod.ts";
 import * as ws from "../../../../lib/workspace/mod.ts";
 import * as k from "../../../../lib/knowledge/mod.ts";
 
+function isHintable(item: r.RouteNode): item is r.RouteNode & { hint: string } {
+  return "hint" in item ? true : false;
+}
+
 export const typicalBodyPartial: dsGovn.EssentialPartial = (layout, body) => {
   return body
     ? `${
@@ -125,7 +129,7 @@ export function routeTreePartial(
                 ICON chevronright
                 <span class="slds-assistive-text">Expand ${caption}</span>
             </button>
-            <span class="slds-tree__item-label" title="${rtn.hint || caption}"><a href="${layout.contentStrategy.navigation?.location(rtn)}">${caption}<a/></span>
+            <span class="slds-tree__item-label" title="${(isHintable(rtn) ? rtn.hint : caption) || caption}"><a href="${layout.contentStrategy.navigation?.location(rtn)}">${caption}<a/></span>
         </div>
         ${rtn.children.length > 0 ? routeTreePartial(rtn, layout, level+1) : '<!-- leaf node -->'}
       </li>`}).join("\n")}

@@ -94,6 +94,7 @@ Deno.test(`typical file sys route parser`, () => {
       label: "module-2_Component--_  1,=service_2",
     },
     modifiers: undefined,
+    modifiersText: undefined,
   });
 });
 
@@ -116,6 +117,7 @@ Deno.test(`typical file sys route parser with modifiers`, () => {
       label: "index",
     },
     modifiers: [".md", ".html"],
+    modifiersText: ".md.html",
   });
 });
 

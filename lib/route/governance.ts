@@ -50,7 +50,6 @@ export type RedirectSupplier = RedirectUrlSupplier | RedirectNodeSupplier;
 export interface RouteUnit
   extends RouteUnitLabelSupplier, Partial<e.ExtensionsSupplier> {
   readonly unit: RouteUnitName;
-  readonly hint?: string;
   readonly isIntermediate?: boolean;
   readonly aliases?: RouteAlias[];
   readonly targetableID?: TargetableRouteIdentity;
@@ -126,8 +125,8 @@ export interface RouteOrigin {
 export interface ModuleRouteOrigin extends RouteOrigin, e.LocationSupplier {
 }
 
-export interface RouteOriginSupplier {
-  readonly origin: ModuleRouteOrigin;
+export interface RouteOriginSupplier<O extends RouteOrigin> {
+  readonly origin: O;
 }
 
 export interface Route<Unit extends RouteNode = RouteNode>
@@ -135,7 +134,7 @@ export interface Route<Unit extends RouteNode = RouteNode>
     RouteUnits<Unit>,
     ParsedRouteConsumer,
     Partial<RouteNatureSupplier<Any>>,
-    Partial<RouteOriginSupplier> {
+    Partial<RouteOriginSupplier<Any>> {
   readonly inRoute: (
     unit: RouteNode,
   ) => RouteNode | undefined;
