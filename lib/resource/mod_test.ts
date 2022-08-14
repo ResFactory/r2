@@ -1,5 +1,4 @@
 import { testingAsserts as ta } from "./deps-test.ts";
-import { path } from "./deps.ts";
 import * as extn from "../../lib/module/mod.ts";
 import * as git from "../../lib/git/mod.ts";
 import * as k from "../../lib/knowledge/mod.ts";
@@ -8,7 +7,6 @@ import * as c from "./content/mod.ts";
 import * as coll from "./collection/mod.ts";
 import * as fm from "./frontmatter/mod.ts";
 import * as r from "../route/mod.ts";
-import * as html from "./html/mod.ts";
 import * as md from "./markdown/mod.ts";
 import * as ds from "./design-system/essential/mod.ts";
 
