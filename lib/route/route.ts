@@ -2,7 +2,7 @@ import { log, path } from "./deps.ts";
 import * as safety from "../safety/mod.ts";
 import * as e from "../module/mod.ts";
 import * as ws from "../workspace/mod.ts";
-import * as fsr from "./fs-route.ts";
+import * as fsrp from "./fs-route-parse.ts";
 import * as fm from "../text/frontmatter.ts";
 import * as govn from "./governance.ts";
 
@@ -472,7 +472,7 @@ export class TypicalRouteFactory implements govn.RouteFactory {
 
 export interface FileSysRouteOptions {
   readonly fsRouteFactory: FileSysRouteFactory;
-  readonly routeParser: fsr.FileSysRouteParser;
+  readonly routeParser: fsrp.FileSysRouteParser;
   readonly extensionsManager: e.ExtensionsManager;
   readonly log?: log.Logger;
 }

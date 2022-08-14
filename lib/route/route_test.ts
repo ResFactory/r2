@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { log, path } from "./deps.ts";
 import { CachedExtensions } from "../module/mod.ts";
-import * as fsr from "./fs-route.ts";
+import * as fsr from "./fs-route-parse.ts";
 import * as fm from "../text/frontmatter.ts";
 import * as govn from "./governance.ts";
 import * as mod from "./mod.ts";

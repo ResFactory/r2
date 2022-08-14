@@ -13,7 +13,7 @@ Terminology:
 
 # TODO
 
-- [ ] `../fs/fs-route.ts` canonical should be `./fs-route.ts` -- right now,
-      other libraries are using `../fs/fs-route.ts` and should be updated
+- [ ] `../fs/fs-route.ts` canonical should be `./fs-route-parse.ts` -- right
+      now, other libraries are using `../fs/fs-route.ts` and should be updated
 - [ ] use `route-tree_test.sh` to generate fs routes dynamically and execute
       tests

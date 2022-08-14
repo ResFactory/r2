@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import { path } from "../deps.ts";
 import * as extn from "../../../lib/module/mod.ts";
-import * as fsr from "../../../lib/route/fs-route.ts";
+import * as fsrp from "../../../lib/route/fs-route-parse.ts";
 import * as c from "../content/mod.ts";
 import * as coll from "../collection/mod.ts";
 import * as fm from "../frontmatter/mod.ts";
@@ -190,7 +190,7 @@ Deno.test(`acquire Markdown from local file and render`, async (tc) => {
 
   const fsRouteOptions: r.FileSysRouteOptions = {
     fsRouteFactory,
-    routeParser: fsr.humanFriendlyFileSysRouteParser,
+    routeParser: fsrp.humanFriendlyFileSysRouteParser,
     extensionsManager: em,
   };
 
