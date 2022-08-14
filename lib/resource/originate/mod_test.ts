@@ -1,7 +1,7 @@
 import { testingAsserts as ta } from "../deps-test.ts";
 import { path } from "../deps.ts";
 import * as extn from "../../../lib/module/mod.ts";
-import * as fsr from "../../../lib/fs/fs-route.ts";
+import * as fsr from "../../../lib/route/fs-route.ts";
 import * as c from "../content/mod.ts";
 import * as r from "../../route/mod.ts";
 import * as md from "../markdown/mod.ts";
