@@ -1,6 +1,7 @@
 import { testingAsserts as ta } from "./deps-test.ts";
 import * as govn from "./governance.ts";
 import * as r from "./route.ts";
+import * as fsr from "./fs-route.ts";
 import * as mod from "./route-tree.ts";
 
 const root1: govn.RouteUnit = {
@@ -59,7 +60,7 @@ const m2Component1Service1Route: govn.RouteUnits = {
 Deno.test(`tree nodes`, () => {
   const rf = new r.TypicalRouteFactory(
     r.defaultRouteLocationResolver(),
-    r.defaultRouteWorkspaceEditorResolver(() => undefined),
+    fsr.defaultRouteWorkspaceEditorResolver(() => undefined),
   );
   const tree = new mod.TypicalRouteTree(rf);
   tree.consumeRoute(rf.route(homeRoute));
@@ -134,7 +135,7 @@ Deno.test(`tree nodes`, () => {
 Deno.test(`tree nodes selector`, () => {
   const rf = new r.TypicalRouteFactory(
     r.defaultRouteLocationResolver(),
-    r.defaultRouteWorkspaceEditorResolver(() => undefined),
+    fsr.defaultRouteWorkspaceEditorResolver(() => undefined),
   );
   const tree = new mod.TypicalRouteTree(rf);
   const homeNode = tree.consumeRoute(rf.route(homeRoute));

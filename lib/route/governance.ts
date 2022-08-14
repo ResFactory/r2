@@ -217,3 +217,10 @@ export interface RouteTree extends RouteTargetsSupplier {
 export interface RouteTreeSupplier<Tree extends RouteTree = RouteTree> {
   readonly routeTree: Tree;
 }
+
+export interface RouteLocationResolver {
+  (
+    node: RouteNode,
+    options?: RouteLocationOptions,
+  ): RouteLocation;
+}

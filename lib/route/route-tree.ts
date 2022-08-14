@@ -1,6 +1,7 @@
 import * as safety from "../safety/mod.ts";
 import * as govn from "./governance.ts";
 import * as r from "./route.ts";
+import * as fsr from "./fs-route.ts";
 
 export const isRouteTreeSupplier = safety.typeGuard<govn.RouteTreeSupplier>(
   "routeTree",
@@ -251,7 +252,7 @@ export class TypicalRouteTree implements govn.RouteTree {
         };
         collection.push(result);
         this.locations.set(result.qualifiedPath, result);
-        if (r.isFileSysRouteUnit(routeNode)) {
+        if (fsr.isFileSysRouteUnit(routeNode)) {
           this.fileSysPaths.set(routeNode.fileSysPath, result);
         }
         if (result.targetableID) this.registerTargetableNode(result);
