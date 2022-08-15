@@ -205,6 +205,8 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
       spaces allocated for the records are removed.
 - [ ] COMMENT: This is used to add comments to the data dictionary.
 - [ ] RENAME: This is used to rename an object existing in the database.
+- [ ] support
+      [multi-tenant SaaS using Row-Level Security](https://www.thenile.dev/blog/multi-tenant-rls)
 
 ### DQL (Data Query Language)
 
@@ -220,6 +222,8 @@ There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
         to of SQL, allow simple `filter` key on the criteria record similar to
         EdgeDB to introduce JOINs.
   - [ ] composable `order` and `page` helpers.
+- [ ] support
+      [multi-tenant SaaS using Row-Level Security](https://www.thenile.dev/blog/multi-tenant-rls)
 - [ ] generate SQL from [PRQL](https://github.com/prql/prql) using CLI or WASM
       bindigns.
 - [ ] Embed SQL statement identities into SQL comments so that slow query
