@@ -7,6 +7,15 @@ import * as erd from "../diagram/mod.ts";
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
+// TODO Check out [dbtvault](https://dbtvault.readthedocs.io/en/latest/tutorial/tut_hubs/)
+//      for implementations of Transactional Links, Effectivity Satellites,
+//      Multi-Active Satellites, Extended Tracking Satellites, As of Date Tables,
+//      Point In Time (PIT) tables, and Bridge Tables.
+// TODO follow [best practices](https://dbtvault.readthedocs.io/en/latest/best_practices/)
+// TODO see if it makes sense to use Typescript as the source to just generate
+//      `dbt` artifacts for transformations as a potential augment to PostgreSQL stored
+//      procedures and `pgSQL`.
+
 export interface DataVaultDomainGovn {
   readonly isDigestPrimaryKeyMember?: boolean;
   readonly isSurrogateKey?: boolean;

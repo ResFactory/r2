@@ -333,6 +333,7 @@ These engines / dialects are supported:
   - [ ] Test with [postlite](https://github.com/benbjohnson/postlite) to allow
         access to SQLite remotely
 - [x] PostgreSQL
+- [ ] [dbt](https://www.getdbt.com/) artifacts for transformations
 - [x] read-only shell commands
   - [x] `mergestat` Git SQL
   - [x] `fselect` File System SQL
