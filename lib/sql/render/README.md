@@ -187,6 +187,9 @@ When two or more domains need to be coordinated, they are called multi-domains.
 See [EdgeDB Migrations](https://www.edgedb.com/showcase/migrations) for some
 interesting ideas.
 
+Consider generating [Flyway](https://flywaydb.org/documentation/command/migrate)
+and Liquibase migrations.
+
 ### DDL (Data Definition Language)
 
 There are two types of DDL: _seed_ and _evolution_ (also known as _migration_).
@@ -429,6 +432,8 @@ The system generates lint messages:
       [Zod](https://github.com/colinhacks/zod)) because
       [Zod's ecosystem](https://github.com/colinhacks/zod#ecosystem) appears
       robust
+  - [ ] See [Slonik](https://github.com/gajus/slonik) integration with Zod as
+        inspiration
 
 ## Architecture
 
