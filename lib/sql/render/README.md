@@ -336,6 +336,8 @@ These engines / dialects are supported:
   - [ ] Test with [postlite](https://github.com/benbjohnson/postlite) to allow
         access to SQLite remotely
 - [x] PostgreSQL
+  - [ ] Create public [bit.io](https://bit.io/) PostgreSQL database to run unit
+        tests
 - [ ] [dbt](https://www.getdbt.com/) artifacts for transformations
 - [x] read-only shell commands
   - [x] `mergestat` Git SQL
@@ -452,6 +454,7 @@ The system generates lint messages:
 - [ ] Support DOP principles described in
       https://www.manning.com/books/data-oriented-programming
 - [ ] Use https://github.com/lorint/AdventureWorks-for-Postgres for unit tests?
+  - [ ] Use public [bit.io](https://bit.io/) PostgreSQL database for tests?
 - [ ] Use https://github.com/manyuanrong/sql-builder to add tableDefn.select``
 - [ ] Add type-safe where criteria builder in DQL SELECT statements so that
       outbound select columns are properly typed but so are in-bound where
