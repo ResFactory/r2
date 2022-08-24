@@ -347,6 +347,10 @@ These engines / dialects are supported:
   - [ ] `cloudquery` infrastructure SQL
   - [ ] `iasql` infrastructure SQL
   - [ ] [octosql](https://github.com/cube2222/octosql) poly-source SQL
+  - [ ] [dsq](https://github.com/multiprocessio/dsq) poly-source SQL with logs
+        support; includes
+        [go-sqlite3-stdlib](https://github.com/multiprocessio/go-sqlite3-stdlib)
+        advanced statistical support as well
 - [ ] AlaSQL
 - [x] read-write shell commands
   - [ ] [Universal CLI](https://github.com/xo/usql)
@@ -443,6 +447,8 @@ The system generates lint messages:
 
 ## TODO
 
+- [ ] integrate [sqlean](https://github.com/nalgeon/sqlean) for advanced SQLite
+      functions
 - [ ] see if we can get types from SQL select strings using
       [Extract parameter types from string literal types](https://lihautan.com/extract-parameters-type-from-string-literal-types-with-typescript/)
 - [ ] Incorporate A16z's

@@ -4,6 +4,10 @@ import * as SQLa from "../render/mod.ts";
 import * as ex from "../execute/mod.ts";
 import * as eng from "./engine.ts";
 
+// TODO: use [sqlean](https://github.com/nalgeon/sqlean) for advanced SQL functions
+//       use [go-sqlite3-stdlib](https://github.com/multiprocessio/go-sqlite3-stdlib)
+//       if integrating with Go.
+
 // deno-lint-ignore no-explicit-any
 type Any = any;
 
