@@ -333,8 +333,12 @@ These engines / dialects are supported:
 
 - [x] ANSI SQL
 - [x] SQLite
-  - [ ] Test with [postlite](https://github.com/benbjohnson/postlite) to allow
-        access to SQLite remotely
+  - [ ] Test with [postlite](https://github.com/benbjohnson/postlite),
+        [rqlite](https://github.com/rqlite/rqlite) or
+        [mvSQLite](https://github.com/losfair/mvsqlite) to allow access to
+        SQLite remotely
+- [ ] [DuckDB](https://duckdb.org/) in-processSQL OLAP database management
+      system
 - [x] PostgreSQL
   - [ ] Create public [bit.io](https://bit.io/) PostgreSQL database to run unit
         tests
