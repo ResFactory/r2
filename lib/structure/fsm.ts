@@ -1,4 +1,4 @@
-import * as events from "https://raw.githubusercontent.com/ihack2712/eventemitter/1.2.4/mod.ts";
+import * as events from "https://deno.land/x/eventemitter@1.2.4/mod.ts";
 import * as safety from "../../lib/safety/mod.ts";
 
 export interface StateTransition<Event, State> {

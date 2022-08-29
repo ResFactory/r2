@@ -1,8 +1,8 @@
 import * as colors from "https://deno.land/std@0.147.0/fmt/colors.ts";
-import * as events from "https://raw.githubusercontent.com/ihack2712/eventemitter/1.2.4/mod.ts";
+import * as events from "https://deno.land/x/eventemitter@1.2.4/mod.ts";
 
 // we export this since it's comprises the core Taskfile.ts "Tasks" instance.
-export { EventEmitter } from "https://raw.githubusercontent.com/ihack2712/eventemitter/1.2.4/mod.ts";
+export { EventEmitter } from "https://deno.land/x/eventemitter@1.2.4/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
