@@ -337,7 +337,8 @@ These engines / dialects are supported:
         [rqlite](https://github.com/rqlite/rqlite) or
         [mvSQLite](https://github.com/losfair/mvsqlite) to allow access to
         SQLite remotely
-- [ ] [DuckDB](https://duckdb.org/) in-processSQL OLAP database management
+- [ ] [SurrealDB](https://surrealdb.com/)
+- [ ] [DuckDB](https://duckdb.org/) in-process SQL OLAP database management
       system
 - [x] PostgreSQL
   - [ ] Create public [bit.io](https://bit.io/) PostgreSQL database to run unit
