@@ -340,6 +340,34 @@ export function dateTimeNullable<
   };
 }
 
+export function float<Context extends tmpl.SqlEmitContext>(
+  axiom: ax.AxiomSerDe<number> = ax.float(),
+  asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
+): AxiomSqlDomain<number, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `FLOAT` }),
+    isOptional: false,
+    referenceASD: () => float(),
+    referenceNullableASD: () => floatNullable(),
+    ...asdOptions,
+  };
+}
+
+export function floatNullable<Context extends tmpl.SqlEmitContext>(
+  axiom: ax.AxiomSerDe<number | undefined> = ax.floatOptional(),
+  asdOptions?: Partial<AxiomSqlDomain<number, Context>>,
+): AxiomSqlDomain<number | undefined, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `FLOAT` }),
+    isOptional: true,
+    referenceASD: () => float(),
+    referenceNullableASD: () => floatNullable(),
+    ...asdOptions,
+  };
+}
+
 export function createdAt<
   Context extends tmpl.SqlEmitContext,
 >(): AxiomSqlDomain<Date | undefined, Context> {

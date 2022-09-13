@@ -66,6 +66,9 @@ Deno.test("type-safe data domains", async (tc) => {
     date_time: mod.dateTime(),
     date_time_custom: mod.dateTime(ax.dateTime($.date)),
     date_time_nullable: mod.dateTimeNullable(),
+    float: mod.float(),
+    float_nullable: mod.floatNullable(),
+    float_custom: mod.float(ax.float($.number)),
 
     // passing in Axiom without domain wrapper will be a "lint" error for
     // mod.sqlDomains but OK for Axiom
@@ -97,6 +100,8 @@ Deno.test("type-safe data domains", async (tc) => {
       date_custom: new Date(),
       date_time: new Date(),
       date_time_custom: new Date(),
+      float: 1.5,
+      float_custom: 2.5,
       // bad: "hello"
     };
   });
@@ -172,6 +177,8 @@ Deno.test("type-safe data domains", async (tc) => {
       date_custom: new Date(),
       date_time: new Date(),
       date_time_custom: new Date(),
+      float: 1.5,
+      float_custom: 2.5,
       // bad: "hello"
     };
 
@@ -194,5 +201,7 @@ Deno.test("type-safe data domains", async (tc) => {
     expectType<Date>(synthetic.date_custom);
     expectType<Date>(synthetic.date_time);
     expectType<Date>(synthetic.date_time_custom);
+    expectType<number>(synthetic.float);
+    expectType<number>(synthetic.float_custom);
   });
 });

@@ -331,6 +331,30 @@ export function integerOptional(
   };
 }
 
+export function float(
+  axiom: ax.Axiom<number> = ax.$.number,
+  atOptions?: Partial<AxiomSerDe<number>>,
+): AxiomSerDe<number> {
+  return {
+    ...axiom,
+    fromText: (text) => parseFloat(text),
+    isOptional: false,
+    ...atOptions,
+  };
+}
+
+export function floatOptional(
+  axiom: ax.Axiom<number | undefined> = ax.$.number.optional(),
+  atOptions?: Partial<AxiomSerDe<number>>,
+): AxiomSerDe<number | undefined> {
+  return {
+    ...axiom,
+    fromText: (text) => parseFloat(text),
+    isOptional: true,
+    ...atOptions,
+  };
+}
+
 export function bigint(
   axiom: ax.Axiom<bigint> = ax.$.bigint,
   atOptions?: Partial<AxiomSerDe<bigint>>,
