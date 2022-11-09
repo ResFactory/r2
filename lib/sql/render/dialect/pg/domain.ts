@@ -2,6 +2,7 @@ import * as safety from "../../../../safety/mod.ts";
 import * as tmpl from "../../template/mod.ts";
 import * as d from "../../domain.ts";
 import { unindentWhitespace as uws } from "../../../../text/whitespace.ts";
+import * as ax from "../../../../axiom/mod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -97,5 +98,61 @@ export function pgDomainDefn<
     domainName: domainName,
     isIdempotent,
     ...result,
+  };
+}
+
+export function serial<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<number> = ax.integer(),
+  asdOptions?: Partial<d.AxiomSqlDomain<number, Context>>,
+): d.AxiomSqlDomain<number, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `` }),
+    isOptional: false,
+    referenceASD: () => serial(),
+    referenceNullableASD: () => serialNullable(),
+    ...asdOptions,
+  };
+}
+
+export function serialNullable<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<number | undefined> = ax.integerOptional(),
+  asdOptions?: Partial<d.AxiomSqlDomain<number, Context>>,
+): d.AxiomSqlDomain<number | undefined, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `INTEGER` }),
+    isOptional: true,
+    referenceASD: () => d.integer(),
+    referenceNullableASD: () => serialNullable(),
+    ...asdOptions,
+  };
+}
+
+export function timestamp<
+  Context extends tmpl.SqlEmitContext,
+>(): d.AxiomSqlDomain<Date | undefined, Context> {
+  return timestampNullable(undefined, {
+    sqlDefaultValue: () => ({ SQL: () => `CURRENT_TIMESTAMP` }),
+  });
+}
+
+export function timestampNullable<
+  Context extends tmpl.SqlEmitContext,
+>(
+  axiom: ax.AxiomSerDe<Date | undefined> = ax.dateTimeOptional(),
+  asdOptions?: Partial<d.AxiomSqlDomain<Date | undefined, Context>>,
+): d.AxiomSqlDomain<Date | undefined, Context> {
+  return {
+    ...axiom,
+    sqlDataType: () => ({ SQL: () => `TIMESTAMP` }),
+    isOptional: true,
+    referenceASD: () => timestamp(),
+    referenceNullableASD: () => timestampNullable(),
+    ...asdOptions,
   };
 }
