@@ -85,7 +85,7 @@ export function tabularRecordsAutoRowIdBuilder<
       if (exists) return exists;
 
       (record as govn.MutatableTabularRecordIdSupplier).id = insertRowID;
-      const inserted = record as Inserted;
+      const inserted = record as unknown as Inserted;
       if (!inspectForDefn) inspectForDefn = inserted;
       records.push(inserted);
       if (typeof insertRowID == "string") {

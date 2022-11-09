@@ -89,7 +89,7 @@ export async function redisCache<T>(
     const statistics: Record<string, string> = {};
     Object.entries(result).forEach((entry) => {
       const [key, value] = entry;
-      statistics[key] = typeof value === "object"
+      statistics[key] = typeof value === "string"
         ? Object.keys(value).join(", ")
         : (typeof value).toString();
     });
