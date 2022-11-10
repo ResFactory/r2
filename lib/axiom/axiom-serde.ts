@@ -524,7 +524,7 @@ export function axiomSerDeObject<
      * @param ctx arbitrary context to pass into AxiomSerDe defaultValue() function
      * @returns an "empty" typed SerDeRecord with defaults filled in
      */
-    prepareRecordSync: <Context>(
+    prepareRecordSync: <Context extends AxiomSerDeValueSupplierContext>(
       initValues?: Partial<SerDeRecord>,
       ctx?: Context,
     ) => {
@@ -550,7 +550,7 @@ export function axiomSerDeObject<
      * @param ctx arbitrary context to pass into AxiomSerDe defaultValue() function
      * @returns an "empty" typed SerDeRecord with defaults filled in
      */
-    prepareRecord: async <Context>(
+    prepareRecord: async <Context extends AxiomSerDeValueSupplierContext>(
       initValues?: Partial<SerDeRecord>,
       ctx?: Context,
     ) => {
