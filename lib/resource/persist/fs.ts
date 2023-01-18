@@ -286,8 +286,8 @@ export async function persistResourceFile<
 ): Promise<false | govn.FileSysPersistResult<Context>> {
   let pcfPO = options;
   if (pcfPO) {
-    if (pcfPO.context && !("resource" in pcfPO.context)) {
-      pcfPO = { ...pcfPO, context: { ...pcfPO.context, resource } };
+    if (pcfPO.context && typeof pcfPO.context === "object" && !("resource" in pcfPO.context)) {
+      pcfPO = { ...pcfPO, context: { ...(pcfPO.context as Context), resource } };
     } else {
       pcfPO = { ...pcfPO };
       // deno-lint-ignore no-explicit-any
